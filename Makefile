@@ -10,10 +10,6 @@ SCHEME ?= HappyPianistAVP
 APP_NAME ?= HappyPianistAVP
 BUNDLE_ID ?= com.chiimagnus.HappyPianistAVP
 CONFIGURATION ?= Debug
-MAC_SCHEME ?= HappyPianistMac
-MAC_DESTINATION ?= platform=macOS,arch=arm64
-MAC_BUNDLE_ID ?= com.chiimagnus.HappyPianistMac
-MAC_ONLY_TESTING ?=
 
 SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
 SIMULATOR_NAME ?= Apple Vision Pro
@@ -31,7 +27,6 @@ XCODE_DEVELOPER_DIR ?= $(shell xcode-select -p 2>/dev/null)
 RESULT_BUNDLE_DIR ?= .build/TestResults
 SIMULATOR_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Simulator.xcresult
 DEVICE_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Device.xcresult
-MAC_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistMac.xcresult
 
 define remove_result_bundle
 	@attempt=0; while [ $$attempt -lt 5 ]; do \
@@ -94,12 +89,10 @@ DEVICE_XCODEBUILD_FLAGS ?= -allowProvisioningUpdates
 LOG_STYLE ?= compact
 LOG_LEVEL ?= info
 LOG_PREDICATE ?= subsystem == "$(BUNDLE_ID)"
-MAC_LOG_PREDICATE ?= subsystem == "$(MAC_BUNDLE_ID)"
 
 SIMULATOR_DESTINATION = platform=visionOS Simulator,id=$(SIMULATOR_ID)
 DEVICE_DESTINATION = platform=visionOS,id=$(DEVICE_ID)
 TEST_SELECTION = $(if $(strip $(ONLY_TESTING)),-only-testing:$(ONLY_TESTING),)
-MAC_TEST_SELECTION = $(if $(strip $(MAC_ONLY_TESTING)),-only-testing:$(MAC_ONLY_TESTING),)
 
 # 有意省略 -derivedDataPath，让 xcodebuild 对本项目使用与 Xcode 相同的默认
 # DerivedData 目录。
@@ -108,25 +101,13 @@ XCODEBUILD_COMMON = \
 	-scheme "$(SCHEME)" \
 	-configuration "$(CONFIGURATION)"
 
-MAC_XCODEBUILD_COMMON = \
-	-project "$(PROJECT)" \
-	-scheme "$(MAC_SCHEME)" \
-	-configuration "$(CONFIGURATION)"
-
 .PHONY: help doctor config destinations clean
-.PHONY: build\:mac test\:mac run\:mac logs\:mac
 .PHONY: list\:simulator build\:simulator test\:simulator run\:simulator logs\:simulator
 .PHONY: list\:device build\:device test\:device run\:device logs\:device
 
 help: ## 显示可用命令。
 	@printf '%s\n' \
 		'HappyPianistAVP visionOS Make 目标' \
-		'' \
-		'macOS：' \
-		'  make build:mac              构建独立的 macOS App' \
-		'  make test:mac               运行 macOS App 测试' \
-		'  make run:mac                构建并打开 App' \
-		'  make logs:mac               输出 App 结构化日志' \
 		'' \
 		'AVP Simulator：' \
 		'  make build:simulator        构建 visionOS 模拟器版本' \
@@ -142,11 +123,11 @@ help: ## 显示可用命令。
 		'' \
 		'发现、配置与维护：' \
 		'  make doctor                 检查开发环境' \
-		'  make destinations           显示 AVP 和 macOS 可用 destination' \
+		'  make destinations           显示 AVP 可用 destination' \
 		'  make list:simulator         列出可用模拟器' \
 		'  make list:device            列出已配对真机' \
 		'  make config                 显示当前 Make 配置' \
-		'  make clean                  清理 AVP、macOS scheme 和本地测试报告' \
+		'  make clean                  清理 AVP scheme 和本地测试报告' \
 		'' \
 		'DerivedData：' \
 		'  使用 Xcode 默认目录：~/Library/Developer/Xcode/DerivedData/' \
@@ -157,51 +138,8 @@ help: ## 显示可用命令。
 		'  make run:device DEVICE_ID=<udid>' \
 		'  make test:simulator ONLY_TESTING=HappyPianistAVPTests/GrandStaffNotationVisualTests' \
 		'  make build:device CONFIGURATION=Release' \
-		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make logs:simulator LOG_LEVEL=debug  包含 App 调试诊断信息' \
-		'  make logs:mac LOG_LEVEL=debug  包含 App 调试诊断信息' \
 		'  make build:simulator XCODEBUILD_FLAGS=  显示完整的 xcodebuild 输出'
-
-build\:mac: doctor ## 不使用模拟器构建 HappyPianistMac。
-	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
-		-destination '$(MAC_DESTINATION)' \
-		CODE_SIGNING_ALLOWED=NO \
-		$(XCODEBUILD_FLAGS) \
-		build
-	@echo 'build:mac: 构建成功'
-
-test\:mac: doctor ## 不使用模拟器运行 HappyPianistMac 测试。
-	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	$(call remove_result_bundle,$(MAC_RESULT_BUNDLE))
-	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
-		-destination '$(MAC_DESTINATION)' \
-		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
-		CODE_SIGNING_ALLOWED=NO \
-		-parallel-testing-enabled "$(PARALLEL_TESTING)" \
-		-test-timeouts-enabled YES \
-		-default-test-execution-time-allowance "$(TEST_EXECUTION_TIMEOUT_SECONDS)" \
-		-maximum-test-execution-time-allowance "$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)" \
-		-resultBundlePath "$(MAC_RESULT_BUNDLE)" \
-		$(MAC_TEST_SELECTION) \
-		$(XCODEBUILD_FLAGS) \
-		test
-	@echo 'test:mac: 测试成功'
-
-run\:mac: ## 构建并打开 HappyPianistMac。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:mac'
-	@APP_PATH="$$(xcodebuild $(MAC_XCODEBUILD_COMMON) \
-		-destination '$(MAC_DESTINATION)' \
-		CODE_SIGNING_ALLOWED=NO \
-		-showBuildSettings 2>/dev/null | \
-		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
-	test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
-	open "$$APP_PATH"
-
-logs\:mac: ## 输出 HappyPianistMac 的结构化日志。
-	log stream \
-		--style "$(LOG_STYLE)" \
-		--level "$(LOG_LEVEL)" \
-		--predicate '$(MAC_LOG_PREDICATE)'
 
 doctor: ## 检查所需 Apple 命令行工具和 Xcode 工程是否存在。
 	@command -v xcodebuild >/dev/null || { echo '错误：未找到 xcodebuild'; exit 1; }
@@ -216,9 +154,6 @@ config: ## 打印解析后的 Make 配置。
 	@printf '%-26s %s\n' \
 		'PROJECT' '$(PROJECT)' \
 		'SCHEME' '$(SCHEME)' \
-		'MAC_SCHEME' '$(MAC_SCHEME)' \
-		'MAC_DESTINATION' '$(MAC_DESTINATION)' \
-		'MAC_BUNDLE_ID' '$(MAC_BUNDLE_ID)' \
 		'CONFIGURATION' '$(CONFIGURATION)' \
 		'SIMULATOR_NAME' '$(SIMULATOR_NAME)' \
 		'SIMULATOR_ID' '$(SIMULATOR_ID)' \
@@ -232,21 +167,16 @@ config: ## 打印解析后的 Make 配置。
 		'XCODE_DEVELOPER_DIR' '$(XCODE_DEVELOPER_DIR)' \
 		'DERIVED_DATA' '~/Library/Developer/Xcode/DerivedData (Xcode default)' \
 		'RESULT_BUNDLE_DIR' '$(RESULT_BUNDLE_DIR)' \
-		'MAC_RESULT_BUNDLE' '$(MAC_RESULT_BUNDLE)' \
 		'PARALLEL_TESTING' '$(PARALLEL_TESTING)' \
 		'ONLY_TESTING' '$(ONLY_TESTING)' \
-		'MAC_ONLY_TESTING' '$(MAC_ONLY_TESTING)' \
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)' \
-		'MAC_LOG_PREDICATE' '$(MAC_LOG_PREDICATE)' \
 		'XCODEBUILD_FLAGS' '$(XCODEBUILD_FLAGS)'
 
-destinations: doctor ## 显示 AVP 和 macOS scheme 接受的 destination。
+destinations: doctor ## 显示 AVP scheme 接受的 destination。
 	@echo 'HappyPianistAVP 可用 destination：'
 	xcodebuild -showdestinations -project "$(PROJECT)" -scheme "$(SCHEME)"
-	@echo 'HappyPianistMac 可用 destination：'
-	xcodebuild -showdestinations $(MAC_XCODEBUILD_COMMON)
 
 list\:simulator: ## 列出可用的 visionOS 模拟器设备。
 	xcrun simctl list devices available | grep -A 40 -E '^-- visionOS|Apple Vision Pro' || true
@@ -348,7 +278,6 @@ logs\:device: ## 在真机上启动并附加标准输出/错误，直到进程�
 	@$(call install_device_app)
 	xcrun devicectl device process launch --console --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
-clean: doctor ## 清理 Xcode 默认 DerivedData 中的 AVP/macOS scheme，并删除本地测试报告。
+clean: doctor ## 清理 Xcode 默认 DerivedData 中的 AVP scheme，并删除本地测试报告。
 	xcodebuild $(XCODEBUILD_COMMON) clean
-	xcodebuild $(MAC_XCODEBUILD_COMMON) clean
 	rm -rf "$(RESULT_BUNDLE_DIR)"

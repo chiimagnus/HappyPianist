@@ -1,18 +1,17 @@
 # 项目概览
 
-HappyPianist 包含空间练习的 visionOS App、独立沙盒的 macOS MusicXML/MIDI App、共享 Swift 核心、RealityKit 内容包，以及可选的 Mac 侧 Aria v2 服务。源码位置、符号和调用关系以 CodeGraph 为准；本文档只保留代码图无法表达的边界。
+HappyPianist 包含空间练习的 visionOS App、共享 Swift 核心、RealityKit 内容包，以及可选的本地 Aria v2 服务。源码位置、符号和调用关系以 CodeGraph 为准；本文档只保留代码图无法表达的边界。
 
 ## 运行边界
 
 | 单元 | 责任 |
 | --- | --- |
 | `HappyPianistAVP` / Tests | 曲库、准备、练习、录制、AI 对弹和沉浸空间。 |
-| `HappyPianistMac` / Tests | 2D 曲库、系统可见 MIDI 端点和 MIDI-only 练习。 |
 | `Packages/HappyPianistCore` | Diagnostics、MusicXML、MIDI、Practice、Notation、Library，以及平台中性 SwiftUI 曲库表现 `LibraryPresentation` 的公开产品。 |
 | `Packages/RealityKitContent` | Reality Composer Pro 资产和 bundle。 |
 | `python_backend/aria_server` | 可选的 Bonjour + HTTP/WS Aria v2 后端。 |
 
-两个 App host 有各自的 composition root 和 App Sandbox；它们只共享 core 的公开产品，不共享视图、平台 adapter 或 Documents container。
+AVP host 负责 composition root 和 App Sandbox；共享包不反向依赖其视图、平台 adapter 或 Documents container。
 
 ## 导航
 

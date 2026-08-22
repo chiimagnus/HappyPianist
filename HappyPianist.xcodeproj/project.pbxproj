@@ -21,32 +21,11 @@
 		A10600000000000000000001 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000003 /* Library */; };
 		A10600000000000000000002 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000004 /* Library */; };
 		A10700000000000000000001 /* LibraryPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = A10700000000000000000003 /* LibraryPresentation */; };
-		B20100000000000000000001 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000001 /* Diagnostics */; };
-		B20100000000000000000002 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000002 /* MusicXML */; };
-		B20100000000000000000003 /* MIDI in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000003 /* MIDI */; };
-		B20100000000000000000004 /* Practice in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000004 /* Practice */; };
-		B20100000000000000000005 /* Notation in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000005 /* Notation */; };
-		B20100000000000000000006 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000006 /* Library */; };
-		B21200000000000000000001 /* LibraryPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = B21200000000000000000002 /* LibraryPresentation */; };
-		B20200000000000000000001 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000001 /* Diagnostics */; };
-		B20200000000000000000002 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000002 /* MusicXML */; };
-		B20200000000000000000003 /* HappyPianistTestFixtures in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000003 /* HappyPianistTestFixtures */; };
-		B20200000000000000000004 /* MIDI in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000004 /* MIDI */; };
-		B20200000000000000000005 /* Practice in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000005 /* Practice */; };
-		B20200000000000000000006 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000006 /* Library */; };
-		B20600000000000000000007 /* SeedScores in Resources */ = {isa = PBXBuildFile; fileRef = B20500000000000000000004 /* SeedScores */; };
 		B20600000000000000000008 /* SeedScores in Resources */ = {isa = PBXBuildFile; fileRef = B20500000000000000000004 /* SeedScores */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		B20700000000000000000001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D8D428052F4DFD3800EC9C9B /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = B20300000000000000000001;
-			remoteInfo = HappyPianistMac;
-		};
 		D85596BD2F83FF74005BE7FE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D8D428052F4DFD3800EC9C9B /* Project object */;
@@ -57,8 +36,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B20400000000000000000001 /* HappyPianistMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B20400000000000000000002 /* HappyPianistMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20500000000000000000004 /* SeedScores */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SeedScores; path = Resources/SeedScores; sourceTree = "<group>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
 		D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -66,13 +43,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		B20500000000000000000003 /* Exceptions for "HappyPianistMac" folder in "HappyPianistMac" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = B20300000000000000000001 /* HappyPianistMac */;
-		};
 		D85596C62F83FF74005BE7FE /* Exceptions for "HappyPianistAVP" folder in "HappyPianistAVP" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -83,19 +53,6 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		B20500000000000000000001 /* HappyPianistMac */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				B20500000000000000000003 /* Exceptions for "HappyPianistMac" folder in "HappyPianistMac" target */,
-			);
-			path = HappyPianistMac;
-			sourceTree = "<group>";
-		};
-		B20500000000000000000002 /* HappyPianistMacTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = HappyPianistMacTests;
-			sourceTree = "<group>";
-		};
 		D85596AA2F83FF72005BE7FE /* HappyPianistAVP */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -112,33 +69,6 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		B20600000000000000000002 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B20100000000000000000001 /* Diagnostics in Frameworks */,
-				B20100000000000000000002 /* MusicXML in Frameworks */,
-				B20100000000000000000003 /* MIDI in Frameworks */,
-				B20100000000000000000004 /* Practice in Frameworks */,
-				B20100000000000000000005 /* Notation in Frameworks */,
-				B20100000000000000000006 /* Library in Frameworks */,
-				B21200000000000000000001 /* LibraryPresentation in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		B20600000000000000000005 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B20200000000000000000001 /* Diagnostics in Frameworks */,
-				B20200000000000000000002 /* MusicXML in Frameworks */,
-				B20200000000000000000003 /* HappyPianistTestFixtures in Frameworks */,
-				B20200000000000000000004 /* MIDI in Frameworks */,
-				B20200000000000000000005 /* Practice in Frameworks */,
-				B20200000000000000000006 /* Library in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D85596A62F83FF72005BE7FE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -178,12 +108,8 @@
 			children = (
 				D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */,
 				D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */,
-				B20400000000000000000001 /* HappyPianistMac.app */,
-				B20400000000000000000002 /* HappyPianistMacTests.xctest */,
 				D85596AA2F83FF72005BE7FE /* HappyPianistAVP */,
 				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
-				B20500000000000000000001 /* HappyPianistMac */,
-				B20500000000000000000002 /* HappyPianistMacTests */,
 				B20500000000000000000004 /* SeedScores */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 			);
@@ -192,64 +118,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B20300000000000000000001 /* HappyPianistMac */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = B20900000000000000000001 /* Build configuration list for PBXNativeTarget "HappyPianistMac" */;
-			buildPhases = (
-				B20600000000000000000001 /* Sources */,
-				B20600000000000000000002 /* Frameworks */,
-				B20600000000000000000003 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				B20500000000000000000001 /* HappyPianistMac */,
-			);
-			name = HappyPianistMac;
-			packageProductDependencies = (
-				B21000000000000000000001 /* Diagnostics */,
-				B21000000000000000000002 /* MusicXML */,
-				B21000000000000000000003 /* MIDI */,
-				B21000000000000000000004 /* Practice */,
-				B21000000000000000000005 /* Notation */,
-				B21000000000000000000006 /* Library */,
-				B21200000000000000000002 /* LibraryPresentation */,
-			);
-			productName = HappyPianistMac;
-			productReference = B20400000000000000000001 /* HappyPianistMac.app */;
-			productType = "com.apple.product-type.application";
-		};
-		B20300000000000000000002 /* HappyPianistMacTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = B20900000000000000000002 /* Build configuration list for PBXNativeTarget "HappyPianistMacTests" */;
-			buildPhases = (
-				B20600000000000000000004 /* Sources */,
-				B20600000000000000000005 /* Frameworks */,
-				B20600000000000000000006 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				B20700000000000000000002 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				B20500000000000000000002 /* HappyPianistMacTests */,
-			);
-			name = HappyPianistMacTests;
-			packageProductDependencies = (
-				B21100000000000000000001 /* Diagnostics */,
-				B21100000000000000000002 /* MusicXML */,
-				B21100000000000000000003 /* HappyPianistTestFixtures */,
-				B21100000000000000000004 /* MIDI */,
-				B21100000000000000000005 /* Practice */,
-				B21100000000000000000006 /* Library */,
-			);
-			productName = HappyPianistMacTests;
-			productReference = B20400000000000000000002 /* HappyPianistMacTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 		D85596A82F83FF72005BE7FE /* HappyPianistAVP */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D85596C72F83FF74005BE7FE /* Build configuration list for PBXNativeTarget "HappyPianistAVP" */;
@@ -314,13 +182,6 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
-					B20300000000000000000001 = {
-						CreatedOnToolsVersion = 26.4;
-					};
-					B20300000000000000000002 = {
-						CreatedOnToolsVersion = 26.4;
-						TestTargetID = B20300000000000000000001;
-					};
 					D85596A82F83FF72005BE7FE = {
 						CreatedOnToolsVersion = 26.4;
 					};
@@ -349,28 +210,11 @@
 			targets = (
 				D85596A82F83FF72005BE7FE /* HappyPianistAVP */,
 				D85596BB2F83FF74005BE7FE /* HappyPianistAVPTests */,
-				B20300000000000000000001 /* HappyPianistMac */,
-				B20300000000000000000002 /* HappyPianistMacTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		B20600000000000000000003 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B20600000000000000000007 /* SeedScores in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		B20600000000000000000006 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D85596A72F83FF72005BE7FE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -389,20 +233,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		B20600000000000000000001 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		B20600000000000000000004 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D85596A52F83FF72005BE7FE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -420,11 +250,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		B20700000000000000000002 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = B20300000000000000000001 /* HappyPianistMac */;
-			targetProxy = B20700000000000000000001 /* PBXContainerItemProxy */;
-		};
 		D85596BE2F83FF74005BE7FE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D85596A82F83FF72005BE7FE /* HappyPianistAVP */;
@@ -433,140 +258,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		B20800000000000000000001 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = HappyPianistMac/HappyPianistMac.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
-				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
-				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
-				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
-				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
-				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
-				ENABLE_RESOURCE_ACCESS_USB = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = HappyPianistMac/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-			};
-			name = Debug;
-		};
-		B20800000000000000000002 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = HappyPianistMac/HappyPianistMac.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
-				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
-				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
-				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
-				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
-				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
-				ENABLE_RESOURCE_ACCESS_USB = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = HappyPianistMac/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		B20800000000000000000003 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMacTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HappyPianistMac.app/Contents/MacOS/HappyPianistMac";
-			};
-			name = Debug;
-		};
-		B20800000000000000000004 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMacTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HappyPianistMac.app/Contents/MacOS/HappyPianistMac";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
 		D85596C22F83FF74005BE7FE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -824,24 +515,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B20900000000000000000001 /* Build configuration list for PBXNativeTarget "HappyPianistMac" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				B20800000000000000000001 /* Debug */,
-				B20800000000000000000002 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		B20900000000000000000002 /* Build configuration list for PBXNativeTarget "HappyPianistMacTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				B20800000000000000000003 /* Debug */,
-				B20800000000000000000004 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		D85596C72F83FF74005BE7FE /* Build configuration list for PBXNativeTarget "HappyPianistAVP" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -948,71 +621,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = LibraryPresentation;
-		};
-		B21000000000000000000001 /* Diagnostics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Diagnostics;
-		};
-		B21000000000000000000002 /* MusicXML */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = MusicXML;
-		};
-		B21000000000000000000003 /* MIDI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = MIDI;
-		};
-		B21000000000000000000004 /* Practice */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Practice;
-		};
-		B21000000000000000000005 /* Notation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Notation;
-		};
-		B21000000000000000000006 /* Library */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Library;
-		};
-		B21200000000000000000002 /* LibraryPresentation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = LibraryPresentation;
-		};
-		B21100000000000000000001 /* Diagnostics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Diagnostics;
-		};
-		B21100000000000000000002 /* MusicXML */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = MusicXML;
-		};
-		B21100000000000000000003 /* HappyPianistTestFixtures */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = HappyPianistTestFixtures;
-		};
-		B21100000000000000000004 /* MIDI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = MIDI;
-		};
-		B21100000000000000000005 /* Practice */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Practice;
-		};
-		B21100000000000000000006 /* Library */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = Library;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
