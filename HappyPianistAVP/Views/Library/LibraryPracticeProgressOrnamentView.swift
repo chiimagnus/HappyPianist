@@ -33,9 +33,9 @@ struct LibraryPracticeProgressOrnamentView: View {
 }
 
 private enum LibraryPracticeOrnamentLayout {
-    static let minimumWidth: CGFloat = 360
-    static let idealWidth: CGFloat = 420
-    static let maximumWidth: CGFloat = 440
+    static let minimumWidth: CGFloat = 320
+    static let idealWidth: CGFloat = 380
+    static let maximumWidth: CGFloat = 420
     static let contentPadding: CGFloat = 24
     static let cardCornerRadius: CGFloat = 22
 }
@@ -756,7 +756,7 @@ private struct LibraryPracticeCardSurfaceModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(.thinMaterial, in: .rect(cornerRadius: cornerRadius))
+            .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: cornerRadius))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .strokeBorder(

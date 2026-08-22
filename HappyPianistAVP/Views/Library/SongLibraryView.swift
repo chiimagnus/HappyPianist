@@ -49,56 +49,18 @@ struct SongLibraryView: View {
             if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
             } else if let selectedEntry, let selectedPresentation {
-                ZStack(alignment: .bottomTrailing) {
-                    VStack(spacing: 0) {
-                        LibraryRecordCarousel(
-                            entries: entries,
-                            selectedEntryID: viewModel.selectedEntryID,
-                            playingEntryID: viewModel.currentListeningEntryID,
-                            isPlaying: selectedIsPlaying,
-                            reduceMotion: reduceMotion,
-                            allowsDestructiveActions: viewModel.importState.isActive == false,
-                            onSelectEntry: viewModel.selectEntry,
-                            onTogglePlayback: togglePlayback,
-                            onImportMusicXML: viewModel.didTapImportMusicXML,
-                            onImmediateDelete: deleteWithoutConfirmation
-                        )
-
-                        LibraryNowPlayingBar(
-                            title: selectedPresentation.title,
-                            subtitle: selectedPresentation.subtitle,
-                            progress: selectedProgress,
-                            currentTime: selectedCurrentTime,
-                            duration: selectedDuration,
-                            isPlaying: selectedIsPlaying,
-                            canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
-                            canPerformPlaybackAction: canPerformPlaybackAction,
-                            playbackTitle: playbackButtonTitle(
-                                requiresAudioImport: requiresAudioImport,
-                                isPlaying: selectedIsPlaying
-                            ),
-                            playbackSystemImage: playbackButtonSystemImage(
-                                requiresAudioImport: requiresAudioImport,
-                                isPlaying: selectedIsPlaying
-                            ),
-                            onPlayback: toggleSelectedPlayback,
-                            onSeek: { progress in
-                                viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
-                            }
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 30)
-                        .padding(.bottom, 22)
-                    }
-
-                    Button("开始练习", systemImage: "music.note") {
-                        viewModel.startPractice(entryID: selectedEntry.id, perform: onStartPractice)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.importState.isActive || !isPracticeSetupReady)
-                    .accessibilityHint(startPracticeAccessibilityHint)
-                    .padding()
-                }
+                LibraryRecordCarousel(
+                    entries: entries,
+                    selectedEntryID: viewModel.selectedEntryID,
+                    playingEntryID: viewModel.currentListeningEntryID,
+                    isPlaying: selectedIsPlaying,
+                    reduceMotion: reduceMotion,
+                    allowsDestructiveActions: viewModel.importState.isActive == false,
+                    onSelectEntry: viewModel.selectEntry,
+                    onTogglePlayback: togglePlayback,
+                    onImportMusicXML: viewModel.didTapImportMusicXML,
+                    onImmediateDelete: deleteWithoutConfirmation
+                )
             }
         }
         .frame(
@@ -124,6 +86,40 @@ struct SongLibraryView: View {
             ToolbarItem(placement: .secondaryAction) {
                 Button("诊断", systemImage: "stethoscope") {
                     isDiagnosticsPresented = true
+                }
+            }
+
+            ToolbarItemGroup(placement: .bottomOrnament) {
+                if let selectedEntry, let selectedPresentation {
+                    LibraryNowPlayingBar(
+                        title: selectedPresentation.title,
+                        subtitle: selectedPresentation.subtitle,
+                        progress: selectedProgress,
+                        currentTime: selectedCurrentTime,
+                        duration: selectedDuration,
+                        isPlaying: selectedIsPlaying,
+                        canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
+                        canPerformPlaybackAction: canPerformPlaybackAction,
+                        playbackTitle: playbackButtonTitle(
+                            requiresAudioImport: requiresAudioImport,
+                            isPlaying: selectedIsPlaying
+                        ),
+                        playbackSystemImage: playbackButtonSystemImage(
+                            requiresAudioImport: requiresAudioImport,
+                            isPlaying: selectedIsPlaying
+                        ),
+                        onPlayback: toggleSelectedPlayback,
+                        onSeek: { progress in
+                            viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
+                        }
+                    )
+
+                    Button("开始练习", systemImage: "music.note") {
+                        viewModel.startPractice(entryID: selectedEntry.id, perform: onStartPractice)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.importState.isActive || !isPracticeSetupReady)
+                    .accessibilityHint(startPracticeAccessibilityHint)
                 }
             }
         }
