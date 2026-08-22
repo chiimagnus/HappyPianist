@@ -54,7 +54,7 @@ ONLY_TESTING ?=
 # ponytail：未安装时回退到原始 xcodebuild，因此 Makefile 不增加硬依赖。
 XCBEAUTIFY ?= $(shell command -v xcbeautify 2>/dev/null)
 XCODEBUILD_OUTPUT ?= $(if $(strip $(XCBEAUTIFY)),2>&1 | $(XCBEAUTIFY),)
-XCODEBUILD_FLAGS ?=
+XCODEBUILD_FLAGS ?= -quiet
 DEVICE_XCODEBUILD_FLAGS ?= -allowProvisioningUpdates
 
 # 开发输出默认聚焦于 App 自己的结构化诊断信息。
@@ -130,7 +130,7 @@ help: ## 显示可用命令。
 		'  make build:device CONFIGURATION=Release' \
 		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make dev LOG_LEVEL=debug    包含 App 调试诊断信息' \
-		'  make build XCODEBUILD_FLAGS=-quiet  使用紧凑的 xcodebuild 输出' \
+		'  make build XCODEBUILD_FLAGS=       显示完整的 xcodebuild 输出' \
 		'  brew install xcbeautify      有条件地格式化 xcodebuild 输出'
 
 build: ## 为配置的 Vision Pro 模拟器构建。
@@ -208,6 +208,7 @@ config: ## 打印解析后的 Make 配置。
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)' \
+		'XCODEBUILD_FLAGS' '$(XCODEBUILD_FLAGS)' \
 		'XCBEAUTIFY' '$(if $(strip $(XCBEAUTIFY)),$(XCBEAUTIFY),not installed)'
 
 destinations: doctor ## 显示 AVP 和 macOS scheme 接受的 destination。
