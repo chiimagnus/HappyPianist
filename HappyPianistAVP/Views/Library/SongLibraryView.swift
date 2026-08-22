@@ -48,10 +48,13 @@ struct SongLibraryView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
+                .padding()
+                
                 Spacer()
                 Button("诊断", systemImage: "stethoscope") {
                     isDiagnosticsPresented = true
                 }
+                .padding()
             }
 
             if entries.isEmpty {
