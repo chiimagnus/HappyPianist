@@ -11,7 +11,7 @@ APP_NAME ?= HappyPianistAVP
 BUNDLE_ID ?= com.chiimagnus.HappyPianistAVP
 CONFIGURATION ?= Debug
 MAC_SCHEME ?= HappyPianistMac
-MAC_DESTINATION ?= platform=macOS
+MAC_DESTINATION ?= platform=macOS,arch=arm64
 MAC_ONLY_TESTING ?=
 
 SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
@@ -93,7 +93,7 @@ help: ## Show available commands.
 		'  make build:mac              Build the isolated macOS host' \
 		'  make test:mac               Run isolated macOS host tests' \
 		'  make dev                    Build, install, launch, then stream app logs only' \
-		'  make clean                  Run Xcode clean and remove local test reports' \
+		'  make clean                  Clean AVP and macOS schemes and local reports' \
 		'' \
 		'Simulator:' \
 		'  make build:simulator' \
@@ -109,7 +109,7 @@ help: ## Show available commands.
 		'  make console:device         Launch and attach stdout/stderr' \
 		'' \
 		'Discovery:' \
-		'  make destinations' \
+		'  make destinations           Show AVP and macOS destinations' \
 		'  make list:simulator' \
 		'  make list:device' \
 		'  make config' \
@@ -146,8 +146,12 @@ test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
 	$(call remove_result_bundle,$(MAC_RESULT_BUNDLE))
 	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
+		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		CODE_SIGNING_ALLOWED=NO \
 		-parallel-testing-enabled "$(PARALLEL_TESTING)" \
+		-test-timeouts-enabled YES \
+		-default-test-execution-time-allowance "$(TEST_EXECUTION_TIMEOUT_SECONDS)" \
+		-maximum-test-execution-time-allowance "$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)" \
 		-resultBundlePath "$(MAC_RESULT_BUNDLE)" \
 		$(MAC_TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
@@ -199,8 +203,11 @@ config: ## Print the resolved Make configuration.
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)'
 
-destinations: doctor ## Show destinations accepted by the AVP scheme.
+destinations: doctor ## Show destinations accepted by the AVP and macOS schemes.
+	@echo 'HappyPianistAVP:'
 	xcodebuild -showdestinations -project "$(PROJECT)" -scheme "$(SCHEME)"
+	@echo 'HappyPianistMac:'
+	xcodebuild -showdestinations $(MAC_XCODEBUILD_COMMON)
 
 list\:simulator: ## List available visionOS Simulator devices.
 	xcrun simctl list devices available | grep -A 40 -E '^-- visionOS|Apple Vision Pro' || true
@@ -322,6 +329,10 @@ test\:device: doctor ## Build, sign, and run tests on the configured physical Vi
 	$(call remove_result_bundle,$(DEVICE_RESULT_BUNDLE))
 	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
+		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
+		-test-timeouts-enabled YES \
+		-default-test-execution-time-allowance "$(TEST_EXECUTION_TIMEOUT_SECONDS)" \
+		-maximum-test-execution-time-allowance "$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)" \
 		-parallel-testing-enabled "$(PARALLEL_TESTING)" \
 		-resultBundlePath "$(DEVICE_RESULT_BUNDLE)" \
 		$(TEST_SELECTION) \
@@ -350,6 +361,7 @@ run\:device: install\:device ## Build, install, and launch on the physical Visio
 console\:device: install\:device ## Launch on device and attach stdout/stderr until exit.
 	xcrun devicectl device process launch --console --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
-clean: doctor ## Clean this scheme in Xcode's default DerivedData and remove local test reports.
+clean: doctor ## Clean AVP and macOS schemes in Xcode's default DerivedData and remove local test reports.
 	xcodebuild $(XCODEBUILD_COMMON) clean
+	xcodebuild $(MAC_XCODEBUILD_COMMON) clean
 	rm -rf "$(RESULT_BUNDLE_DIR)"
