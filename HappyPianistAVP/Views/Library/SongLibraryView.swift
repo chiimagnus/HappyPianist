@@ -112,8 +112,6 @@ struct SongLibraryView: View {
             contentAlignment: .bottom
         ) {
             LibraryTopActionsOrnament(
-                isImporting: viewModel.importState.isActive,
-                onImport: viewModel.didTapImportMusicXML,
                 onChoosePiano: onChoosePiano,
                 onShowDiagnostics: { isDiagnosticsPresented = true }
             )
@@ -365,15 +363,11 @@ private enum LibraryWindowLayout {
 }
 
 private struct LibraryTopActionsOrnament: View {
-    let isImporting: Bool
-    let onImport: () -> Void
     let onChoosePiano: () -> Void
     let onShowDiagnostics: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            Button("导入曲谱", systemImage: "square.and.arrow.down", action: onImport)
-                .disabled(isImporting)
             Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
             Button("诊断", systemImage: "stethoscope", action: onShowDiagnostics)
         }
