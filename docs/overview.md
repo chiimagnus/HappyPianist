@@ -8,7 +8,7 @@ HappyPianist 包含空间练习的 visionOS App、独立沙盒的 macOS MusicXML
 | --- | --- |
 | `HappyPianistAVP` / Tests | 曲库、准备、练习、录制、AI 对弹和沉浸空间。 |
 | `HappyPianistMac` / Tests | 2D 曲库、系统可见 MIDI 端点和 MIDI-only 练习。 |
-| `Packages/HappyPianistCore` | Diagnostics、MusicXML、MIDI、Practice、Notation、Library 的公开产品。 |
+| `Packages/HappyPianistCore` | Diagnostics、MusicXML、MIDI、Practice、Notation、Library，以及平台中性 SwiftUI 曲库表现 `LibraryPresentation` 的公开产品。 |
 | `Packages/RealityKitContent` | Reality Composer Pro 资产和 bundle。 |
 | `python_backend/aria_server` | 可选的 Bonjour + HTTP/WS Aria v2 后端。 |
 

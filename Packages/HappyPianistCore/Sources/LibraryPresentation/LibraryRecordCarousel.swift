@@ -3,7 +3,7 @@ import Library
 
 private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
 
-struct LibraryCrateView: View {
+public struct LibraryRecordCarousel: View {
     private static let animation = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
 
     let entries: [SongLibraryEntry]
@@ -16,6 +16,30 @@ struct LibraryCrateView: View {
     let onTogglePlayback: (UUID) -> Void
     let onImportMusicXML: () -> Void
     let onImmediateDelete: (UUID) -> Void
+
+    public init(
+        entries: [SongLibraryEntry],
+        selectedEntryID: UUID?,
+        playingEntryID: UUID?,
+        isPlaying: Bool,
+        reduceMotion: Bool,
+        allowsDestructiveActions: Bool,
+        onSelectEntry: @escaping (UUID) -> Void,
+        onTogglePlayback: @escaping (UUID) -> Void,
+        onImportMusicXML: @escaping () -> Void,
+        onImmediateDelete: @escaping (UUID) -> Void
+    ) {
+        self.entries = entries
+        self.selectedEntryID = selectedEntryID
+        self.playingEntryID = playingEntryID
+        self.isPlaying = isPlaying
+        self.reduceMotion = reduceMotion
+        self.allowsDestructiveActions = allowsDestructiveActions
+        self.onSelectEntry = onSelectEntry
+        self.onTogglePlayback = onTogglePlayback
+        self.onImportMusicXML = onImportMusicXML
+        self.onImmediateDelete = onImmediateDelete
+    }
 
     @State private var scrollTargetID: UUID?
     @State private var crateWidth: CGFloat = 0
@@ -34,7 +58,7 @@ struct LibraryCrateView: View {
         max(0, (crateWidth - LibraryRecordLayout.diameter) / 2)
     }
 
-    var body: some View {
+    public var body: some View {
         let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
         let selectedEntry = entries.indices.contains(selectedIndex) ? entries[selectedIndex] : nil
         ZStack {
@@ -81,13 +105,6 @@ struct LibraryCrateView: View {
 
             TurntableTonearmView(isPlaying: isPlaying, reduceMotion: reduceMotion)
                 .zIndex(30)
-
-            VStack {
-                Spacer()
-                LibraryPageIndicatorView(count: entries.count, selectedIndex: selectedIndex)
-                    .padding(.bottom, 12)
-            }
-            .zIndex(40)
 
             VStack {
                 Spacer()
@@ -309,7 +326,9 @@ private struct LibraryRecordScrollItemView: View {
             )
         }
         .buttonStyle(.plain)
+        #if os(visionOS)
         .hoverEffect()
+        #endif
         .frame(
             width: LibraryRecordLayout.diameter,
             height: LibraryRecordLayout.diameter
@@ -331,37 +350,12 @@ private struct LibraryRecordScrollItemView: View {
     }
 }
 
-private struct LibraryPageIndicatorView: View {
-    let count: Int
-    let selectedIndex: Int
+public struct LibraryRecordScrollPresentation: Equatable {
+    public let scale: CGFloat
+    public let opacity: Double
+    public let saturation: Double
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        if count > 12 {
-            Text("\(selectedIndex + 1) / \(count)")
-                .font(.caption)
-                .foregroundStyle(Color.primary.opacity(0.45))
-                .monospacedDigit()
-        } else {
-            HStack(spacing: 7) {
-                ForEach(0 ..< count, id: \.self) { index in
-                    Capsule()
-                        .fill(index == selectedIndex ? Color.primary : Color.white.opacity(0.28))
-                        .frame(width: index == selectedIndex ? 22 : 6, height: 6)
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.30), value: selectedIndex)
-                }
-            }
-        }
-    }
-}
-
-struct LibraryRecordScrollPresentation: Equatable {
-    let scale: CGFloat
-    let opacity: Double
-    let saturation: Double
-
-    init(centerDistance: CGFloat) {
+    public init(centerDistance: CGFloat) {
         let normalizedDistance = min(abs(centerDistance) / LibraryRecordLayout.diameter, 2)
         scale = max(0.64, 1 - normalizedDistance * 0.18)
         opacity = Double(max(0.42, 1 - normalizedDistance * 0.22))
@@ -369,20 +363,20 @@ struct LibraryRecordScrollPresentation: Equatable {
     }
 }
 
-enum LibraryRecordScrollTapAction: Equatable {
+public enum LibraryRecordScrollTapAction: Equatable {
     case togglePlayback
     case selectEntry
 }
 
-enum LibraryRecordScrollSelectionDecision {
-    static func action(
+public enum LibraryRecordScrollSelectionDecision {
+    public static func action(
         forTappedEntryID entryID: UUID,
         selectedEntryID: UUID?
     ) -> LibraryRecordScrollTapAction {
         entryID == selectedEntryID ? .togglePlayback : .selectEntry
     }
 
-    static func selectionToCommit(
+    public static func selectionToCommit(
         scrollTargetID: UUID?,
         selectedEntryID: UUID?
     ) -> UUID? {
@@ -392,7 +386,7 @@ enum LibraryRecordScrollSelectionDecision {
 }
 
 #Preview("正在播放的唱片架") {
-    LibraryCrateView(
+    LibraryRecordCarousel(
         entries: LibraryCratePreviewFixture.entries,
         selectedEntryID: LibraryCratePreviewFixture.entries[1].id,
         playingEntryID: LibraryCratePreviewFixture.entries[1].id,

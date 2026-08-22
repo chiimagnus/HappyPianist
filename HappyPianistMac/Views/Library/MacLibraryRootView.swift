@@ -1,5 +1,6 @@
 import Diagnostics
 import Library
+import LibraryPresentation
 import MusicXML
 import Observation
 import SwiftUI
@@ -159,29 +160,50 @@ private extension MacLibraryRoute {
 private struct MacLibraryView: View {
     @Bindable var viewModel: MacLibraryViewModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isInspectorPresented = true
+
+    private var selectedEntry: SongLibraryEntry? {
+        viewModel.entries.first(where: { $0.id == viewModel.selectedEntryID })
+    }
+
+    private var selectedPresentation: SongLibraryTrackPresentation? {
+        guard let selectedEntry,
+              let index = viewModel.entries.firstIndex(where: { $0.id == selectedEntry.id })
+        else {
+            return nil
+        }
+        return SongLibraryTrackPresentation(entry: selectedEntry, index: index)
+    }
+
+    private var selectedDuration: TimeInterval {
+        guard let selectedEntry else { return 0 }
+        if viewModel.currentListeningEntryID == selectedEntry.id, viewModel.listeningDuration > 0 {
+            return viewModel.listeningDuration
+        }
+        return selectedPresentation?.knownDuration ?? 0
+    }
+
+    private var selectedCurrentTime: TimeInterval {
+        guard let selectedEntry, viewModel.currentListeningEntryID == selectedEntry.id else { return 0 }
+        return viewModel.listeningCurrentTime
+    }
+
+    private var selectedProgress: Double {
+        selectedDuration > 0 ? selectedCurrentTime / selectedDuration : 0
+    }
+
+    private var selectedIsPlaying: Bool {
+        guard let selectedEntry else { return false }
+        return viewModel.isListeningPlaying(entryID: selectedEntry.id)
+    }
+
+    private var requiresAudioImport: Bool {
+        selectedEntry?.audioFileName == nil && selectedEntry?.isBundled != true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("曲库")
-                        .font(.title2)
-                        .bold()
-                    Text("导入 MusicXML 或 MXL 后，从这里选择要练习的曲谱。")
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("导入曲谱", systemImage: "square.and.arrow.down") {
-                    viewModel.presentMusicXMLImporter()
-                }
-                .buttonStyle(.borderedProminent)
-                if let selectedEntryID = viewModel.selectedEntryID {
-                    NavigationLink(value: MacLibraryRoute.practice(selectedEntryID)) {
-                        Label("开始 MIDI 练习", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
             if viewModel.entries.isEmpty {
                 ContentUnavailableView {
                     Label("还没有曲谱", systemImage: "music.note.list")
@@ -190,61 +212,30 @@ private struct MacLibraryView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(viewModel.entries) { entry in
-                    Button {
+                LibraryRecordCarousel(
+                    entries: viewModel.entries,
+                    selectedEntryID: viewModel.selectedEntryID,
+                    playingEntryID: viewModel.currentListeningEntryID,
+                    isPlaying: viewModel.isCurrentListeningPlaying,
+                    reduceMotion: reduceMotion,
+                    allowsDestructiveActions: viewModel.importState.isActive == false,
+                    onSelectEntry: { entryID in
                         Task {
-                            await viewModel.selectEntry(entry.id)
+                            await viewModel.selectEntry(entryID)
                         }
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(entry.displayName)
-                                    .foregroundStyle(.primary)
-                                Text(entry.musicXMLFileName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if viewModel.selectedEntryID == entry.id {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.tint)
-                                    .accessibilityHidden(true)
-                            }
-                            Button {
-                                Task {
-                                    await viewModel.toggleListening(entryID: entry.id)
-                                }
-                            } label: {
-                                if entry.audioFileName == nil, entry.isBundled != true {
-                                    Label("绑定音频", systemImage: "waveform.badge.plus")
-                                } else {
-                                    Label(
-                                        viewModel.isListeningPlaying(entryID: entry.id) ? "暂停试听" : "试听",
-                                        systemImage: viewModel.isListeningPlaying(entryID: entry.id)
-                                            ? "pause.fill" : "play.fill"
-                                    )
-                                }
-                            }
-                            .disabled(viewModel.importState.isActive)
-                            if entry.isBundled != true {
-                                Button("替换音频", systemImage: "arrow.triangle.2.circlepath") {
-                                    viewModel.presentAudioImporter(for: entry.id)
-                                }
-                                .disabled(viewModel.importState.isActive)
-                                Button("删除曲目", systemImage: "trash", role: .destructive) {
-                                    Task {
-                                        await viewModel.deleteEntry(entryID: entry.id)
-                                    }
-                                }
-                                .disabled(viewModel.importState.isActive)
-                            }
+                    },
+                    onTogglePlayback: { entryID in
+                        Task {
+                            await viewModel.toggleListening(entryID: entryID)
+                        }
+                    },
+                    onImportMusicXML: viewModel.presentMusicXMLImporter,
+                    onImmediateDelete: { entryID in
+                        Task {
+                            await viewModel.deleteEntry(entryID: entryID)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(entry.displayName)
-                    .accessibilityValue(viewModel.selectedEntryID == entry.id ? "已选择" : "未选择")
-                }
-                .scrollIndicators(.hidden)
+                )
             }
 
             MacLibraryImportStateView(viewModel: viewModel)
@@ -260,9 +251,132 @@ private struct MacLibraryView: View {
             }
         }
         .padding()
+        .safeAreaInset(edge: .bottom) {
+            if let selectedEntry, let selectedPresentation {
+                LibraryNowPlayingBar(
+                    title: selectedPresentation.title,
+                    subtitle: selectedPresentation.subtitle,
+                    progress: selectedProgress,
+                    currentTime: selectedCurrentTime,
+                    duration: selectedDuration,
+                    isPlaying: viewModel.isListeningPlaying(entryID: selectedEntry.id),
+                    canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
+                    canPerformPlaybackAction: selectedEntry.audioFileName != nil || requiresAudioImport,
+                    playbackTitle: playbackButtonTitle,
+                    playbackSystemImage: playbackButtonSystemImage,
+                    onPlayback: toggleSelectedPlayback,
+                    onSeek: { progress in
+                        viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
+                    }
+                )
+                .background(.bar)
+            }
+        }
+        .inspector(isPresented: $isInspectorPresented) {
+            MacLibraryInspectorView(viewModel: viewModel)
+                .inspectorColumnWidth(min: 280, ideal: 340, max: 400)
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("曲库")
+            }
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("导入曲谱", systemImage: "square.and.arrow.down") {
+                    viewModel.presentMusicXMLImporter()
+                }
+
+                Button(
+                    isInspectorPresented ? "隐藏曲目详情" : "显示曲目详情",
+                    systemImage: "sidebar.right"
+                ) {
+                    isInspectorPresented.toggle()
+                }
+            }
+        }
         .onDisappear {
             viewModel.stopListening()
         }
+    }
+
+    private var playbackButtonTitle: String {
+        if requiresAudioImport {
+            return "导入音频"
+        }
+        return selectedIsPlaying ? "暂停" : "播放"
+    }
+
+    private var playbackButtonSystemImage: String {
+        if requiresAudioImport {
+            return "waveform.badge.plus"
+        }
+        return selectedIsPlaying ? "pause.fill" : "play.fill"
+    }
+
+    private func toggleSelectedPlayback() {
+        guard let selectedEntry else { return }
+        Task {
+            await viewModel.toggleListening(entryID: selectedEntry.id)
+        }
+    }
+}
+
+private struct MacLibraryInspectorView: View {
+    @Bindable var viewModel: MacLibraryViewModel
+
+    private var selectedEntry: SongLibraryEntry? {
+        viewModel.entries.first(where: { $0.id == viewModel.selectedEntryID })
+    }
+
+    var body: some View {
+        Form {
+            if let selectedEntry {
+                Section("当前曲目") {
+                    LabeledContent("名称", value: selectedEntry.displayName)
+                    LabeledContent("曲谱", value: selectedEntry.musicXMLFileName)
+                    LabeledContent(
+                        "音频",
+                        value: selectedEntry.audioFileName == nil ? "尚未绑定" : "已绑定"
+                    )
+                }
+
+                Section("练习") {
+                    NavigationLink(value: MacLibraryRoute.practice(selectedEntry.id)) {
+                        Label("开始 MIDI 练习", systemImage: "play.fill")
+                    }
+                }
+
+                if selectedEntry.isBundled != true {
+                    Section("音频") {
+                        Button(
+                            selectedEntry.audioFileName == nil ? "绑定音频" : "替换音频",
+                            systemImage: selectedEntry.audioFileName == nil
+                                ? "waveform.badge.plus"
+                                : "arrow.triangle.2.circlepath"
+                        ) {
+                            viewModel.presentAudioImporter(for: selectedEntry.id)
+                        }
+                        .disabled(viewModel.importState.isActive)
+                    }
+
+                    Section("危险操作") {
+                        Button("删除曲目", systemImage: "trash", role: .destructive) {
+                            Task {
+                                await viewModel.deleteEntry(entryID: selectedEntry.id)
+                            }
+                        }
+                        .disabled(viewModel.importState.isActive)
+                    }
+                }
+            } else {
+                ContentUnavailableView(
+                    "未选择曲目",
+                    systemImage: "music.note.list",
+                    description: Text("从唱片架选择一首曲目以查看详情和操作。")
+                )
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 

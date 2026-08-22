@@ -35,24 +35,28 @@ public final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPl
     private let userDefaults: UserDefaults
     private var audioPlayer: AVAudioPlayer?
     private var currentAudioOutputVolume: Float?
+    private var userDefaultsObserver: NSObjectProtocol?
 
     public init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         super.init()
 
         applyAudioOutputVolumeIfNeeded()
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleUserDefaultsDidChange),
-            name: UserDefaults.didChangeNotification,
-            object: nil
-        )
+        userDefaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.applyAudioOutputVolumeIfNeeded()
+            }
+        }
     }
 
-    deinit {
-        NotificationCenter.default.removeObserver(
-            self, name: UserDefaults.didChangeNotification, object: nil
-        )
+    isolated deinit {
+        if let userDefaultsObserver {
+            NotificationCenter.default.removeObserver(userDefaultsObserver)
+        }
     }
 
     public func play(entryID: UUID, url: URL) throws {
@@ -110,10 +114,6 @@ public final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPl
         guard currentAudioOutputVolume != volume || playerVolume != volume else { return }
         currentAudioOutputVolume = volume
         audioPlayer?.volume = volume
-    }
-
-    @objc private func handleUserDefaultsDidChange() {
-        applyAudioOutputVolumeIfNeeded()
     }
 }
 

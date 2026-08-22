@@ -20,12 +20,14 @@
 		A10500000000000000000002 /* Notation in Frameworks */ = {isa = PBXBuildFile; productRef = A10500000000000000000004 /* Notation */; };
 		A10600000000000000000001 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000003 /* Library */; };
 		A10600000000000000000002 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000004 /* Library */; };
+		A10700000000000000000001 /* LibraryPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = A10700000000000000000003 /* LibraryPresentation */; };
 		B20100000000000000000001 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000001 /* Diagnostics */; };
 		B20100000000000000000002 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000002 /* MusicXML */; };
 		B20100000000000000000003 /* MIDI in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000003 /* MIDI */; };
 		B20100000000000000000004 /* Practice in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000004 /* Practice */; };
 		B20100000000000000000005 /* Notation in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000005 /* Notation */; };
 		B20100000000000000000006 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = B21000000000000000000006 /* Library */; };
+		B21200000000000000000001 /* LibraryPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = B21200000000000000000002 /* LibraryPresentation */; };
 		B20200000000000000000001 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000001 /* Diagnostics */; };
 		B20200000000000000000002 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000002 /* MusicXML */; };
 		B20200000000000000000003 /* HappyPianistTestFixtures in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000003 /* HappyPianistTestFixtures */; };
@@ -120,6 +122,7 @@
 				B20100000000000000000004 /* Practice in Frameworks */,
 				B20100000000000000000005 /* Notation in Frameworks */,
 				B20100000000000000000006 /* Library in Frameworks */,
+				B21200000000000000000001 /* LibraryPresentation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,6 +150,7 @@
 				A10400000000000000000001 /* Practice in Frameworks */,
 				A10500000000000000000001 /* Notation in Frameworks */,
 				A10600000000000000000001 /* Library in Frameworks */,
+				A10700000000000000000001 /* LibraryPresentation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -211,6 +215,7 @@
 				B21000000000000000000004 /* Practice */,
 				B21000000000000000000005 /* Notation */,
 				B21000000000000000000006 /* Library */,
+				B21200000000000000000002 /* LibraryPresentation */,
 			);
 			productName = HappyPianistMac;
 			productReference = B20400000000000000000001 /* HappyPianistMac.app */;
@@ -269,6 +274,7 @@
 				A10400000000000000000003 /* Practice */,
 				A10500000000000000000003 /* Notation */,
 				A10600000000000000000003 /* Library */,
+				A10700000000000000000003 /* LibraryPresentation */,
 			);
 			productName = HappyPianistAVP;
 			productReference = D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */;
@@ -938,6 +944,11 @@
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = Library;
 		};
+		A10700000000000000000003 /* LibraryPresentation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = LibraryPresentation;
+		};
 		B21000000000000000000001 /* Diagnostics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
@@ -967,6 +978,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = Library;
+		};
+		B21200000000000000000002 /* LibraryPresentation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = LibraryPresentation;
 		};
 		B21100000000000000000001 /* Diagnostics */ = {
 			isa = XCSwiftPackageProductDependency;

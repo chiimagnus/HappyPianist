@@ -1,5 +1,6 @@
 import Diagnostics
 import Library
+import LibraryPresentation
 import MusicXML
 import SwiftUI
 import UniformTypeIdentifiers
@@ -45,62 +46,32 @@ struct SongLibraryView: View {
         let canPerformPlaybackAction = selectedEntry?.audioFileName != nil || requiresAudioImport
 
         VStack(spacing: 0) {
-            LibraryTopBarView(
-                onChoosePiano: onChoosePiano,
-                onDiagnostics: { isDiagnosticsPresented = true }
-            )
+            HStack(spacing: 8) {
+                Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
+                .padding()
+                
+                Spacer()
+                Button("诊断", systemImage: "stethoscope") {
+                    isDiagnosticsPresented = true
+                }
+                .padding()
+            }
 
             if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
-            } else if let selectedEntry, let selectedPresentation {
-                ZStack(alignment: .bottomTrailing) {
-                    VStack(spacing: 0) {
-                        LibraryCrateView(
-                            entries: entries,
-                            selectedEntryID: viewModel.selectedEntryID,
-                            playingEntryID: viewModel.currentListeningEntryID,
-                            isPlaying: selectedIsPlaying,
-                            reduceMotion: reduceMotion,
-                            allowsDestructiveActions: viewModel.importState.isActive == false,
-                            onSelectEntry: viewModel.selectEntry,
-                            onTogglePlayback: togglePlayback,
-                            onImportMusicXML: viewModel.didTapImportMusicXML,
-                            onImmediateDelete: deleteWithoutConfirmation
-                        )
-
-                        LibraryTrackInfoView(
-                            presentation: selectedPresentation,
-                            progress: selectedProgress,
-                            currentTime: selectedCurrentTime,
-                            duration: selectedDuration,
-                            canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
-                            playbackTitle: playbackButtonTitle(
-                                requiresAudioImport: requiresAudioImport,
-                                isPlaying: selectedIsPlaying
-                            ),
-                            playbackSystemImage: playbackButtonSystemImage(
-                                requiresAudioImport: requiresAudioImport,
-                                isPlaying: selectedIsPlaying
-                            ),
-                            canPerformPlaybackAction: canPerformPlaybackAction,
-                            onPlayback: toggleSelectedPlayback,
-                            onSeek: { progress in
-                                viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
-                            }
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 30)
-                        .padding(.bottom, 22)
-                    }
-
-                    Button("开始练习", systemImage: "music.note") {
-                        viewModel.startPractice(entryID: selectedEntry.id, perform: onStartPractice)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.importState.isActive || !isPracticeSetupReady)
-                    .accessibilityHint(startPracticeAccessibilityHint)
-                    .padding()
-                }
+            } else if selectedEntry != nil, selectedPresentation != nil {
+                LibraryRecordCarousel(
+                    entries: entries,
+                    selectedEntryID: viewModel.selectedEntryID,
+                    playingEntryID: viewModel.currentListeningEntryID,
+                    isPlaying: selectedIsPlaying,
+                    reduceMotion: reduceMotion,
+                    allowsDestructiveActions: viewModel.importState.isActive == false,
+                    onSelectEntry: viewModel.selectEntry,
+                    onTogglePlayback: togglePlayback,
+                    onImportMusicXML: viewModel.didTapImportMusicXML,
+                    onImmediateDelete: deleteWithoutConfirmation
+                )
             }
         }
         .frame(
@@ -111,6 +82,41 @@ struct SongLibraryView: View {
             idealHeight: LibraryWindowLayout.idealHeight,
             maxHeight: LibraryWindowLayout.maximumHeight
         )
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomOrnament) {
+                if let selectedEntry, let selectedPresentation {
+                    LibraryNowPlayingBar(
+                        title: selectedPresentation.title,
+                        subtitle: selectedPresentation.subtitle,
+                        progress: selectedProgress,
+                        currentTime: selectedCurrentTime,
+                        duration: selectedDuration,
+                        isPlaying: selectedIsPlaying,
+                        canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
+                        canPerformPlaybackAction: canPerformPlaybackAction,
+                        playbackTitle: playbackButtonTitle(
+                            requiresAudioImport: requiresAudioImport,
+                            isPlaying: selectedIsPlaying
+                        ),
+                        playbackSystemImage: playbackButtonSystemImage(
+                            requiresAudioImport: requiresAudioImport,
+                            isPlaying: selectedIsPlaying
+                        ),
+                        onPlayback: toggleSelectedPlayback,
+                        onSeek: { progress in
+                            viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
+                        }
+                    )
+
+                    Button("开始练习", systemImage: "music.note") {
+                        viewModel.startPractice(entryID: selectedEntry.id, perform: onStartPractice)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.importState.isActive || !isPracticeSetupReady)
+                    .accessibilityHint(startPracticeAccessibilityHint)
+                }
+            }
+        }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
             libraryViewHeight = height
         }
@@ -462,23 +468,6 @@ struct SongLibraryImportConflictPresentation {
     }
 }
 
-private struct LibraryTopBarView: View {
-    let onChoosePiano: () -> Void
-    let onDiagnostics: () -> Void
-
-    var body: some View {
-        HStack {
-            Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
-
-            Spacer()
-
-            Button("诊断", systemImage: "stethoscope", action: onDiagnostics)
-        }
-        .frame(height: 70)
-        .padding(.horizontal, 28)
-    }
-}
-
 private struct SongLibraryEmptyView: View {
     let onImport: () -> Void
 
@@ -500,141 +489,4 @@ private struct SongLibraryEmptyView: View {
 #Preview("空乐曲库") {
     SongLibraryEmptyView(onImport: {})
         .frame(width: 1140, height: LibraryWindowLayout.idealHeight)
-}
-
-private struct LibraryTrackInfoView: View {
-    let presentation: SongLibraryTrackPresentation
-    let progress: Double
-    let currentTime: TimeInterval
-    let duration: TimeInterval
-    let canSeek: Bool
-    let playbackTitle: String
-    let playbackSystemImage: String
-    let canPerformPlaybackAction: Bool
-    let onPlayback: () -> Void
-    let onSeek: (Double) -> Void
-
-    @State private var progressBarWidth: CGFloat = 0
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(presentation.title)
-                .font(.system(.largeTitle, design: .serif))
-                .bold()
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-
-            Text(presentation.subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-            HStack(alignment: .bottom, spacing: 14) {
-                VStack(spacing: 7) {
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.primary.opacity(0.16))
-
-                        Capsule()
-                            .fill(.primary)
-                            .frame(width: progressBarWidth * min(max(progress, 0), 1))
-                    }
-                    .frame(height: 5)
-                    .contentShape(.rect)
-                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width in
-                        progressBarWidth = width
-                    }
-                    .gesture(
-                        SpatialTapGesture()
-                            .onEnded { value in
-                                guard canSeek, progressBarWidth > 0 else { return }
-                                onSeek(min(max(value.location.x / progressBarWidth, 0), 1))
-                            }
-                    )
-                    .accessibilityLabel("播放进度")
-                    .accessibilityValue("\(Int(min(max(progress, 0), 1) * 100))%")
-                    .accessibilityAdjustableAction { direction in
-                        guard canSeek else { return }
-                        let currentProgress = min(max(progress, 0), 1)
-                        switch direction {
-                        case .increment:
-                            onSeek(min(currentProgress + 0.05, 1))
-                        case .decrement:
-                            onSeek(max(currentProgress - 0.05, 0))
-                        @unknown default:
-                            break
-                        }
-                    }
-
-                    HStack {
-                        Text(Self.formattedTime(currentTime))
-                        Spacer()
-                        Text(Self.formattedTime(duration))
-                    }
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(Color.primary.opacity(0.45))
-                }
-                .frame(maxWidth: 340)
-
-                Button(playbackTitle, systemImage: playbackSystemImage, action: onPlayback)
-                    .labelStyle(.iconOnly)
-                    .disabled(canPerformPlaybackAction == false)
-            }
-            .padding(.top, 9)
-        }
-    }
-
-    private static func formattedTime(_ time: TimeInterval) -> String {
-        guard time.isFinite, time > 0 else { return "0:00" }
-        let totalSeconds = Int(time.rounded(.down))
-        let seconds = totalSeconds % 60
-        let secondsText = seconds < 10 ? "0\(seconds)" : "\(seconds)"
-        return "\(totalSeconds / 60):\(secondsText)"
-    }
-}
-
-struct SongLibraryTrackPresentation {
-    let title: String
-    let subtitle: String
-    let labelColor: Color
-    let knownDuration: TimeInterval?
-
-    init(entry: SongLibraryEntry, index: Int) {
-        title = entry.displayName.replacing("_", with: " ")
-
-        let normalizedTitle = entry.displayName.lowercased()
-        switch normalizedTitle {
-        case let value where value.localizedStandardContains("bohemian rhapsody"):
-            subtitle = "Queen · arr. Phillip Keveren"
-            knownDuration = 5 * 60 + 54
-        case let value where value.localizedStandardContains("despacito"):
-            subtitle = "Peter Bence"
-            knownDuration = 4 * 60 + 12
-        case let value where value.localizedStandardContains("awesome piano"):
-            subtitle = "Peter Bence"
-            knownDuration = 3 * 60 + 48
-        case let value where value.localizedStandardContains("under pressure"):
-            subtitle = "David Bowie & Queen"
-            knownDuration = 4 * 60 + 6
-        default:
-            if entry.isBundled == true {
-                subtitle = "内置曲目"
-            } else {
-                subtitle = "导入于 \(entry.importedAt.formatted(date: .abbreviated, time: .omitted))"
-            }
-            knownDuration = nil
-        }
-
-        let palette: [Color] = [
-            Color(red: 77 / 255, green: 127 / 255, blue: 116 / 255),
-            Color(red: 197 / 255, green: 106 / 255, blue: 86 / 255),
-            Color(red: 189 / 255, green: 148 / 255, blue: 82 / 255),
-            Color(red: 138 / 255, green: 100 / 255, blue: 134 / 255),
-            Color(red: 74 / 255, green: 102 / 255, blue: 140 / 255),
-            Color(red: 142 / 255, green: 112 / 255, blue: 82 / 255),
-        ]
-        labelColor = palette[index % palette.count]
-    }
 }
