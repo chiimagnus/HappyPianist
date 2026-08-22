@@ -46,11 +46,6 @@ struct SongLibraryView: View {
         let canPerformPlaybackAction = selectedEntry?.audioFileName != nil || requiresAudioImport
 
         VStack(spacing: 0) {
-            LibraryTopBarView(
-                onChoosePiano: onChoosePiano,
-                onDiagnostics: { isDiagnosticsPresented = true }
-            )
-
             if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
             } else if let selectedEntry, let selectedPresentation {
@@ -114,6 +109,24 @@ struct SongLibraryView: View {
             idealHeight: LibraryWindowLayout.idealHeight,
             maxHeight: LibraryWindowLayout.maximumHeight
         )
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("导入曲谱", systemImage: "square.and.arrow.down") {
+                    viewModel.didTapImportMusicXML()
+                }
+                .disabled(viewModel.importState.isActive)
+            }
+
+            ToolbarItem(placement: .secondaryAction) {
+                Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
+            }
+
+            ToolbarItem(placement: .secondaryAction) {
+                Button("诊断", systemImage: "stethoscope") {
+                    isDiagnosticsPresented = true
+                }
+            }
+        }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
             libraryViewHeight = height
         }
@@ -462,23 +475,6 @@ struct SongLibraryImportConflictPresentation {
             actionRole = nil
             message = "多个曲库条目指向同一文件，无法安全判断要更新哪一项。"
         }
-    }
-}
-
-private struct LibraryTopBarView: View {
-    let onChoosePiano: () -> Void
-    let onDiagnostics: () -> Void
-
-    var body: some View {
-        HStack {
-            Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
-
-            Spacer()
-
-            Button("诊断", systemImage: "stethoscope", action: onDiagnostics)
-        }
-        .frame(height: 70)
-        .padding(.horizontal, 28)
     }
 }
 
