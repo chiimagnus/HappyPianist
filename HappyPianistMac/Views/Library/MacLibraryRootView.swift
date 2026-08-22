@@ -158,110 +158,140 @@ private extension MacLibraryRoute {
 
 private struct MacLibraryView: View {
     @Bindable var viewModel: MacLibraryViewModel
+    @State private var deletionEntry: SongLibraryEntry?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("曲库")
-                        .font(.title2)
-                        .bold()
-                    Text("导入 MusicXML 或 MXL 后，从这里选择要练习的曲谱。")
-                        .foregroundStyle(.secondary)
+        Group {
+            if viewModel.entries.isEmpty {
+                ContentUnavailableView {
+                    Label("还没有曲谱", systemImage: "record.circle")
+                } description: {
+                    Text("导入 MusicXML、XML 或 MXL 曲谱后开始练习。")
+                } actions: {
+                    Button("导入曲谱", systemImage: "square.and.arrow.down") {
+                        viewModel.presentMusicXMLImporter()
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                Spacer()
+            } else if let selectedEntry {
+                VStack(spacing: 0) {
+                    MacLibraryRecordShelfView(
+                        entries: viewModel.entries,
+                        selectedEntryID: viewModel.selectedEntryID,
+                        playingEntryID: viewModel.currentListeningEntryID,
+                        isPlaying: viewModel.isListeningPlaying(entryID: selectedEntry.id),
+                        allowsDestructiveActions: viewModel.importState.isActive == false,
+                        onSelectEntry: selectEntry,
+                        onTogglePlayback: togglePlayback,
+                        onImportAudio: viewModel.presentAudioImporter,
+                        onDelete: { entryID in
+                            deletionEntry = entry(for: entryID)
+                        }
+                    )
+
+                    HStack(alignment: .bottom, spacing: 24) {
+                        MacLibraryTrackInfoView(
+                            entry: selectedEntry,
+                            isPlaying: viewModel.isListeningPlaying(entryID: selectedEntry.id),
+                            isImporting: viewModel.importState.isActive,
+                            onTogglePlayback: { togglePlayback(selectedEntry.id) },
+                            onImportAudio: { viewModel.presentAudioImporter(for: selectedEntry.id) },
+                            onDelete: { deletionEntry = selectedEntry }
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        NavigationLink(value: MacLibraryRoute.practice(selectedEntry.id)) {
+                            Label("开始 MIDI 练习", systemImage: "play.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.importState.isActive)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 28)
+                }
+            }
+        }
+        .navigationTitle("曲库")
+        .frame(minWidth: 760, idealWidth: 1080, minHeight: 620, idealHeight: 720)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button("导入曲谱", systemImage: "square.and.arrow.down") {
                     viewModel.presentMusicXMLImporter()
                 }
-                .buttonStyle(.borderedProminent)
-                if let selectedEntryID = viewModel.selectedEntryID {
-                    NavigationLink(value: MacLibraryRoute.practice(selectedEntryID)) {
-                        Label("开始 MIDI 练习", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            if viewModel.entries.isEmpty {
-                ContentUnavailableView {
-                    Label("还没有曲谱", systemImage: "music.note.list")
-                } description: {
-                    Text("导入 MusicXML 或 MXL 曲谱后开始练习。")
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(viewModel.entries) { entry in
-                    Button {
-                        Task {
-                            await viewModel.selectEntry(entry.id)
-                        }
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(entry.displayName)
-                                    .foregroundStyle(.primary)
-                                Text(entry.musicXMLFileName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if viewModel.selectedEntryID == entry.id {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.tint)
-                                    .accessibilityHidden(true)
-                            }
-                            Button {
-                                Task {
-                                    await viewModel.toggleListening(entryID: entry.id)
-                                }
-                            } label: {
-                                if entry.audioFileName == nil, entry.isBundled != true {
-                                    Label("绑定音频", systemImage: "waveform.badge.plus")
-                                } else {
-                                    Label(
-                                        viewModel.isListeningPlaying(entryID: entry.id) ? "暂停试听" : "试听",
-                                        systemImage: viewModel.isListeningPlaying(entryID: entry.id)
-                                            ? "pause.fill" : "play.fill"
-                                    )
-                                }
-                            }
-                            .disabled(viewModel.importState.isActive)
-                            if entry.isBundled != true {
-                                Button("替换音频", systemImage: "arrow.triangle.2.circlepath") {
-                                    viewModel.presentAudioImporter(for: entry.id)
-                                }
-                                .disabled(viewModel.importState.isActive)
-                                Button("删除曲目", systemImage: "trash", role: .destructive) {
-                                    Task {
-                                        await viewModel.deleteEntry(entryID: entry.id)
-                                    }
-                                }
-                                .disabled(viewModel.importState.isActive)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(entry.displayName)
-                    .accessibilityValue(viewModel.selectedEntryID == entry.id ? "已选择" : "未选择")
-                }
-                .scrollIndicators(.hidden)
-            }
-
-            MacLibraryImportStateView(viewModel: viewModel)
-
-            if let errorMessage = viewModel.errorMessage {
-                HStack {
-                    Text(errorMessage)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("关闭", action: viewModel.dismissError)
-                }
-                .accessibilityElement(children: .combine)
+                .disabled(viewModel.importState.isActive)
             }
         }
-        .padding()
+        .safeAreaInset(edge: .bottom) {
+            if viewModel.importState.isActive {
+                MacLibraryImportStateView(viewModel: viewModel)
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                    .background(.bar)
+            }
+        }
+        .alert(
+            "无法完成操作",
+            isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        viewModel.dismissError()
+                    }
+                }
+            )
+        ) {
+            Button("好", action: viewModel.dismissError)
+        } message: {
+            Text(viewModel.errorMessage ?? "未知错误")
+        }
+        .confirmationDialog(
+            "删除“\(deletionEntry?.displayName ?? "")”？",
+            isPresented: Binding(
+                get: { deletionEntry != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        deletionEntry = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("删除曲目", role: .destructive) {
+                guard let deletionEntry else { return }
+                self.deletionEntry = nil
+                Task {
+                    await viewModel.deleteEntry(entryID: deletionEntry.id)
+                }
+            }
+            Button("取消", role: .cancel) {
+                deletionEntry = nil
+            }
+        } message: {
+            Text("曲谱、关联音频和练习进度将被删除。")
+        }
         .onDisappear {
             viewModel.stopListening()
+        }
+    }
+
+    private var selectedEntry: SongLibraryEntry? {
+        guard let selectedEntryID = viewModel.selectedEntryID else { return nil }
+        return viewModel.entries.first(where: { $0.id == selectedEntryID })
+    }
+
+    private func entry(for entryID: UUID) -> SongLibraryEntry? {
+        viewModel.entries.first(where: { $0.id == entryID })
+    }
+
+    private func selectEntry(_ entryID: UUID) {
+        Task {
+            await viewModel.selectEntry(entryID)
+        }
+    }
+
+    private func togglePlayback(_ entryID: UUID) {
+        Task {
+            await viewModel.toggleListening(entryID: entryID)
         }
     }
 }
@@ -274,28 +304,11 @@ private struct MacLibraryImportStateView: View {
         case .idle:
             EmptyView()
         case let .staging(count):
-            ProgressView("正在暂存 \(count) 个曲谱")
+            importStatus("正在暂存 \(count) 个曲谱")
         case .processing(_, let index, let count):
-            ProgressView("正在导入第 \(index) / \(count) 个曲谱")
+            importStatus("正在导入第 \(index) / \(count) 个曲谱")
         case .awaitingConfirmation(let pending, _, _):
-            VStack(alignment: .leading, spacing: 8) {
-                Text("\(pending.fileName) 与现有曲谱冲突。")
-                HStack {
-                    Button("确认替换") {
-                        Task {
-                            await viewModel.confirmPendingImport(operationID: pending.id)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Button("取消导入") {
-                        Task {
-                            await viewModel.cancelPendingImport(operationID: pending.id)
-                        }
-                    }
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("导入冲突")
+            importConflict(pending)
         case .itemFailure(let failure, _, _):
             HStack {
                 Text("\(failure.fileName)：\(failure.message)")
@@ -310,6 +323,44 @@ private struct MacLibraryImportStateView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("导入失败")
         }
+    }
+
+    private func importStatus(_ title: String) -> some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.small)
+            Text(title)
+                .font(.callout)
+            Spacer()
+        }
+        .padding(12)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func importConflict(_ pending: SongLibraryPendingImport) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("发现同名曲谱", systemImage: "exclamationmark.triangle")
+                .font(.callout)
+            Text("\(pending.fileName) 与现有曲谱冲突。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button("确认替换") {
+                    Task {
+                        await viewModel.confirmPendingImport(operationID: pending.id)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                Button("取消导入") {
+                    Task {
+                        await viewModel.cancelPendingImport(operationID: pending.id)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("导入冲突")
     }
 }
 
