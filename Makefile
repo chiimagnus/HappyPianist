@@ -12,6 +12,7 @@ BUNDLE_ID ?= com.chiimagnus.HappyPianistAVP
 CONFIGURATION ?= Debug
 MAC_SCHEME ?= HappyPianistMac
 MAC_DESTINATION ?= platform=macOS,arch=arm64
+MAC_BUNDLE_ID ?= com.chiimagnus.HappyPianistMac
 MAC_ONLY_TESTING ?=
 
 SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
@@ -93,6 +94,7 @@ DEVICE_XCODEBUILD_FLAGS ?= -allowProvisioningUpdates
 LOG_STYLE ?= compact
 LOG_LEVEL ?= info
 LOG_PREDICATE ?= subsystem == "$(BUNDLE_ID)"
+MAC_LOG_PREDICATE ?= subsystem == "$(MAC_BUNDLE_ID)"
 
 SIMULATOR_DESTINATION = platform=visionOS Simulator,id=$(SIMULATOR_ID)
 DEVICE_DESTINATION = platform=visionOS,id=$(DEVICE_ID)
@@ -112,9 +114,9 @@ MAC_XCODEBUILD_COMMON = \
 	-configuration "$(CONFIGURATION)"
 
 .PHONY: help doctor config destinations clean
-.PHONY: build\:mac test\:mac
+.PHONY: build\:mac test\:mac run\:mac logs\:mac
 .PHONY: list\:simulator build\:simulator test\:simulator run\:simulator logs\:simulator
-.PHONY: list\:device build\:device test\:device run\:device console\:device
+.PHONY: list\:device build\:device test\:device run\:device logs\:device
 
 help: ## 显示可用命令。
 	@printf '%s\n' \
@@ -123,6 +125,8 @@ help: ## 显示可用命令。
 		'macOS：' \
 		'  make build:mac              构建独立的 macOS App' \
 		'  make test:mac               运行 macOS App 测试' \
+		'  make run:mac                构建并打开 App' \
+		'  make logs:mac               输出 App 结构化日志' \
 		'' \
 		'AVP Simulator：' \
 		'  make build:simulator        构建 visionOS 模拟器版本' \
@@ -134,7 +138,7 @@ help: ## 显示可用命令。
 		'  make build:device           构建并签名 visionOS App' \
 		'  make test:device            在配置的 Vision Pro 上运行测试' \
 		'  make run:device             构建、安装并启动 App' \
-		'  make console:device         启动并附加标准输出/错误' \
+		'  make logs:device            启动并附加标准输出/错误' \
 		'' \
 		'发现、配置与维护：' \
 		'  make doctor                 检查开发环境' \
@@ -155,6 +159,7 @@ help: ## 显示可用命令。
 		'  make build:device CONFIGURATION=Release' \
 		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make logs:simulator LOG_LEVEL=debug  包含 App 调试诊断信息' \
+		'  make logs:mac LOG_LEVEL=debug  包含 App 调试诊断信息' \
 		'  make build:simulator XCODEBUILD_FLAGS=  显示完整的 xcodebuild 输出'
 
 build\:mac: doctor ## 不使用模拟器构建 HappyPianistMac。
@@ -182,6 +187,22 @@ test\:mac: doctor ## 不使用模拟器运行 HappyPianistMac 测试。
 		test
 	@echo 'test:mac: 测试成功'
 
+run\:mac: ## 构建并打开 HappyPianistMac。
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:mac'
+	@APP_PATH="$$(xcodebuild $(MAC_XCODEBUILD_COMMON) \
+		-destination '$(MAC_DESTINATION)' \
+		CODE_SIGNING_ALLOWED=NO \
+		-showBuildSettings 2>/dev/null | \
+		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
+	test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
+	open "$$APP_PATH"
+
+logs\:mac: ## 输出 HappyPianistMac 的结构化日志。
+	log stream \
+		--style "$(LOG_STYLE)" \
+		--level "$(LOG_LEVEL)" \
+		--predicate '$(MAC_LOG_PREDICATE)'
+
 doctor: ## 检查所需 Apple 命令行工具和 Xcode 工程是否存在。
 	@command -v xcodebuild >/dev/null || { echo '错误：未找到 xcodebuild'; exit 1; }
 	@command -v xcrun >/dev/null || { echo '错误：未找到 xcrun'; exit 1; }
@@ -197,6 +218,7 @@ config: ## 打印解析后的 Make 配置。
 		'SCHEME' '$(SCHEME)' \
 		'MAC_SCHEME' '$(MAC_SCHEME)' \
 		'MAC_DESTINATION' '$(MAC_DESTINATION)' \
+		'MAC_BUNDLE_ID' '$(MAC_BUNDLE_ID)' \
 		'CONFIGURATION' '$(CONFIGURATION)' \
 		'SIMULATOR_NAME' '$(SIMULATOR_NAME)' \
 		'SIMULATOR_ID' '$(SIMULATOR_ID)' \
@@ -217,6 +239,7 @@ config: ## 打印解析后的 Make 配置。
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)' \
+		'MAC_LOG_PREDICATE' '$(MAC_LOG_PREDICATE)' \
 		'XCODEBUILD_FLAGS' '$(XCODEBUILD_FLAGS)'
 
 destinations: doctor ## 显示 AVP 和 macOS scheme 接受的 destination。
@@ -320,7 +343,7 @@ run\:device: ## 构建、安装并在 Vision Pro 真机上启动。
 	@$(call install_device_app)
 	xcrun devicectl device process launch --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
-console\:device: ## 在真机上启动并附加标准输出/错误，直到进程退出。
+logs\:device: ## 在真机上启动并附加标准输出/错误，直到进程退出。
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:device'
 	@$(call install_device_app)
 	xcrun devicectl device process launch --console --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
