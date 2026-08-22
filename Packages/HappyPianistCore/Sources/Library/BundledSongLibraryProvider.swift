@@ -1,20 +1,19 @@
 import CryptoKit
 import Foundation
-import Library
 
-struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
+public struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
     private static let seedSubdirectory = "Resources/SeedScores"
     private static let bundledImportedAt = Date(timeIntervalSince1970: 0)
 
     private let bundle: Bundle
     private let seedRootURLsOverride: [URL]?
 
-    init(bundle: Bundle = .main, seedRootURLs: [URL]? = nil) {
+    public init(bundle: Bundle = .main, seedRootURLs: [URL]? = nil) {
         self.bundle = bundle
         seedRootURLsOverride = seedRootURLs
     }
 
-    func bundledEntries() -> [SongLibraryEntry] {
+    public func bundledEntries() -> [SongLibraryEntry] {
         var byRelativePath: [String: URL] = [:]
         for url in resourceURLs(withExtension: "musicxml") {
             byRelativePath[relativeResourcePath(for: url)] = url
@@ -49,11 +48,11 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
             }
     }
 
-    func musicXMLURL(fileName: String) -> URL? {
+    public func musicXMLURL(fileName: String) -> URL? {
         resourceURL(relativePath: fileName, withExtension: "musicxml")
     }
 
-    func audioURL(fileName: String) -> URL? {
+    public func audioURL(fileName: String) -> URL? {
         resourceURL(
             relativePath: fileName,
             withExtension: URL(fileURLWithPath: fileName).pathExtension
