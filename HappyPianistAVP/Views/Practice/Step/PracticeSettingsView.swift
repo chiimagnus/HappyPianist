@@ -267,6 +267,7 @@ struct PracticeSettingsView: View {
             }
             .padding(16)
         }
+        .scrollIndicators(.hidden)
         .onAppear {
             if isBluetoothMIDIMode {
                 destinationConnectionViewModel.start()
