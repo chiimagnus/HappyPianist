@@ -10,8 +10,6 @@ HappyPianist is a piano practice app for Apple Vision Pro. It converts MusicXML 
 
 ```bash
 make doctor
-make build:mac
-make test:mac
 make build:simulator
 make test:simulator
 ```

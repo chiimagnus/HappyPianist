@@ -1,13 +1,13 @@
 import Library
 import SwiftUI
 
-public struct SongLibraryTrackPresentation {
-    public let title: String
-    public let subtitle: String
-    public let labelColor: Color
-    public let knownDuration: TimeInterval?
+struct SongLibraryTrackPresentation {
+    let title: String
+    let subtitle: String
+    let labelColor: Color
+    let knownDuration: TimeInterval?
 
-    public init(entry: SongLibraryEntry, index: Int) {
+    init(entry: SongLibraryEntry, index: Int) {
         title = entry.displayName.replacing("_", with: " ")
 
         let normalizedTitle = entry.displayName.lowercased()

@@ -5,7 +5,6 @@ import PackageDescription
 let package = Package(
     name: "HappyPianistCore",
     platforms: [
-        .macOS(.v26),
         .visionOS(.v26),
     ],
     products: [
@@ -15,7 +14,6 @@ let package = Package(
         .library(name: "Practice", targets: ["Practice"]),
         .library(name: "Notation", targets: ["Notation"]),
         .library(name: "Library", targets: ["Library"]),
-        .library(name: "LibraryPresentation", targets: ["LibraryPresentation"]),
         .library(name: "HappyPianistTestFixtures", targets: ["HappyPianistTestFixtures"]),
     ],
     dependencies: [
@@ -71,12 +69,6 @@ let package = Package(
             ]
         ),
         .target(
-            name: "LibraryPresentation",
-            dependencies: [
-                "Library",
-            ]
-        ),
-        .target(
             name: "HappyPianistTestFixtures",
             resources: [
                 .copy("Resources/Fixtures"),
@@ -123,12 +115,6 @@ let package = Package(
                 "MusicXML",
                 "Practice",
                 "HappyPianistTestFixtures",
-            ]
-        ),
-        .testTarget(
-            name: "LibraryPresentationTests",
-            dependencies: [
-                "LibraryPresentation",
             ]
         ),
     ]

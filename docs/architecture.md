@@ -7,8 +7,8 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 ```
 
 - View 只渲染和发送 intent；ViewModel 编排状态与生命周期；副作用留在 Service/Repository；Model 保持纯数据和契约。
-- `HappyPianistAVP` 与 `HappyPianistMac` 是独立 composition root 和 sandbox。它们只经共享 package products 复用核心；AR/RealityKit、手部/虚拟琴、音频识别、AVFoundation 与 AI 只属于 AVP。
-- 共享包依赖向下：`Diagnostics` 与 `MusicXML` 是根；`MIDI` 只依赖 Diagnostics；`Practice` 依赖 MusicXML、MIDI、Diagnostics；`Notation` 依赖 Practice、MusicXML；`Library` 依赖 Practice、MusicXML、Diagnostics；`LibraryPresentation` 只依赖 `Library`，提供 macOS 与 visionOS 共用的纯 SwiftUI 曲库表现。任何模块都不能反向引用 host UI 或 platform adapter。
+- `HappyPianistAVP` 是唯一 composition root 和 sandbox；AR/RealityKit、手部/虚拟琴、音频识别、AVFoundation 与 AI 都属于该 host。
+- 共享包依赖向下：`Diagnostics` 与 `MusicXML` 是根；`MIDI` 只依赖 Diagnostics；`Practice` 依赖 MusicXML、MIDI、Diagnostics；`Notation` 依赖 Practice、MusicXML；`Library` 依赖 Practice、MusicXML、Diagnostics。任何模块都不能反向引用 host UI 或 platform adapter。
 - 新服务从稳定协议和 composition root 注入开始；单一实现不预建 factory、manager 或兼容层。
 
 ## 不变量

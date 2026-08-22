@@ -7,16 +7,14 @@
 ```bash
 make doctor
 make destinations
-make build:mac
-make test:mac
 make build:simulator
 make test:simulator
 swift test --package-path Packages/HappyPianistCore
 ```
 
-`make test:simulator` 会限制 Simulator boot（180 秒）、destination 查找（60 秒）和整次 action（900 秒），并开启单测试 timeout（默认 120 秒、最大 300 秒）。`make test:device` 与 `make test:mac` 也使用相同的 destination 和单测试 timeout。Simulator 超时会终止独立进程组，并把不含 app container 的诊断写至 `.build/TestResults`。受控异步测试必须使用有界等待（如 `TestAsyncWait`），不得使用无界 `Task.yield()` 轮询；需要调整时只覆盖相应 Make 变量，不得移除边界。
+`make test:simulator` 会限制 Simulator boot（180 秒）、destination 查找（60 秒）和整次 action（900 秒），并开启单测试 timeout（默认 120 秒、最大 300 秒）。`make test:device` 使用相同的 destination 和单测试 timeout。Simulator 超时会终止独立进程组，并把不含 app container 的诊断写至 `.build/TestResults`。受控异步测试必须使用有界等待（如 `TestAsyncWait`），不得使用无界 `Task.yield()` 轮询；需要调整时只覆盖相应 Make 变量，不得移除边界。
 
-`make build:mac` 和 `make test:mac` 只使用 macOS scheme/destination/result bundle，不启动或读取 visionOS Simulator；`make clean` 会清理两个 App scheme。`build-for-testing`、语法检查或 Linux harness 都不能替代实际 `xcodebuild test`。
+`make clean` 会清理 AVP scheme。`build-for-testing`、语法检查或 Linux harness 都不能替代实际 `xcodebuild test`。
 
 Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需要完整日志时传入 `XCODEBUILD_FLAGS=`。
 
@@ -39,7 +37,6 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 - observation 的 capability、unknown/insufficient、alignment、assessment、单一 coaching action；
 - recording、session、progress 的 checkpoint、flush-before-teardown、恢复与持久化边界；
 - AI 请求取消、乱序响应、generation 隔离与 teardown；
-- macOS 选定 MIDI input 的断连行为、output flush、take 保存/导出及原生窗口退出 gate。
 
 ### 示范手纯值 Gate
 

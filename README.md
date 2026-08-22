@@ -10,8 +10,6 @@ HappyPianist 是面向 Apple Vision Pro 的空间钢琴练习应用：将 MusicX
 
 ```bash
 make doctor
-make build:mac
-make test:mac
 make build:simulator
 make test:simulator
 ```

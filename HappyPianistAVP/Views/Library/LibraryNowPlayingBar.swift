@@ -1,22 +1,22 @@
 import SwiftUI
 
 @MainActor
-public struct LibraryNowPlayingBar: View {
-    public let title: String
-    public let subtitle: String
-    public let progress: Double
-    public let currentTime: TimeInterval
-    public let duration: TimeInterval
-    public let isPlaying: Bool
-    public let canSeek: Bool
-    public let canPerformPlaybackAction: Bool
-    public let playbackTitle: String
-    public let playbackSystemImage: String
+struct LibraryNowPlayingBar: View {
+    let title: String
+    let subtitle: String
+    let progress: Double
+    let currentTime: TimeInterval
+    let duration: TimeInterval
+    let isPlaying: Bool
+    let canSeek: Bool
+    let canPerformPlaybackAction: Bool
+    let playbackTitle: String
+    let playbackSystemImage: String
 
     private let onPlayback: @MainActor @Sendable () -> Void
     private let onSeek: @MainActor @Sendable (Double) -> Void
 
-    public init(
+    init(
         title: String,
         subtitle: String,
         progress: Double,
@@ -44,7 +44,7 @@ public struct LibraryNowPlayingBar: View {
         self.onSeek = onSeek
     }
 
-    public var body: some View {
+    var body: some View {
         HStack(spacing: 18) {
             Image(systemName: isPlaying ? "record.circle.fill" : "record.circle")
                 .font(.title2)
