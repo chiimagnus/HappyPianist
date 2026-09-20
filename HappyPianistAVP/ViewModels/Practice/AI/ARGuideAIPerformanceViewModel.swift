@@ -83,7 +83,7 @@ final class ARGuideAIPerformanceViewModel {
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
                 "path": "/decision",
-                "protocol_version": "1",
+                "protocol_version": "2",
                 "engine": "qwen3.5-decision",
             ]
         )
@@ -155,7 +155,7 @@ final class ARGuideAIPerformanceViewModel {
             return "陪伴决策：确定性规则（本机）"
         case .networkBonjourQwen35:
             return backendDiscoveryStatusText(
-                backendName: "Qwen3.5-0.8B",
+                backendName: "Qwen3.5-0.8B（实验）",
                 state: qwenDecisionDiscoveryService.state,
                 notFoundHint: "请先在电脑端启动 Qwen3.5 陪伴决策服务。"
             ).replacingOccurrences(of: "后端：", with: "陪伴决策：")

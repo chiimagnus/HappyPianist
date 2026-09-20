@@ -299,15 +299,99 @@ Jev 的核心思路很适合这一层：不生成文字，只对预先定义好�
 
 - 官方权重约 1.75 GB；本机冷加载约 2.7 秒，CUDA 已分配显存约 1.66 GiB、保留约 1.98 GiB；
 - 给五个动作写清楚语义边界后，输入约 232～240 token，热前向中位数约 86～88 ms；当前没有安装 causal_conv1d 与 flash-linear-attention 优化内核，因此这不是极限速度；
-- 5 个手工场景中有 3 个基本符合预期：快速连续演奏选择“继续听”；明显终止的乐句以约 91% 概率选择“回应”；延音中的短暂停顿没有误判成回应；
+- 早期 5 个手工 smoke 场景中有 3 个基本符合预期，但这只用于验证提示词和动作语义，不再作为决策质量验收；
 - 两个场景仍不稳定：AI 正在演奏而用户重新主导时，“继续听”约 34%、“让位”约 30%；用户留出伴奏空间时，“继续听”和“稀疏陪奏”都约 33%；
 - 因此 0.8B 的单次前向速度已经有实时实验价值，但通用 Qwen3.5 还不能直接当作可靠的 Jev 类音乐决策模型。
 
 当前已经把 Qwen3.5-0.8B 接成**显式可选的第二个陪伴决策后端**，但默认仍使用 RuleBasedCompanionDecisionBackend，不做任何自动回退。Qwen 独立运行在电脑端本地服务，通过同一 CompanionDecisionBackendProtocol 返回 CompanionAction；音乐生成后端仍独立选择 Aria / CoreML / rule。
 
-正式协议除了统计特征，还携带最近最多 16 个 MIDI 音符的音高、力度、距当前时刻的开始时间和时值，以及 AI 当前是否正在演奏。这样后续微调可以直接复用线上真实输入，而不是依赖人工写出的“明显终止式”等语义提示。
+正式决策协议 v2 除了统计特征，还携带最近最多 16 个 MIDI 音符的音高、力度、距当前时刻的开始时间和时值，以及 AI 当前是否正在演奏。这样后续微调可以直接复用线上真实输入，而不是依赖人工写出的“明显终止式”等语义提示。
 
-服务启动时先做一次模型预热。本轮 Windows RTX 4060 实测启动预热约 847 ms；预热后的真实 HTTP /decision 请求约 106 ms。此前直接单次前向的热推理中位数约 86～88 ms。控制循环也改为目标约 100 ms 周期，不再在模型推理结束后固定额外等待 100 ms。
+服务启动时先做一次模型预热。单次结构化状态前向的早期基准约 86～88 ms；在下面 600 个真实 MIDI 分层样本中，Qwen HTTP 决策中位数为 135 ms（94～150 ms）。控制循环已改为目标约 100 ms 周期，不再在模型推理结束后固定额外等待 100 ms。
+
+#### 大规模真实 MIDI 验收
+
+早期只使用仓库 6 个 Aria 示例 MIDI 的 30-case 测试，后来确认它只能证明协议和服务链路能跑，不能作为音乐语义验收：当时有些状态来自固定百分位或人工覆盖，并不能证明对应 MIDI 在那个时刻天然具有该语义。因此这套 30-case 结论不再作为当前验收依据。
+
+现在改用两个公开语料：
+
+- MAESTRO v3：1276 个真实 Disklavier 钢琴演奏 MIDI，保留真实力度和踏板信息；
+- POP909：909 首流行钢琴编曲主 MIDI，用于补足 MAESTRO 偏古典的风格分布。
+
+本地共使用 2185 个主 MIDI；数据目录 python_backend/.datasets/ 已忽略，不进入 Git。
+
+验收分成三层。
+
+##### 1. 建立可观测状态候选池
+
+companion_acceptance_corpus.py 只根据 MIDI 本身的可观测事实找候选，不再要求每首都覆盖所有状态：
+
+- active_dense：前 1 秒至少 8 个 onset，下一 onset ≤200 ms；
+- active_sparse：前 1 秒最多 4 个 onset，下一 onset 约 50～550 ms；
+- sustain_pause：真实 CC64 ≥64 的停顿；
+- natural_silence：无物理按键保持、踏板抬起的长停顿；
+- piece_end：真实最终音结束后的曲终边界；
+- takeover_overlay：在自然 dense 用户片段上额外设置 AI 正在播放，专门测试用户重新接管；它是明确标记的合成状态，不是单人 MIDI 数据集提供的真值。
+
+索引器对最终采样点再次执行状态不变量校验。当前结果：
+
+- 2185/2185 个 MIDI 解析成功，0 错误；
+- active_dense：6255 个候选，覆盖 2129 首；
+- active_sparse：6286 个候选，覆盖 2154 首；
+- sustain_pause：6147 个候选，覆盖 2072 首；
+- natural_silence：1474 个候选，覆盖 692 首；
+- piece_end：2185 个候选；
+- takeover_overlay：6255 个合成候选，底层用户片段全部来自真实 dense MIDI。
+
+修正候选器以后又做了全量范围检查：active_dense 的最终采样点全部满足密度 ≥8、下一 onset ≤170 ms；active_sparse 全部满足密度 ≤4、下一 onset 约 67～470 ms；sustain_pause 全部真实 CC64 ≥64；natural_silence 全部无按键保持且 CC64 <64。
+
+必须区分可观测状态和语义真值。MAESTRO / POP909 没有 用户在等 AI、AI 应该回应、这次静默只是呼吸 等 turn-taking 人工标签，因此自然静默、踏板停顿、曲终等不能直接映射成唯一正确动作。没有人工标注前，不再报告这部分的准确率。
+
+##### 2. 600 个分层 Qwen 决策样本
+
+从 MAESTRO 与 POP909 中，按 6 种状态分别随机抽取每组 50 个，共 600 个 case，固定抽样 seed 为 20260920。
+
+Qwen3.5-0.8B 的输出分布：
+
+- respond：451；
+- sparse：149；
+- listen：0；
+- support：0；
+- yield：0。
+
+决策延迟中位数 135 ms，范围 94～150 ms。两个数据集的趋势一致，所以此前观察到的 respond 偏置不是 6 个示例 MIDI 导致的偶然现象。
+
+分状态看，100 个 piece_end 有 92 个 respond；100 个 natural_silence 有 91 个 respond；100 个真实 sustain_pause 有 61 个 respond。这些数字描述的是模型行为分布，不是准确率。
+
+takeover_overlay 是例外：它的测试语义是明确的——AI 正在播放，同时用户进入自然 dense 演奏，产品预期至少应该具备 yield 能力。但 100 个样本中 yield=0，说明当前零样本 Qwen 明确没有学会这一关键交互行为。
+
+##### 3. 60 个完整 Qwen → Aria → MIDI E2E
+
+再从每个数据源、每种状态各抽 5 个，共 60 个完整 case，真实执行：
+
+MIDI → 演奏状态 → Qwen /decision → Aria CUDA /generate → 输出 MIDI
+
+最终完整运行结果：
+
+- 60/60 次生成尝试成功；
+- 60 个输出 MIDI 全部重新解析，Note On / Note Off 数量配平，没有挂音；
+- Qwen 动作为 respond=46、sparse=14；
+- Qwen 决策延迟中位数 133.5 ms（100～150 ms）；
+- Aria 生成延迟中位数 1535.5 ms（1490～1901 ms）；
+- 52/60（86.7%）在当前动作对应的 0.45～0.70 秒实时播放窗口内至少有一个可播放音符。
+
+这证明服务级链路已经可以在比原来大得多、风格更分散的真实 MIDI 上运行，但同时暴露两个独立瓶颈：
+
+1. Qwen 决策问题：零样本 0.8B 模型几乎只会 respond / sparse，缺少真正的 listen / support / yield 行为，需要微调或专用决策模型；
+2. Aria 实时性问题：约 1.5 秒完成一次 64-token 生成仍明显慢于 0.45～0.70 秒交互窗口；即使最终 MIDI 合法，也不能简单等同于实时陪伴体验已经达标。
+
+Aria 采样具有随机性。中间一次探索运行曾出现单个 case 返回无 NoteEvent；验收器现在会把这种情况记录为单 case 生成失败而不是中止整批测试。最终这次 60-case 完整运行没有生成失败，但后续应增加多次重复运行，而不是只依赖一次采样。
+
+这轮真实验收此前还发现并修复了三类链路问题：决策 schema breaking change 未升协议版本、Swift/Python recent_notes 字段名不一致、Aria 对复杂 MIDI 的 prompt 事件顺序比较过严。当前均已从协议和续奏提取逻辑上修复。
+
+当前 Qwen3.5-0.8B 因此继续保留为实验后端，默认仍是确定性规则决策后端。
+
+这仍然不是 visionOS App 内部完整验收。macOS/Xcode 执行环境当前不可用，所以尚未证明实际 MIDI → AIPerformanceService → 网络后端 → DuetPhrasePolicy → DuetAIPlaybackQueue → CoreMIDI 的 App 级链路。
 
 ### Qwen3.5 微调方向
 

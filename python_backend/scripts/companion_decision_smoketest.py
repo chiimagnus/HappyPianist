@@ -13,7 +13,7 @@ def main() -> None:
     args = parser.parse_args()
 
     payload = {
-        "protocol_version": 1,
+        "protocol_version": 2,
         "input": {
             "now_timestamp_seconds": 100.0,
             "held_notes_count": 0,
@@ -29,13 +29,13 @@ def main() -> None:
                 {
                     "midi": 67,
                     "velocity": 72,
-                    "time_seconds": 1.1,
+                    "onset_seconds_ago": 1.1,
                     "duration_seconds": 0.3,
                 },
                 {
                     "midi": 60,
                     "velocity": 65,
-                    "time_seconds": 0.7,
+                    "onset_seconds_ago": 0.7,
                     "duration_seconds": 0.35,
                 },
             ],

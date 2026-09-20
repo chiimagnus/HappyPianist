@@ -11,10 +11,10 @@ from typing import Any
 from aiohttp import web
 
 from shared.decision_protocol import (
-    CompanionDecisionInputV1,
-    DecisionErrorResponseV1,
-    DecisionRequestV1,
-    DecisionResponseV1,
+    CompanionDecisionInputV2,
+    DecisionErrorResponseV2,
+    DecisionRequestV2,
+    DecisionResponseV2,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,11 +65,11 @@ def _seconds_since(now: float, timestamp: float | None) -> str:
     return f"{max(0.0, now - timestamp):.3f}"
 
 
-def format_decision_state(input_model: CompanionDecisionInputV1) -> str:
+def format_decision_state(input_model: CompanionDecisionInputV2) -> str:
     recent_notes = ", ".join(
         (
             f"{note.midi}(v={note.velocity},"
-            f"t={note.time_seconds:.3f}s,d={note.duration_seconds:.3f}s)"
+            f"ago={note.onset_seconds_ago:.3f}s,d={note.duration_seconds:.3f}s)"
         )
         for note in input_model.recent_notes
     )
@@ -147,7 +147,7 @@ class QwenDecisionPipeline:
 
     def warm_up(self) -> int:
         _, _, _, latency_ms = self.decide(
-            CompanionDecisionInputV1(
+            CompanionDecisionInputV2(
                 now_timestamp_seconds=1.0,
                 held_notes_count=0,
                 sustain_value=0,
@@ -165,7 +165,7 @@ class QwenDecisionPipeline:
 
     def decide(
         self,
-        input_model: CompanionDecisionInputV1,
+        input_model: CompanionDecisionInputV2,
     ) -> tuple[str, float, dict[str, float], int]:
         with self._lock:
             if self._model is None or self._tokenizer is None:
@@ -221,7 +221,7 @@ async def handle_root(request: web.Request) -> web.Response:
     return web.json_response(
         {
             "service": "companion_decision_server",
-            "protocol_version": 1,
+            "protocol_version": 2,
             "model": config.model,
             "device": config.device,
         }
@@ -233,15 +233,15 @@ async def handle_decision(request: web.Request) -> web.Response:
         payload = await request.json()
     except Exception:
         return web.json_response(
-            DecisionErrorResponseV1(message="invalid_json").model_dump(),
+            DecisionErrorResponseV2(message="invalid_json").model_dump(),
             status=400,
         )
 
     try:
-        request_model = DecisionRequestV1.model_validate(payload)
+        request_model = DecisionRequestV2.model_validate(payload)
     except Exception as exc:
         return web.json_response(
-            DecisionErrorResponseV1(message=f"invalid_request: {exc}").model_dump(),
+            DecisionErrorResponseV2(message=f"invalid_request: {exc}").model_dump(),
             status=400,
         )
 
@@ -254,12 +254,12 @@ async def handle_decision(request: web.Request) -> web.Response:
     except Exception:
         logger.exception("Qwen companion decision failed")
         return web.json_response(
-            DecisionErrorResponseV1(message="decision_failed").model_dump(),
+            DecisionErrorResponseV2(message="decision_failed").model_dump(),
             status=500,
         )
 
     config: ServerConfig = request.app[CONFIG_KEY]
-    response = DecisionResponseV1(
+    response = DecisionResponseV2(
         action=action,
         confidence=confidence,
         probabilities=probabilities,
@@ -282,7 +282,7 @@ async def _bonjour_start(app: web.Application) -> None:
     config: ServerConfig = app[CONFIG_KEY]
     txt = {
         "path": "/decision",
-        "protocol_version": "1",
+        "protocol_version": "2",
         "engine": "qwen3.5-decision",
         "engine_impl": config.model,
     }

@@ -6,13 +6,13 @@ from typing import Any
 from aiohttp.test_utils import TestClient, TestServer
 
 from companion_decision_server import server
-from shared.decision_protocol import CompanionDecisionInputV1
+from shared.decision_protocol import CompanionDecisionInputV2
 
 
 class FixedPipeline:
     def decide(
         self,
-        _: CompanionDecisionInputV1,
+        _: CompanionDecisionInputV2,
     ) -> tuple[str, float, dict[str, float], int]:
         return (
             "respond",
@@ -29,7 +29,7 @@ class FixedPipeline:
 
 
 class FailingPipeline:
-    def decide(self, _: CompanionDecisionInputV1) -> Any:
+    def decide(self, _: CompanionDecisionInputV2) -> Any:
         raise RuntimeError("model failed")
 
 
@@ -44,7 +44,7 @@ def _config() -> server.ServerConfig:
 
 def _payload() -> dict[str, Any]:
     return {
-        "protocol_version": 1,
+        "protocol_version": 2,
         "input": {
             "now_timestamp_seconds": 100.0,
             "held_notes_count": 0,
@@ -60,7 +60,7 @@ def _payload() -> dict[str, Any]:
                 {
                     "midi": 60,
                     "velocity": 80,
-                    "time_seconds": 0.8,
+                    "onset_seconds_ago": 0.8,
                     "duration_seconds": 0.3,
                 }
             ],
@@ -84,7 +84,7 @@ def test_decision_endpoint_returns_typed_action_and_probabilities() -> None:
             response = await client.post("/decision", json=_payload())
             payload = await response.json()
             assert response.status == 200
-            assert payload["protocol_version"] == 1
+            assert payload["protocol_version"] == 2
             assert payload["action"] == "respond"
             assert payload["confidence"] == 0.91
             assert payload["probabilities"]["respond"] == 0.91
@@ -105,7 +105,7 @@ def test_decision_failure_does_not_fall_back_to_rule_action() -> None:
             payload = await response.json()
             assert response.status == 500
             assert payload == {
-                "protocol_version": 1,
+                "protocol_version": 2,
                 "message": "decision_failed",
             }
             assert "action" not in payload
@@ -116,13 +116,30 @@ def test_decision_failure_does_not_fall_back_to_rule_action() -> None:
 
 
 def test_state_formatter_includes_recent_midi_and_ai_playback_state() -> None:
-    input_model = CompanionDecisionInputV1.model_validate(_payload()["input"])
+    input_model = CompanionDecisionInputV2.model_validate(_payload()["input"])
     text = server.format_decision_state(input_model)
 
     assert "AI当前正在演奏=否" in text
-    assert "60(v=80,t=0.800s,d=0.300s)" in text
+    assert "60(v=80,ago=0.800s,d=0.300s)" in text
     assert "距最后一次按键=0.700秒" in text
 
+
+def test_breaking_note_schema_rejects_protocol_v1() -> None:
+    async def scenario() -> None:
+        client = TestClient(TestServer(_test_app(FixedPipeline())))
+        await client.start_server()
+        try:
+            payload = _payload()
+            payload["protocol_version"] = 1
+            response = await client.post("/decision", json=payload)
+            body = await response.json()
+            assert response.status == 400
+            assert body["protocol_version"] == 2
+            assert body["message"].startswith("invalid_request:")
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
 
 def test_device_selection_is_explicit() -> None:
     assert server.parse_args(["--device", "cuda"]).device == "cuda"

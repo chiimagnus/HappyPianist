@@ -7,12 +7,12 @@ enum CompanionDecisionClientError: Error {
     case decodeFailed
 }
 
-private struct CompanionDecisionRequestV1: Codable {
-    let protocolVersion = 1
+private struct CompanionDecisionRequestV2: Codable {
+    let protocolVersion = 2
     let input: CompanionDecisionInput
 }
 
-struct CompanionDecisionResponseV1: Codable, Equatable, Sendable {
+struct CompanionDecisionResponseV2: Codable, Equatable, Sendable {
     let protocolVersion: Int
     let action: CompanionAction
     let confidence: Double
@@ -30,7 +30,7 @@ struct CompanionDecisionResponseV1: Codable, Equatable, Sendable {
     }
 }
 
-private struct CompanionDecisionErrorResponseV1: Codable {
+private struct CompanionDecisionErrorResponseV2: Codable {
     let protocolVersion: Int
     let message: String
 
@@ -46,7 +46,7 @@ protocol CompanionDecisionClientProtocol: Sendable {
         port: Int,
         input: CompanionDecisionInput,
         timeoutSeconds: TimeInterval
-    ) async throws -> CompanionDecisionResponseV1
+    ) async throws -> CompanionDecisionResponseV2
 }
 
 struct CompanionDecisionClient: CompanionDecisionClientProtocol {
@@ -61,7 +61,7 @@ struct CompanionDecisionClient: CompanionDecisionClientProtocol {
         port: Int,
         input: CompanionDecisionInput,
         timeoutSeconds: TimeInterval = 1
-    ) async throws -> CompanionDecisionResponseV1 {
+    ) async throws -> CompanionDecisionResponseV2 {
         var components = URLComponents()
         components.scheme = "http"
         components.host = host
@@ -81,7 +81,7 @@ struct CompanionDecisionClient: CompanionDecisionClientProtocol {
         request.timeoutInterval = timeoutSeconds
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(
-            CompanionDecisionRequestV1(input: input)
+            CompanionDecisionRequestV2(input: input)
         )
 
         let (data, response) = try await urlSession.data(for: request)
@@ -90,7 +90,7 @@ struct CompanionDecisionClient: CompanionDecisionClientProtocol {
         }
         guard httpResponse.statusCode == 200 else {
             let message = try? decoder.decode(
-                CompanionDecisionErrorResponseV1.self,
+                CompanionDecisionErrorResponseV2.self,
                 from: data
             ).message
             throw CompanionDecisionClientError.httpError(
@@ -100,7 +100,7 @@ struct CompanionDecisionClient: CompanionDecisionClientProtocol {
         }
 
         guard let result = try? decoder.decode(
-            CompanionDecisionResponseV1.self,
+            CompanionDecisionResponseV2.self,
             from: data
         ) else {
             throw CompanionDecisionClientError.decodeFailed

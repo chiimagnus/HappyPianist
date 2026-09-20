@@ -8,7 +8,7 @@ enum QwenNetworkCompanionDecisionBackendError: Error, Equatable {
 
 actor QwenNetworkCompanionDecisionBackend: CompanionDecisionBackendProtocol {
     nonisolated let kind: CompanionDecisionBackendKind = .networkBonjourQwen35
-    nonisolated let displayName = "Qwen3.5-0.8B（电脑本地）"
+    nonisolated let displayName = "Qwen3.5-0.8B（电脑本地，实验）"
 
     private let discoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let client: any CompanionDecisionClientProtocol

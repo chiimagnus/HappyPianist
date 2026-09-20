@@ -189,6 +189,22 @@ def test_continuation_extraction_removes_prompt_and_preserves_gap() -> None:
     assert continuation == [NoteEvent(note=67, velocity=88, time=0.25, duration=0.4)]
 
 
+def test_continuation_extraction_tolerates_generated_events_interleaved_by_time() -> None:
+    prompt = [
+        NoteEvent(note=60, velocity=90, time=0.0, duration=0.4),
+        NoteEvent(note=64, velocity=84, time=1.0, duration=0.3),
+    ]
+    reply = [
+        prompt[0],
+        NoteEvent(note=67, velocity=76, time=0.75, duration=0.25),
+        prompt[1],
+    ]
+
+    continuation = server._extract_continuation_events(prompt, reply)
+
+    assert continuation == [NoteEvent(note=67, velocity=76, time=0.0, duration=0.25)]
+
+
 def test_cuda_engine_can_be_selected_explicitly() -> None:
     config = server.parse_args(["--engine", "cuda"])
 

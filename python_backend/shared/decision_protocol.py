@@ -13,11 +13,11 @@ class DecisionNote(BaseModel):
 
     midi: int = Field(ge=0, le=127)
     velocity: int = Field(ge=0, le=127)
-    time_seconds: float = Field(ge=0)
+    onset_seconds_ago: float = Field(ge=0)
     duration_seconds: float = Field(ge=0)
 
 
-class CompanionDecisionInputV1(BaseModel):
+class CompanionDecisionInputV2(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     now_timestamp_seconds: float
@@ -33,17 +33,17 @@ class CompanionDecisionInputV1(BaseModel):
     recent_notes: list[DecisionNote] = Field(default_factory=list, max_length=32)
 
 
-class DecisionRequestV1(BaseModel):
+class DecisionRequestV2(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    protocol_version: Literal[1] = 1
-    input: CompanionDecisionInputV1
+    protocol_version: Literal[2] = 2
+    input: CompanionDecisionInputV2
 
 
-class DecisionResponseV1(BaseModel):
+class DecisionResponseV2(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    protocol_version: Literal[1] = 1
+    protocol_version: Literal[2] = 2
     action: CompanionAction
     confidence: float = Field(ge=0, le=1)
     probabilities: dict[str, float]
@@ -51,8 +51,8 @@ class DecisionResponseV1(BaseModel):
     model: str
 
 
-class DecisionErrorResponseV1(BaseModel):
+class DecisionErrorResponseV2(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    protocol_version: Literal[1] = 1
+    protocol_version: Literal[2] = 2
     message: str

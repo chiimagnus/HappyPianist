@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import Counter
 import logging
 import threading
 import time
@@ -17,6 +18,7 @@ from shared.protocol_v2 import (
     ControlChangeEvent,
     ErrorResponseV2,
     GenerateRequestV2,
+    NoteEvent,
     ResultResponseV2,
     legalize_events,
 )
@@ -75,12 +77,41 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
     )
 
 
-def _extract_continuation_events(prompt_events: list[Any], reply_events: list[Any]) -> list[Any]:
-    prefix_count = len(prompt_events)
-    if reply_events[:prefix_count] != prompt_events:
-        raise RuntimeError("Aria model reply did not preserve the prompt prefix")
+def _event_identity(event: Any) -> tuple[Any, ...]:
+    if isinstance(event, NoteEvent):
+        return (
+            "note",
+            int(event.note),
+            int(event.velocity),
+            round(float(event.time), 6),
+            round(float(event.duration), 6),
+        )
+    if isinstance(event, ControlChangeEvent):
+        return (
+            "cc",
+            int(event.controller),
+            int(event.value),
+            round(float(event.time), 6),
+        )
+    raise TypeError(f"unsupported Aria event type: {type(event)!r}")
 
-    continuation = reply_events[prefix_count:]
+
+def _extract_continuation_events(prompt_events: list[Any], reply_events: list[Any]) -> list[Any]:
+    remaining_prompt = Counter(_event_identity(event) for event in prompt_events)
+    continuation: list[Any] = []
+
+    for event in reply_events:
+        identity = _event_identity(event)
+        if remaining_prompt[identity] > 0:
+            remaining_prompt[identity] -= 1
+        else:
+            continuation.append(event)
+
+    missing_prompt_count = sum(remaining_prompt.values())
+    if missing_prompt_count:
+        raise RuntimeError(
+            f"Aria model reply lost {missing_prompt_count} normalized prompt events"
+        )
     if not continuation:
         raise RuntimeError("Aria model returned no continuation events")
 
@@ -180,8 +211,11 @@ class AriaPipeline:
             )
             if not results:
                 raise RuntimeError("Aria model returned no generated sequence")
+            generated_tokens = results[0]
+            if generated_tokens[: len(prompt)] != prompt:
+                raise RuntimeError("Aria model reply did not preserve the prompt token prefix")
 
-            reply = self._tokenizer.detokenize(results[0])
+            reply = self._tokenizer.detokenize(generated_tokens)
             if reply is None:
                 raise RuntimeError("Aria tokenizer returned no MIDI reply")
             continuation_events = _extract_continuation_events(
