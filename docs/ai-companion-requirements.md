@@ -303,7 +303,23 @@ Jev 的核心思路很适合这一层：不生成文字，只对预先定义好�
 - 两个场景仍不稳定：AI 正在演奏而用户重新主导时，“继续听”约 34%、“让位”约 30%；用户留出伴奏空间时，“继续听”和“稀疏陪奏”都约 33%；
 - 因此 0.8B 的单次前向速度已经有实时实验价值，但通用 Qwen3.5 还不能直接当作可靠的 Jev 类音乐决策模型。
 
-当前不把这个实验模型直接接入正式产品。现有控制循环是在一次决策完成后再等待约 100 ms；若直接加入约 86～88 ms 的模型决策，实际控制周期会进一步拉长。下一步应先让 RuleBasedCompanionDecisionBackend 与 Qwen3.5 后端使用同一决策协议和同一批场景做对照，再决定是做任务微调、增加专用决策读出头，还是进入专用音乐交互分类模型。
+当前已经把 Qwen3.5-0.8B 接成**显式可选的第二个陪伴决策后端**，但默认仍使用 RuleBasedCompanionDecisionBackend，不做任何自动回退。Qwen 独立运行在电脑端本地服务，通过同一 CompanionDecisionBackendProtocol 返回 CompanionAction；音乐生成后端仍独立选择 Aria / CoreML / rule。
+
+正式协议除了统计特征，还携带最近最多 16 个 MIDI 音符的音高、力度、距当前时刻的开始时间和时值，以及 AI 当前是否正在演奏。这样后续微调可以直接复用线上真实输入，而不是依赖人工写出的“明显终止式”等语义提示。
+
+服务启动时先做一次模型预热。本轮 Windows RTX 4060 实测启动预热约 847 ms；预热后的真实 HTTP /decision 请求约 106 ms。此前直接单次前向的热推理中位数约 86～88 ms。控制循环也改为目标约 100 ms 周期，不再在模型推理结束后固定额外等待 100 ms。
+
+### Qwen3.5 微调方向
+
+这条路线可以直接基于现有文本模型继续微调。近期优先尝试监督微调 / LoRA，而不是重新训练模型：
+
+- 输入保持现有结构化演奏状态和最近 MIDI 上下文；
+- 输出固定为 listen / support / sparse / yield / respond 五类动作；
+- 训练目标可以直接使用 A～E 下一 token 的交叉熵，因此推理仍然只需要一次前向传播；
+- 服务启动参数支持任意模型目录，未来替换微调 checkpoint 不需要修改 Swift 协议；
+- 可以分别比较 Qwen3.5-0.8B 与 Qwen3.5-0.8B-Base 的任务微调效果。
+
+训练数据不能只用规则后端自动生成标签，否则最终只是把现有规则蒸馏进模型。规则标签可以作为冷启动数据，但必须记录标签来源，并逐步加入真实演奏中的人工校正、用户主动让位/接管等交互事实。
 
 ### 方案三：专用音乐交互分类模型
 
@@ -368,3 +384,4 @@ Jev 的核心思路很适合这一层：不生成文字，只对预先定义好�
 - System One Lite: https://github.com/snellingio/system-one
 - System One, open: https://github.com/mithalouni/system-one-open
 - Qwen3.5-0.8B: https://huggingface.co/Qwen/Qwen3.5-0.8B
+- Qwen3.5-0.8B-Base: https://huggingface.co/Qwen/Qwen3.5-0.8B-Base
