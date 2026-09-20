@@ -101,7 +101,7 @@ final class AIPerformanceService {
     private var midiObservationAdapter = MIDIPerformanceObservationAdapter()
     private let keyContactObservationAdapter = PianoKeyContactPerformanceObservationAdapter()
     private let phraseObservationAdapter = PerformanceObservationPhraseAdapter()
-    private var controlEstimator = DuetTurnTakingCore()
+    private let companionDecisionBackend: any CompanionDecisionBackendProtocol
 
     private var controlLoopTask: Task<Void, Never>?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
@@ -136,6 +136,7 @@ final class AIPerformanceService {
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind?,
         aiPlaybackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
+        companionDecisionBackend: any CompanionDecisionBackendProtocol = RuleBasedCompanionDecisionBackend(),
         backendTimeout: Duration = .seconds(12),
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
@@ -147,6 +148,7 @@ final class AIPerformanceService {
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
+        self.companionDecisionBackend = companionDecisionBackend
         self.backendTimeout = backendTimeout
         self.onStateChanged = onStateChanged
     }
@@ -164,7 +166,7 @@ final class AIPerformanceService {
         {
             let invalidatedPhraseGeneration = invalidateGeneration()
             resetPhraseInput()
-            controlEstimator.reset()
+
             latestSchedule = []
             latestCandidateDiagnostics = nil
             notifyStateChanged()
@@ -191,7 +193,7 @@ final class AIPerformanceService {
 
             isAIPlaybackActive = false
             resetPhraseInput()
-            controlEstimator.reset()
+
             latestSchedule = []
             lastImprovStatusText = nil
             generationFailureStatusText = nil
@@ -210,7 +212,6 @@ final class AIPerformanceService {
         activationID += 1
         _ = invalidatePhraseGeneration()
         resetPhraseInput()
-        controlEstimator.reset()
         latestSchedule = []
         lastImprovStatusText = "AI 即兴：连续共演模式已启用"
         generationFailureStatusText = nil
@@ -353,8 +354,8 @@ final class AIPerformanceService {
     private func controlDecision(
         noteSnapshot: DuetPhraseBuffer.Snapshot,
         ccSnapshot: DuetPhraseEventBuffer.Snapshot
-    ) -> DuetTurnTakingCore.Decision {
-        controlEstimator.evaluate(
+    ) async throws -> CompanionDecision {
+        try await companionDecisionBackend.decide(
             .init(
                 nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
                 heldNotesCount: noteSnapshot.heldNotes.count,
@@ -410,7 +411,17 @@ final class AIPerformanceService {
             lookbackSeconds: bootstrapPolicy.lookbackSeconds,
             maxPromptSeconds: bootstrapPolicy.maxPromptSeconds
         )
-        let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        let decision: CompanionDecision
+        do {
+            decision = try await controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        } catch {
+            reportCompanionDecisionFailure()
+            await aiPlaybackQueue.clearPendingWindow()
+            if isAIPlaybackActive == false {
+                latestSchedule = []
+            }
+            return
+        }
 
         if decision.shouldClearFutureWindows {
             await aiPlaybackQueue.clearPendingWindow()
@@ -445,7 +456,7 @@ final class AIPerformanceService {
 
     private func shouldRequestWindow(
         nowTimestampSeconds: TimeInterval,
-        decision: DuetTurnTakingCore.Decision,
+        decision: CompanionDecision,
         noteSnapshot: DuetPhraseBuffer.Snapshot
     ) -> Bool {
         guard decision.shouldRequestGeneration else { return false }
@@ -570,7 +581,13 @@ final class AIPerformanceService {
             lookbackSeconds: requestPolicy.lookbackSeconds,
             maxPromptSeconds: requestPolicy.maxPromptSeconds
         )
-        let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        let decision: CompanionDecision
+        do {
+            decision = try await controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        } catch {
+            reportCompanionDecisionFailure()
+            return
+        }
         guard decision.shouldRequestGeneration else { return }
         let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
         let evaluations = responses.map {
@@ -710,7 +727,7 @@ final class AIPerformanceService {
     private func evaluateCandidate(
         response: CreativeDuetResponse,
         noteSnapshot: DuetPhraseBuffer.Snapshot,
-        controlMode: DuetTurnTakingCore.Mode,
+        controlMode: CompanionParticipationMode,
         horizonSeconds: TimeInterval
     ) -> CandidateEvaluation {
         let rawAssessment = DuetPhrasePolicy.assessSchedule(
@@ -836,6 +853,20 @@ final class AIPerformanceService {
         return true
     }
 
+    private func reportCompanionDecisionFailure() {
+        let statusText = "AI 即兴：陪伴决策后端失败"
+        guard lastImprovStatusText != statusText else { return }
+        diagnosticsReporter?.recordSystem(
+            severity: .warning,
+            category: .ai,
+            stage: "continuousDuet.decision",
+            summary: "AI 陪伴决策失败",
+            reason: "failure=decision_backend"
+        )
+        lastImprovStatusText = statusText
+        notifyStateChanged()
+    }
+
     private func failureCategory(for error: any Error) -> GenerationFailureCategory {
         if error is ImprovBackendRegistryError {
             return .unavailable
@@ -953,7 +984,7 @@ final class AIPerformanceService {
     }
 
     private func makeStatusText(
-        decision: DuetTurnTakingCore.Decision,
+        decision: CompanionDecision,
         noteSnapshot: DuetPhraseBuffer.Snapshot
     ) -> String {
         let density = noteSnapshot.recentNoteDensityPerSecond.formatted(.number.precision(.fractionLength(2)))

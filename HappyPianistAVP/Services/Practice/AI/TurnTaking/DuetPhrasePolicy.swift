@@ -37,7 +37,7 @@ enum DuetPhrasePolicy {
         }
     }
 
-    static func requestPolicy(for decision: DuetTurnTakingCore.Decision) -> RequestPolicy {
+    static func requestPolicy(for decision: CompanionDecision) -> RequestPolicy {
         RequestPolicy(
             lookbackSeconds: 4.0,
             maxPromptSeconds: 3.0,
@@ -179,7 +179,7 @@ enum DuetPhrasePolicy {
     static func shapeSchedule(
         _ schedule: [PracticeSequencerMIDIEvent],
         noteSnapshot: DuetPhraseBuffer.Snapshot,
-        controlMode: DuetTurnTakingCore.Mode,
+        controlMode: CompanionParticipationMode,
         horizonSeconds: TimeInterval
     ) -> [PracticeSequencerMIDIEvent] {
         guard schedule.isEmpty == false else { return [] }
@@ -328,7 +328,7 @@ enum DuetPhrasePolicy {
             .max() ?? 0
     }
 
-    private static func adjustedVelocity(_ velocity: UInt8, mode: DuetTurnTakingCore.Mode) -> UInt8 {
+    private static func adjustedVelocity(_ velocity: UInt8, mode: CompanionParticipationMode) -> UInt8 {
         switch mode {
         case .support:
             UInt8(clamping: Int((Double(velocity) * 0.85).rounded()))
@@ -370,7 +370,7 @@ enum DuetPhrasePolicy {
         to schedule: [PracticeSequencerMIDIEvent],
         noteSnapshot: DuetPhraseBuffer.Snapshot,
         horizonSeconds: TimeInterval,
-        controlMode: DuetTurnTakingCore.Mode
+        controlMode: CompanionParticipationMode
     ) -> [PracticeSequencerMIDIEvent] {
         let assessment = assessSchedule(schedule, noteSnapshot: noteSnapshot, horizonSeconds: horizonSeconds)
         switch assessment.band {
@@ -387,7 +387,7 @@ enum DuetPhrasePolicy {
 
     private static func salvageSchedule(
         _ schedule: [PracticeSequencerMIDIEvent],
-        controlMode: DuetTurnTakingCore.Mode,
+        controlMode: CompanionParticipationMode,
         horizonSeconds: TimeInterval
     ) -> [PracticeSequencerMIDIEvent] {
         var droppedNoteDepths: [Int: Int] = [:]

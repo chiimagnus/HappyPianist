@@ -1,47 +1,17 @@
 import Foundation
 
-/// Pure overlap-control estimator for the continuous duet engine.
-struct DuetTurnTakingCore {
-    enum Mode: String, Equatable {
-        case support
-        case sparse
-        case yield
-        case silent
-    }
-
-    struct ControlSnapshot: Equatable {
-        let nowTimestampSeconds: TimeInterval
-        let heldNotesCount: Int
-        let sustainValue: Int
-        let recentIOIMedianSeconds: TimeInterval?
-        let recentVelocityTrend: Double
-        let recentNoteDensityPerSecond: Double
-        let lastUserEventTimestampSeconds: TimeInterval?
-        let lastNoteOnTimestampSeconds: TimeInterval?
-        let activePitchCenter: Double?
-    }
-
-    struct Decision: Equatable {
-        let mode: Mode
-        let shouldRequestGeneration: Bool
-        let shouldClearFutureWindows: Bool
-        let requestWindowSeconds: TimeInterval
-        let minRequestIntervalSeconds: TimeInterval
-        let maxTokens: Int
-    }
-
-    init() {}
-
-    mutating func evaluate(_ snapshot: ControlSnapshot) -> Decision {
-        let timeSinceLastEvent = snapshot.lastUserEventTimestampSeconds.map { max(0, snapshot.nowTimestampSeconds - $0) }
-        let timeSinceLastNoteOn = snapshot.lastNoteOnTimestampSeconds.map { max(0, snapshot.nowTimestampSeconds - $0) }
-        let sustainIsDown = snapshot.sustainValue >= 64
-        let isFastFigure = (snapshot.recentIOIMedianSeconds ?? 0.4) < 0.18
-        let isDenseTexture = snapshot.recentNoteDensityPerSecond >= 2.2
+/// Deterministic baseline for companion participation decisions.
+struct RuleBasedCompanionDecisionBackend: CompanionDecisionBackendProtocol {
+    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision {
+        let timeSinceLastEvent = input.lastUserEventTimestampSeconds.map { max(0, input.nowTimestampSeconds - $0) }
+        let timeSinceLastNoteOn = input.lastNoteOnTimestampSeconds.map { max(0, input.nowTimestampSeconds - $0) }
+        let sustainIsDown = input.sustainValue >= 64
+        let isFastFigure = (input.recentIOIMedianSeconds ?? 0.4) < 0.18
+        let isDenseTexture = input.recentNoteDensityPerSecond >= 2.2
         let hasRecentActivity = (timeSinceLastEvent ?? 10) <= 1.2
 
         if hasRecentActivity == false {
-            return Decision(
+            return CompanionDecision(
                 mode: .silent,
                 shouldRequestGeneration: false,
                 shouldClearFutureWindows: true,
@@ -52,7 +22,7 @@ struct DuetTurnTakingCore {
         }
 
         if isFastFigure || isDenseTexture {
-            return Decision(
+            return CompanionDecision(
                 mode: .yield,
                 shouldRequestGeneration: false,
                 shouldClearFutureWindows: true,
@@ -62,9 +32,9 @@ struct DuetTurnTakingCore {
             )
         }
 
-        if snapshot.heldNotesCount > 0 {
-            if sustainIsDown || snapshot.recentVelocityTrend > 4 {
-                return Decision(
+        if input.heldNotesCount > 0 {
+            if sustainIsDown || input.recentVelocityTrend > 4 {
+                return CompanionDecision(
                     mode: .sparse,
                     shouldRequestGeneration: true,
                     shouldClearFutureWindows: false,
@@ -74,7 +44,7 @@ struct DuetTurnTakingCore {
                 )
             }
 
-            return Decision(
+            return CompanionDecision(
                 mode: .support,
                 shouldRequestGeneration: true,
                 shouldClearFutureWindows: false,
@@ -85,7 +55,7 @@ struct DuetTurnTakingCore {
         }
 
         if (timeSinceLastNoteOn ?? 10) <= 0.35 {
-            return Decision(
+            return CompanionDecision(
                 mode: .sparse,
                 shouldRequestGeneration: true,
                 shouldClearFutureWindows: false,
@@ -96,7 +66,7 @@ struct DuetTurnTakingCore {
         }
 
         if (timeSinceLastEvent ?? 10) <= 0.9 {
-            return Decision(
+            return CompanionDecision(
                 mode: .support,
                 shouldRequestGeneration: true,
                 shouldClearFutureWindows: false,
@@ -106,7 +76,7 @@ struct DuetTurnTakingCore {
             )
         }
 
-        return Decision(
+        return CompanionDecision(
             mode: .silent,
             shouldRequestGeneration: false,
             shouldClearFutureWindows: true,
@@ -115,6 +85,4 @@ struct DuetTurnTakingCore {
             maxTokens: 0
         )
     }
-
-    mutating func reset() {}
 }

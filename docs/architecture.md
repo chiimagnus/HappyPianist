@@ -18,5 +18,6 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 - 未知、低置信度、`insufficient` 与降级能力不是用户错误；AI/system playback、旧 generation 或后台事件不能写入用户 observation 或 progress。
 - progress、metadata 与 session 分 concern 更新；诊断只经 `DiagnosticsReporting`，导出不得含原谱、原始输入、绝对路径、AI 正文或凭据。
 - 主 Actor 不做解析、文件 I/O 或设备重活；结束会话前失效输入、停止输入和输出、保存事实并取消长任务。
+- 实时陪伴决策通过 CompanionDecisionBackendProtocol 注入；RuleBasedCompanionDecisionBackend 只是确定性基线。后续本地模型与专用分类模型使用同一输入/输出契约，决策后端失败时不得静默切换实现。
 
 验证范围见[测试](testing.md)，产品能力措辞见[质量边界](piano-performance-quality.md)。

@@ -6,9 +6,9 @@ import Diagnostics
 import Testing
 
 @Test
-func duetTurnTakingCoreReturnsYieldForDenseHeldTexture() {
-    var core = DuetTurnTakingCore()
-    let decision = core.evaluate(
+func ruleBasedCompanionDecisionBackendYieldsForDenseHeldTexture() async throws {
+    let backend = RuleBasedCompanionDecisionBackend()
+    let decision = try await backend.decide(
         .init(
             nowTimestampSeconds: 10.0,
             heldNotesCount: 2,
@@ -28,9 +28,9 @@ func duetTurnTakingCoreReturnsYieldForDenseHeldTexture() {
 }
 
 @Test
-func duetTurnTakingCoreReturnsYieldForDenseStaccatoTexture() {
-    var core = DuetTurnTakingCore()
-    let decision = core.evaluate(
+func ruleBasedCompanionDecisionBackendYieldsForDenseStaccatoTexture() async throws {
+    let backend = RuleBasedCompanionDecisionBackend()
+    let decision = try await backend.decide(
         .init(
             nowTimestampSeconds: 10,
             heldNotesCount: 0,
@@ -49,9 +49,9 @@ func duetTurnTakingCoreReturnsYieldForDenseStaccatoTexture() {
 }
 
 @Test
-func duetTurnTakingCoreReturnsSparseForSustainLedHeldTexture() {
-    var core = DuetTurnTakingCore()
-    let decision = core.evaluate(
+func ruleBasedCompanionDecisionBackendUsesSparseModeForSustainLedHeldTexture() async throws {
+    let backend = RuleBasedCompanionDecisionBackend()
+    let decision = try await backend.decide(
         .init(
             nowTimestampSeconds: 5.0,
             heldNotesCount: 1,
@@ -72,9 +72,9 @@ func duetTurnTakingCoreReturnsSparseForSustainLedHeldTexture() {
 }
 
 @Test
-func duetTurnTakingCoreReturnsSupportForRecentHeldLine() {
-    var core = DuetTurnTakingCore()
-    let decision = core.evaluate(
+func ruleBasedCompanionDecisionBackendSupportsRecentHeldLine() async throws {
+    let backend = RuleBasedCompanionDecisionBackend()
+    let decision = try await backend.decide(
         .init(
             nowTimestampSeconds: 20.0,
             heldNotesCount: 1,
@@ -95,9 +95,9 @@ func duetTurnTakingCoreReturnsSupportForRecentHeldLine() {
 }
 
 @Test
-func duetTurnTakingCoreReturnsSilentForStaleInput() {
-    var core = DuetTurnTakingCore()
-    let decision = core.evaluate(
+func ruleBasedCompanionDecisionBackendIsSilentForStaleInput() async throws {
+    let backend = RuleBasedCompanionDecisionBackend()
+    let decision = try await backend.decide(
         .init(
             nowTimestampSeconds: 100.0,
             heldNotesCount: 0,
