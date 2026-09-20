@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "ariautils @ git+https://github.com/EleutherAI/aria-utils.git",
     "torch>=2.3",
-    "mlx<=0.26",
+    "mlx<=0.26; sys_platform != 'win32'",
     "safetensors",
     "jsonlines",
     "tqdm",

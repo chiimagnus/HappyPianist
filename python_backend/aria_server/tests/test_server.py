@@ -5,7 +5,9 @@ import json
 import sys
 import types
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
+from unittest.mock import patch
 
 from aiohttp import WSMsgType
 from aiohttp.test_utils import TestClient, TestServer
@@ -30,6 +32,7 @@ def _config() -> server.ServerConfig:
         host="127.0.0.1",
         port=0,
         checkpoint=Path("missing.safetensors"),
+        engine="mlx",
         default_cc7=None,
         default_cc11=None,
         stream_window_s=0.5,
@@ -169,3 +172,58 @@ def test_generated_reply_preserves_pipeline_latency() -> None:
 def test_zero_cc_argument_remains_a_valid_midi_value() -> None:
     assert server._parse_optional_cc_arg("0") == 0
     assert server._parse_optional_cc_arg("off") is None
+
+
+def test_cuda_engine_can_be_selected_explicitly() -> None:
+    config = server.parse_args(["--engine", "cuda"])
+
+    assert config.engine == "cuda"
+
+
+def test_cuda_pipeline_uses_torch_loader() -> None:
+    from aria import run as aria_run
+
+    model = object()
+    with TemporaryDirectory() as directory:
+        checkpoint = Path(directory) / "model.safetensors"
+        checkpoint.touch()
+        pipeline = server.AriaPipeline(checkpoint=checkpoint, engine="cuda")
+
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch.object(aria_run, "_load_inference_model_torch", return_value=model) as torch_loader,
+            patch.object(aria_run, "_load_inference_model_mlx") as mlx_loader,
+        ):
+            pipeline._ensure_loaded()
+
+    torch_loader.assert_called_once_with(
+        str(checkpoint),
+        config_name="medium-emb",
+        strict=False,
+    )
+    mlx_loader.assert_not_called()
+    assert pipeline._model is model
+
+
+def test_cuda_pipeline_does_not_fall_back_to_mlx() -> None:
+    from aria import run as aria_run
+
+    with TemporaryDirectory() as directory:
+        checkpoint = Path(directory) / "model.safetensors"
+        checkpoint.touch()
+        pipeline = server.AriaPipeline(checkpoint=checkpoint, engine="cuda")
+
+        with (
+            patch("torch.cuda.is_available", return_value=False),
+            patch.object(aria_run, "_load_inference_model_torch") as torch_loader,
+            patch.object(aria_run, "_load_inference_model_mlx") as mlx_loader,
+        ):
+            try:
+                pipeline._ensure_loaded()
+            except RuntimeError as error:
+                assert str(error) == "CUDA engine selected but torch.cuda is unavailable"
+            else:
+                raise AssertionError("CUDA unavailability must fail without fallback")
+
+    torch_loader.assert_not_called()
+    mlx_loader.assert_not_called()

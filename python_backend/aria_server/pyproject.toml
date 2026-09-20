@@ -8,6 +8,7 @@ dependencies = [
     "aria",
     "mido",
     "safetensors",
+    "torch>=2.3",
     "pydantic>=2",
     "zeroconf",
     "numpy",
@@ -16,3 +17,11 @@ dependencies = [
 
 [tool.uv.sources]
 aria = { path = "../aria", editable = true }
+torch = [
+    { index = "pytorch-cu132", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
