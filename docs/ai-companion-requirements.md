@@ -367,3 +367,4 @@ Jev 的核心思路很适合这一层：不生成文字，只对预先定义好�
 - NanoJev: https://github.com/TianyuCodings/NanoJev
 - System One Lite: https://github.com/snellingio/system-one
 - System One, open: https://github.com/mithalouni/system-one-open
+- Qwen3.5-0.8B: https://huggingface.co/Qwen/Qwen3.5-0.8B
