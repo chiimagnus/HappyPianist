@@ -101,7 +101,8 @@ final class AIPerformanceService {
     private var midiObservationAdapter = MIDIPerformanceObservationAdapter()
     private let keyContactObservationAdapter = PianoKeyContactPerformanceObservationAdapter()
     private let phraseObservationAdapter = PerformanceObservationPhraseAdapter()
-    private var controlEstimator = DuetTurnTakingCore()
+    private let companionDecisionBackendRegistry: CompanionDecisionBackendRegistry
+    private let selectedCompanionDecisionBackendKind: @MainActor () -> CompanionDecisionBackendKind?
 
     private var controlLoopTask: Task<Void, Never>?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
@@ -136,6 +137,10 @@ final class AIPerformanceService {
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind?,
         aiPlaybackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
+        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry = .init(
+            backends: [RuleBasedCompanionDecisionBackend()]
+        ),
+        selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind? = { .ruleBased },
         backendTimeout: Duration = .seconds(12),
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
@@ -147,6 +152,8 @@ final class AIPerformanceService {
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
+        self.companionDecisionBackendRegistry = companionDecisionBackendRegistry
+        self.selectedCompanionDecisionBackendKind = selectedCompanionDecisionBackendKind
         self.backendTimeout = backendTimeout
         self.onStateChanged = onStateChanged
     }
@@ -164,7 +171,7 @@ final class AIPerformanceService {
         {
             let invalidatedPhraseGeneration = invalidateGeneration()
             resetPhraseInput()
-            controlEstimator.reset()
+
             latestSchedule = []
             latestCandidateDiagnostics = nil
             notifyStateChanged()
@@ -191,7 +198,7 @@ final class AIPerformanceService {
 
             isAIPlaybackActive = false
             resetPhraseInput()
-            controlEstimator.reset()
+
             latestSchedule = []
             lastImprovStatusText = nil
             generationFailureStatusText = nil
@@ -210,7 +217,6 @@ final class AIPerformanceService {
         activationID += 1
         _ = invalidatePhraseGeneration()
         resetPhraseInput()
-        controlEstimator.reset()
         latestSchedule = []
         lastImprovStatusText = "AI 即兴：连续共演模式已启用"
         generationFailureStatusText = nil
@@ -350,11 +356,29 @@ final class AIPerformanceService {
         practiceSession?.refreshAudioRecognitionForCurrentState()
     }
 
-    private func controlDecision(
+    private func requestCompanionDecision(
         noteSnapshot: DuetPhraseBuffer.Snapshot,
         ccSnapshot: DuetPhraseEventBuffer.Snapshot
-    ) -> DuetTurnTakingCore.Decision {
-        controlEstimator.evaluate(
+    ) async throws -> CompanionDecision {
+        guard let kind = selectedCompanionDecisionBackendKind() else {
+            throw CompanionDecisionBackendRegistryError.invalidSelection
+        }
+        let backend = try companionDecisionBackendRegistry.backend(for: kind)
+        let latestPromptEnd = noteSnapshot.promptNotes.map { $0.time + $0.duration }.max() ?? 0
+        let tailGapSeconds = noteSnapshot.heldNotes.isEmpty
+            ? noteSnapshot.lastUserEventTimestampSeconds.map {
+                max(0, noteSnapshot.nowTimestampSeconds - $0)
+            } ?? 0
+            : 0
+        let recentNotes = noteSnapshot.promptNotes.suffix(16).map { note in
+            CompanionDecisionNote(
+                midi: note.note,
+                velocity: note.velocity,
+                onsetSecondsAgo: tailGapSeconds + max(0, latestPromptEnd - note.time),
+                durationSeconds: note.duration
+            )
+        }
+        let decision = try await backend.decide(
             .init(
                 nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
                 heldNotesCount: noteSnapshot.heldNotes.count,
@@ -364,9 +388,15 @@ final class AIPerformanceService {
                 recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
                 lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
                 lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
-                activePitchCenter: noteSnapshot.activePitchCenter
+                activePitchCenter: noteSnapshot.activePitchCenter,
+                isAIPlaybackActive: isAIPlaybackActive,
+                recentNotes: recentNotes
             )
         )
+        guard selectedCompanionDecisionBackendKind() == kind else {
+            throw CompanionDecisionBackendRegistryError.selectionChanged
+        }
+        return decision
     }
 
     private func startControlLoop() {
@@ -377,9 +407,14 @@ final class AIPerformanceService {
     private func scheduleNextControlTick() {
         controlLoopTask = Task { @MainActor [weak self] in
             guard let self, self.isEnabled else { return }
+            let tickStartedAt = self.nowUptimeSeconds()
             await self.runContinuousControlTick()
-            await self.sleepFor(.milliseconds(100))
-            // 注入时钟可能立即返回；防止主 Actor 出现热循环。
+            let elapsedSeconds = max(0, self.nowUptimeSeconds() - tickStartedAt)
+            let remainingMilliseconds = Int64(max(0, ((0.1 - elapsedSeconds) * 1_000).rounded(.up)))
+            if remainingMilliseconds > 0 {
+                await self.sleepFor(.milliseconds(remainingMilliseconds))
+            }
+            // 注入时钟/睡眠可能立即返回；防止主 Actor 出现热循环。
             try? await Task.sleep(for: .milliseconds(1))
             guard Task.isCancelled == false, self.isEnabled else { return }
             self.scheduleNextControlTick()
@@ -410,7 +445,19 @@ final class AIPerformanceService {
             lookbackSeconds: bootstrapPolicy.lookbackSeconds,
             maxPromptSeconds: bootstrapPolicy.maxPromptSeconds
         )
-        let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        let decision: CompanionDecision
+        do {
+            decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+            return
+        } catch {
+            reportCompanionDecisionFailure()
+            await aiPlaybackQueue.clearPendingWindow()
+            if isAIPlaybackActive == false {
+                latestSchedule = []
+            }
+            return
+        }
 
         if decision.shouldClearFutureWindows {
             await aiPlaybackQueue.clearPendingWindow()
@@ -419,8 +466,13 @@ final class AIPerformanceService {
             }
         }
 
-        if shouldRequestWindow(nowTimestampSeconds: now, decision: decision, noteSnapshot: noteSnapshot) {
-            let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision)
+        let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
+        if shouldRequestWindow(
+            nowTimestampSeconds: now,
+            decision: decision,
+            requestPolicy: requestPolicy,
+            noteSnapshot: noteSnapshot
+        ) {
             let promptEvents = DuetPhrasePolicy.buildPromptEvents(
                 noteSnapshot: noteSnapshot,
                 ccSnapshot: ccSnapshot,
@@ -445,7 +497,8 @@ final class AIPerformanceService {
 
     private func shouldRequestWindow(
         nowTimestampSeconds: TimeInterval,
-        decision: DuetTurnTakingCore.Decision,
+        decision: CompanionDecision,
+        requestPolicy: DuetPhrasePolicy.RequestPolicy,
         noteSnapshot: DuetPhraseBuffer.Snapshot
     ) -> Bool {
         guard decision.shouldRequestGeneration else { return false }
@@ -453,7 +506,7 @@ final class AIPerformanceService {
         guard inFlightGenerateTasks.isEmpty else { return false }
 
         if let lastWindowRequestTimestampSeconds,
-           nowTimestampSeconds - lastWindowRequestTimestampSeconds < decision.minRequestIntervalSeconds
+           nowTimestampSeconds - lastWindowRequestTimestampSeconds < requestPolicy.minRequestIntervalSeconds
         {
             return false
         }
@@ -570,14 +623,22 @@ final class AIPerformanceService {
             lookbackSeconds: requestPolicy.lookbackSeconds,
             maxPromptSeconds: requestPolicy.maxPromptSeconds
         )
-        let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        let decision: CompanionDecision
+        do {
+            decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+            return
+        } catch {
+            reportCompanionDecisionFailure()
+            return
+        }
         guard decision.shouldRequestGeneration else { return }
-        let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
+        let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
         let evaluations = responses.map {
             evaluateCandidate(
                 response: $0,
                 noteSnapshot: noteSnapshot,
-                controlMode: decision.mode,
+                companionAction: decision.action,
                 horizonSeconds: responsePolicy.requestWindowSeconds
             )
         }
@@ -710,7 +771,7 @@ final class AIPerformanceService {
     private func evaluateCandidate(
         response: CreativeDuetResponse,
         noteSnapshot: DuetPhraseBuffer.Snapshot,
-        controlMode: DuetTurnTakingCore.Mode,
+        companionAction: CompanionAction,
         horizonSeconds: TimeInterval
     ) -> CandidateEvaluation {
         let rawAssessment = DuetPhrasePolicy.assessSchedule(
@@ -721,7 +782,7 @@ final class AIPerformanceService {
         let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
             response.schedule,
             noteSnapshot: noteSnapshot,
-            controlMode: controlMode,
+            companionAction: companionAction,
             horizonSeconds: horizonSeconds
         )
         let responseLatencySeconds = responseLatencySeconds(for: response)
@@ -834,6 +895,20 @@ final class AIPerformanceService {
         lastKnownBackendKind = kind
         discoveryOrchestrator.start(for: kind)
         return true
+    }
+
+    private func reportCompanionDecisionFailure() {
+        let statusText = "AI 即兴：陪伴决策后端失败"
+        guard lastImprovStatusText != statusText else { return }
+        diagnosticsReporter?.recordSystem(
+            severity: .warning,
+            category: .ai,
+            stage: "continuousDuet.decision",
+            summary: "AI 陪伴决策失败",
+            reason: "failure=decision_backend"
+        )
+        lastImprovStatusText = statusText
+        notifyStateChanged()
     }
 
     private func failureCategory(for error: any Error) -> GenerationFailureCategory {
@@ -953,19 +1028,20 @@ final class AIPerformanceService {
     }
 
     private func makeStatusText(
-        decision: DuetTurnTakingCore.Decision,
+        decision: CompanionDecision,
         noteSnapshot: DuetPhraseBuffer.Snapshot
     ) -> String {
         let density = noteSnapshot.recentNoteDensityPerSecond.formatted(.number.precision(.fractionLength(2)))
         let ioiText = noteSnapshot.recentIOIMedianSeconds.map(formatSeconds) ?? "-"
         let generationText = isGenerating ? "生成中" : "监听中"
-        let cadence = formatSeconds(decision.minRequestIntervalSeconds)
-        let horizon = formatSeconds(decision.requestWindowSeconds)
+        let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
+        let cadence = formatSeconds(requestPolicy.minRequestIntervalSeconds)
+        let horizon = formatSeconds(requestPolicy.requestWindowSeconds)
         let diagnostics = latestCandidateDiagnostics.map { diagnostics in
             let reason = diagnostics.topRejectReason.map { " · topReject=\($0.rawValue)" } ?? ""
             return " · q=\(diagnostics.band.rawValue) · candidates=\(diagnostics.candidateCount)\(reason)"
         } ?? ""
-        return "AI 即兴：\(generationText) · mode=\(decision.mode.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s · cadence=\(cadence)s · window=\(horizon)s\(diagnostics)"
+        return "AI 即兴：\(generationText) · action=\(decision.action.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s · cadence=\(cadence)s · window=\(horizon)s\(diagnostics)"
     }
 
     private func formatSeconds(_ seconds: TimeInterval) -> String {

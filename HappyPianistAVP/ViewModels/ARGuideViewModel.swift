@@ -540,6 +540,10 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         aiPerformanceViewModel.backendStatusText
     }
 
+    var companionDecisionBackendStatusText: String? {
+        aiPerformanceViewModel.companionDecisionBackendStatusText
+    }
+
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         aiPerformanceViewModel.setVirtualPerformerEnabled(
             isEnabled,

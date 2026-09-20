@@ -10,7 +10,9 @@ final class ARGuideAIPerformanceViewModel {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     let ariaDiscoveryService: BonjourBackendDiscoveryService
     let ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService
+    let qwenDecisionDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
+    private let companionDecisionBackendSelection = CompanionDecisionBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
     private let localCoreMLModelLoader = PerformanceRNNCoreMLModelLoader()
 
@@ -39,6 +41,10 @@ final class ARGuideAIPerformanceViewModel {
         aiPlaybackServiceFactory: { [aiPlaybackServiceFactory] in
             aiPlaybackServiceFactory()
         },
+        companionDecisionBackendRegistry: makeCompanionDecisionBackendRegistry(),
+        selectedCompanionDecisionBackendKind: { [companionDecisionBackendSelection] in
+            companionDecisionBackendSelection.selectedKind()
+        },
         onStateChanged: { [weak self] state in
             guard let self else { return }
             isAIPerformanceActive = state.isAIPerformanceActive
@@ -52,6 +58,7 @@ final class ARGuideAIPerformanceViewModel {
     init(
         ariaDiscoveryService: BonjourBackendDiscoveryService? = nil,
         ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        qwenDecisionDiscoveryService: BonjourBackendDiscoveryService? = nil,
         aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
@@ -70,6 +77,14 @@ final class ARGuideAIPerformanceViewModel {
                 "ws_path": "/stream",
                 "protocol_version": "2",
                 "engine": "aria",
+            ]
+        )
+        self.qwenDecisionDiscoveryService = qwenDecisionDiscoveryService ?? BonjourBackendDiscoveryService(
+            serviceType: "_lpduet._tcp",
+            requiredTXTRecord: [
+                "path": "/decision",
+                "protocol_version": "1",
+                "engine": "qwen3.5-decision",
             ]
         )
         if let aiPlaybackServiceFactory {
@@ -130,6 +145,23 @@ final class ARGuideAIPerformanceViewModel {
         }
     }
 
+    var companionDecisionBackendStatusText: String? {
+        guard let selectedKind = companionDecisionBackendSelection.selectedKind() else {
+            return "陪伴决策：已保存的选择无效，请在设置中重新选择。"
+        }
+
+        switch selectedKind {
+        case .ruleBased:
+            return "陪伴决策：确定性规则（本机）"
+        case .networkBonjourQwen35:
+            return backendDiscoveryStatusText(
+                backendName: "Qwen3.5-0.8B",
+                state: qwenDecisionDiscoveryService.state,
+                notFoundHint: "请先在电脑端启动 Qwen3.5 陪伴决策服务。"
+            ).replacingOccurrences(of: "后端：", with: "陪伴决策：")
+        }
+    }
+
     func updatePracticeSession(_ practiceSessionViewModel: PracticeSessionViewModel) {
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
     }
@@ -138,6 +170,9 @@ final class ARGuideAIPerformanceViewModel {
         isVirtualPerformerEnabled = isEnabled
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
         aiPerformanceService.setEnabled(isEnabled)
+        if isEnabled == false {
+            qwenDecisionDiscoveryService.stop()
+        }
     }
 
     #if DEBUG
@@ -222,6 +257,7 @@ final class ARGuideAIPerformanceViewModel {
         // We must not permanently "shutdown" the AIPerformanceService here, otherwise it cannot be re-enabled
         // after returning to practice. Treat this as a reversible teardown.
         aiPerformanceService.setEnabled(false)
+        qwenDecisionDiscoveryService.stop()
     }
 
     private func makeBackendRegistry() -> ImprovBackendRegistry {
@@ -231,6 +267,17 @@ final class ARGuideAIPerformanceViewModel {
                 AriaNetworkBonjourWebSocketImprovBackend(discoveryService: ariaWebSocketDiscoveryService),
                 LocalCoreMLDuetImprovBackend(modelLoader: localCoreMLModelLoader),
                 LocalRuleImprovBackend(),
+            ]
+        )
+    }
+
+    private func makeCompanionDecisionBackendRegistry() -> CompanionDecisionBackendRegistry {
+        CompanionDecisionBackendRegistry(
+            backends: [
+                RuleBasedCompanionDecisionBackend(),
+                QwenNetworkCompanionDecisionBackend(
+                    discoveryService: qwenDecisionDiscoveryService
+                ),
             ]
         )
     }

@@ -18,5 +18,6 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 - 未知、低置信度、`insufficient` 与降级能力不是用户错误；AI/system playback、旧 generation 或后台事件不能写入用户 observation 或 progress。
 - progress、metadata 与 session 分 concern 更新；诊断只经 `DiagnosticsReporting`，导出不得含原谱、原始输入、绝对路径、AI 正文或凭据。
 - 主 Actor 不做解析、文件 I/O 或设备重活；结束会话前失效输入、停止输入和输出、保存事实并取消长任务。
+- 实时陪伴决策通过 CompanionDecisionBackendProtocol 注入；RuleBasedCompanionDecisionBackend 与电脑端 Qwen3.5 后端是显式可选的并列实现。决策后端只输出 CompanionAction 语义动作，生成窗口、请求节奏与 token 数由 DuetPhrasePolicy 负责；输入同时包含滚动统计、AI 播放状态与最近 MIDI 上下文。音乐生成后端和陪伴决策后端分别选择，任一后端失败都不得静默切换实现。
 
 验证范围见[测试](testing.md)，产品能力措辞见[质量边界](piano-performance-quality.md)。

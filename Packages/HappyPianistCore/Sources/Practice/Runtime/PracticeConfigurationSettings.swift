@@ -64,6 +64,7 @@ public enum PracticeSessionSettingsKeys {
     public static let manualAdvanceMode = "practiceManualAdvanceMode"
     public static let handMode = "practiceHandMode"
     public static let improvBackendKind = "practiceImprovBackendKind"
+    public static let companionDecisionBackendKind = "practiceCompanionDecisionBackendKind"
     public static let soundOutputRoute = "practiceSoundOutputRoute"
     public static let midiDestinationUniqueID = "practiceMIDIDestinationUniqueID"
     public static let sendLocalControlOff = "practiceSendLocalControlOff"
