@@ -130,3 +130,40 @@ func companionDecisionSemanticActionsDeriveGenerationAndClearing() {
     #expect(respond.shouldRequestGeneration)
     #expect(respond.shouldClearFutureWindows == false)
 }
+
+
+@Test
+func companionDecisionBackendSelectionDefaultsToRulesAndRejectsUnknownStoredValue() {
+    let suiteName = "CompanionDecisionBackendSelectionTests-\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        Issue.record("Unable to create isolated user defaults.")
+        return
+    }
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let selection = CompanionDecisionBackendSelection(userDefaults: defaults)
+    #expect(selection.selectedKind() == .ruleBased)
+
+    defaults.set(
+        CompanionDecisionBackendKind.networkBonjourQwen35.rawValue,
+        forKey: CompanionDecisionBackendSelection.userDefaultsKey
+    )
+    #expect(selection.selectedKind() == .networkBonjourQwen35)
+
+    defaults.set(
+        "removed_decision_backend",
+        forKey: CompanionDecisionBackendSelection.userDefaultsKey
+    )
+    #expect(selection.selectedKind() == nil)
+}
+
+@Test
+func companionDecisionBackendRegistryDoesNotFallbackWhenSelectedBackendIsUnavailable() throws {
+    let registry = CompanionDecisionBackendRegistry(
+        backends: [RuleBasedCompanionDecisionBackend()]
+    )
+
+    #expect(throws: CompanionDecisionBackendRegistryError.unavailable(.networkBonjourQwen35)) {
+        _ = try registry.backend(for: .networkBonjourQwen35)
+    }
+}

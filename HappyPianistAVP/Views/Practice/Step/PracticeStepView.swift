@@ -72,6 +72,7 @@ struct PracticeStepView: View {
                 virtualPerformerEnabled: virtualPerformerEnabled,
                 pianoDemonstrationHandsEnabled: $pianoDemonstrationHandsEnabled,
                 backendStatusText: viewModel.backendStatusText,
+                companionDecisionBackendStatusText: viewModel.companionDecisionBackendStatusText,
                 lastImprovStatusText: viewModel.lastImprovStatusText,
                 recordingSourceText: viewModel.recordingSourceText,
                 isAIPerformanceActive: viewModel.isAIPerformanceActive,

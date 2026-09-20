@@ -1,6 +1,13 @@
 import Foundation
 
-enum CompanionAction: String, Equatable, Sendable {
+enum CompanionDecisionBackendKind: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+    case ruleBased = "rule_based"
+    case networkBonjourQwen35 = "network_bonjour_qwen35"
+
+    var id: String { rawValue }
+}
+
+enum CompanionAction: String, Codable, Equatable, Sendable {
     case listen
     case support
     case sparse
@@ -8,7 +15,14 @@ enum CompanionAction: String, Equatable, Sendable {
     case respond
 }
 
-struct CompanionDecisionInput: Equatable, Sendable {
+struct CompanionDecisionNote: Codable, Equatable, Sendable {
+    let midi: Int
+    let velocity: Int
+    let onsetSecondsAgo: TimeInterval
+    let durationSeconds: TimeInterval
+}
+
+struct CompanionDecisionInput: Codable, Equatable, Sendable {
     let nowTimestampSeconds: TimeInterval
     let heldNotesCount: Int
     let sustainValue: Int
@@ -19,10 +33,17 @@ struct CompanionDecisionInput: Equatable, Sendable {
     let lastNoteOnTimestampSeconds: TimeInterval?
     let activePitchCenter: Double?
     let isAIPlaybackActive: Bool
+    let recentNotes: [CompanionDecisionNote] = []
 }
 
 struct CompanionDecision: Equatable, Sendable {
     let action: CompanionAction
+    let confidence: Double?
+
+    init(action: CompanionAction, confidence: Double? = nil) {
+        self.action = action
+        self.confidence = confidence
+    }
 
     var shouldRequestGeneration: Bool {
         switch action {
@@ -44,5 +65,8 @@ struct CompanionDecision: Equatable, Sendable {
 }
 
 protocol CompanionDecisionBackendProtocol: Sendable {
+    var kind: CompanionDecisionBackendKind { get }
+    var displayName: String { get }
+
     func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision
 }

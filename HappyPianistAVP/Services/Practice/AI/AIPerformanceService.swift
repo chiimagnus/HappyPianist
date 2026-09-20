@@ -101,7 +101,8 @@ final class AIPerformanceService {
     private var midiObservationAdapter = MIDIPerformanceObservationAdapter()
     private let keyContactObservationAdapter = PianoKeyContactPerformanceObservationAdapter()
     private let phraseObservationAdapter = PerformanceObservationPhraseAdapter()
-    private let companionDecisionBackend: any CompanionDecisionBackendProtocol
+    private let companionDecisionBackendRegistry: CompanionDecisionBackendRegistry
+    private let selectedCompanionDecisionBackendKind: @MainActor () -> CompanionDecisionBackendKind?
 
     private var controlLoopTask: Task<Void, Never>?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
@@ -136,7 +137,10 @@ final class AIPerformanceService {
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind?,
         aiPlaybackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
-        companionDecisionBackend: any CompanionDecisionBackendProtocol = RuleBasedCompanionDecisionBackend(),
+        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry = .init(
+            backends: [RuleBasedCompanionDecisionBackend()]
+        ),
+        selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind? = { .ruleBased },
         backendTimeout: Duration = .seconds(12),
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
@@ -148,7 +152,8 @@ final class AIPerformanceService {
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
-        self.companionDecisionBackend = companionDecisionBackend
+        self.companionDecisionBackendRegistry = companionDecisionBackendRegistry
+        self.selectedCompanionDecisionBackendKind = selectedCompanionDecisionBackendKind
         self.backendTimeout = backendTimeout
         self.onStateChanged = onStateChanged
     }
@@ -355,7 +360,25 @@ final class AIPerformanceService {
         noteSnapshot: DuetPhraseBuffer.Snapshot,
         ccSnapshot: DuetPhraseEventBuffer.Snapshot
     ) async throws -> CompanionDecision {
-        try await companionDecisionBackend.decide(
+        guard let kind = selectedCompanionDecisionBackendKind() else {
+            throw CompanionDecisionBackendRegistryError.invalidSelection
+        }
+        let backend = try companionDecisionBackendRegistry.backend(for: kind)
+        let latestPromptEnd = noteSnapshot.promptNotes.map { $0.time + $0.duration }.max() ?? 0
+        let tailGapSeconds = noteSnapshot.heldNotes.isEmpty
+            ? noteSnapshot.lastUserEventTimestampSeconds.map {
+                max(0, noteSnapshot.nowTimestampSeconds - $0)
+            } ?? 0
+            : 0
+        let recentNotes = noteSnapshot.promptNotes.suffix(16).map { note in
+            CompanionDecisionNote(
+                midi: note.note,
+                velocity: note.velocity,
+                onsetSecondsAgo: tailGapSeconds + max(0, latestPromptEnd - note.time),
+                durationSeconds: note.duration
+            )
+        }
+        let decision = try await backend.decide(
             .init(
                 nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
                 heldNotesCount: noteSnapshot.heldNotes.count,
@@ -366,9 +389,14 @@ final class AIPerformanceService {
                 lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
                 lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
                 activePitchCenter: noteSnapshot.activePitchCenter,
-                isAIPlaybackActive: isAIPlaybackActive
+                isAIPlaybackActive: isAIPlaybackActive,
+                recentNotes: recentNotes
             )
         )
+        guard selectedCompanionDecisionBackendKind() == kind else {
+            throw CompanionDecisionBackendRegistryError.selectionChanged
+        }
+        return decision
     }
 
     private func startControlLoop() {
@@ -379,9 +407,14 @@ final class AIPerformanceService {
     private func scheduleNextControlTick() {
         controlLoopTask = Task { @MainActor [weak self] in
             guard let self, self.isEnabled else { return }
+            let tickStartedAt = self.nowUptimeSeconds()
             await self.runContinuousControlTick()
-            await self.sleepFor(.milliseconds(100))
-            // 注入时钟可能立即返回；防止主 Actor 出现热循环。
+            let elapsedSeconds = max(0, self.nowUptimeSeconds() - tickStartedAt)
+            let remainingMilliseconds = Int64(max(0, ((0.1 - elapsedSeconds) * 1_000).rounded(.up)))
+            if remainingMilliseconds > 0 {
+                await self.sleepFor(.milliseconds(remainingMilliseconds))
+            }
+            // 注入时钟/睡眠可能立即返回；防止主 Actor 出现热循环。
             try? await Task.sleep(for: .milliseconds(1))
             guard Task.isCancelled == false, self.isEnabled else { return }
             self.scheduleNextControlTick()
@@ -415,6 +448,8 @@ final class AIPerformanceService {
         let decision: CompanionDecision
         do {
             decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+            return
         } catch {
             reportCompanionDecisionFailure()
             await aiPlaybackQueue.clearPendingWindow()
@@ -591,6 +626,8 @@ final class AIPerformanceService {
         let decision: CompanionDecision
         do {
             decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+            return
         } catch {
             reportCompanionDecisionFailure()
             return

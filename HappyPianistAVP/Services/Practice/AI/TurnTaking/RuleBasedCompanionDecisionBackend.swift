@@ -2,6 +2,9 @@ import Foundation
 
 /// Deterministic baseline for companion decisions.
 struct RuleBasedCompanionDecisionBackend: CompanionDecisionBackendProtocol {
+    let kind: CompanionDecisionBackendKind = .ruleBased
+    let displayName = "确定性规则"
+
     func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision {
         let timeSinceLastEvent = input.lastUserEventTimestampSeconds.map { max(0, input.nowTimestampSeconds - $0) }
         let timeSinceLastNoteOn = input.lastNoteOnTimestampSeconds.map { max(0, input.nowTimestampSeconds - $0) }

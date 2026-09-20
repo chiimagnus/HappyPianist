@@ -21,6 +21,7 @@ struct PracticeSettingsView: View {
     @Binding var virtualPerformerEnabled: Bool
     @Binding var pianoDemonstrationHandsEnabled: Bool
     let backendStatusText: String?
+    let companionDecisionBackendStatusText: String?
     let lastImprovStatusText: String?
     let recordingSourceText: String?
     let isAIPerformanceActive: Bool
@@ -43,6 +44,8 @@ struct PracticeSettingsView: View {
     private var audioOutputVolume = Double(AudioOutputVolumeSettings.defaultValue)
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
     private var improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.companionDecisionBackendKind)
+    private var companionDecisionBackendKindRawValue = CompanionDecisionBackendSelection.defaultKind.rawValue
 
     @State private var destinationConnectionViewModel = MIDIDestinationConnectionViewModel()
     @State private var isAdvancedFeaturesExpanded = false
@@ -232,15 +235,28 @@ struct PracticeSettingsView: View {
                         Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
 
                         if virtualPerformerEnabled {
-                            Picker("即兴后端", selection: $improvBackendKindRawValue) {
+                            Picker("音乐生成后端", selection: $improvBackendKindRawValue) {
                                 ForEach(ImprovBackendKind.allCases) { kind in
                                     Text(backendTitle(kind)).tag(kind.rawValue)
                                 }
                             }
                             .pickerStyle(.menu)
 
+                            Picker("陪伴决策后端", selection: $companionDecisionBackendKindRawValue) {
+                                ForEach(CompanionDecisionBackendKind.allCases) { kind in
+                                    Text(companionDecisionBackendTitle(kind)).tag(kind.rawValue)
+                                }
+                            }
+                            .pickerStyle(.menu)
+
                             if let effectiveBackendStatusText {
                                 Text(effectiveBackendStatusText)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            if let effectiveCompanionDecisionBackendStatusText {
+                                Text(effectiveCompanionDecisionBackendStatusText)
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
@@ -307,6 +323,22 @@ struct PracticeSettingsView: View {
         }
     }
 
+    private var effectiveCompanionDecisionBackendStatusText: String? {
+        guard CompanionDecisionBackendKind(rawValue: companionDecisionBackendKindRawValue) != nil else {
+            return companionDecisionBackendStatusText ?? "陪伴决策后端设置无效，请重新选择。"
+        }
+        return companionDecisionBackendStatusText
+    }
+
+    private func companionDecisionBackendTitle(_ kind: CompanionDecisionBackendKind) -> String {
+        switch kind {
+        case .ruleBased:
+            "确定性规则（本机）"
+        case .networkBonjourQwen35:
+            "Qwen3.5-0.8B（电脑本地）"
+        }
+    }
+
     private func backendTitle(_ kind: ImprovBackendKind) -> String {
         switch kind {
         case .networkBonjourHTTPAriaV2:
@@ -332,6 +364,7 @@ struct PracticeSettingsView: View {
         virtualPerformerEnabled: .constant(false),
         pianoDemonstrationHandsEnabled: .constant(false),
         backendStatusText: nil,
+        companionDecisionBackendStatusText: nil,
         lastImprovStatusText: nil,
         recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）",
         isAIPerformanceActive: false,
