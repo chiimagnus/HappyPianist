@@ -1,10 +1,11 @@
 import Foundation
 
-enum CompanionParticipationMode: String, Equatable, Sendable {
+enum CompanionAction: String, Equatable, Sendable {
+    case listen
     case support
     case sparse
     case yield
-    case silent
+    case respond
 }
 
 struct CompanionDecisionInput: Equatable, Sendable {
@@ -17,15 +18,29 @@ struct CompanionDecisionInput: Equatable, Sendable {
     let lastUserEventTimestampSeconds: TimeInterval?
     let lastNoteOnTimestampSeconds: TimeInterval?
     let activePitchCenter: Double?
+    let isAIPlaybackActive: Bool
 }
 
 struct CompanionDecision: Equatable, Sendable {
-    let mode: CompanionParticipationMode
-    let shouldRequestGeneration: Bool
-    let shouldClearFutureWindows: Bool
-    let requestWindowSeconds: TimeInterval
-    let minRequestIntervalSeconds: TimeInterval
-    let maxTokens: Int
+    let action: CompanionAction
+
+    var shouldRequestGeneration: Bool {
+        switch action {
+        case .support, .sparse, .respond:
+            true
+        case .listen, .yield:
+            false
+        }
+    }
+
+    var shouldClearFutureWindows: Bool {
+        switch action {
+        case .listen, .yield:
+            true
+        case .support, .sparse, .respond:
+            false
+        }
+    }
 }
 
 protocol CompanionDecisionBackendProtocol: Sendable {

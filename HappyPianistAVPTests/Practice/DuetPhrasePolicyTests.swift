@@ -95,7 +95,7 @@ func duetPhrasePolicyShapeScheduleDropsHeldConflictsAndClipsHorizon() {
     let shaped = DuetPhrasePolicy.shapeSchedule(
         schedule,
         noteSnapshot: snapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: 0.7
     )
 
@@ -126,7 +126,7 @@ func duetPhrasePolicyPreservesSameTimeControllerSourceOrder() {
             PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOff(midi: 60)),
         ],
         noteSnapshot: snapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: 0.6
     )
 
@@ -164,7 +164,7 @@ func duetPhrasePolicyShapeScheduleThinsSparseMode() {
     let shaped = DuetPhrasePolicy.shapeSchedule(
         schedule,
         noteSnapshot: snapshot,
-        controlMode: .sparse,
+        companionAction: .sparse,
         horizonSeconds: 0.6
     )
 
@@ -202,7 +202,7 @@ func duetPhrasePolicyShapeScheduleSalvagesRiskyWindow() {
     let shaped = DuetPhrasePolicy.shapeSchedule(
         schedule,
         noteSnapshot: snapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: 0.6
     )
 
@@ -242,7 +242,7 @@ func duetPhrasePolicyShapeScheduleDropsRejectedWindow() {
     let shaped = DuetPhrasePolicy.shapeSchedule(
         schedule,
         noteSnapshot: snapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: 0.6
     )
 
@@ -329,7 +329,7 @@ func duetPhrasePolicyRejectsDenseSupportWindowBeforeClosingOpenNotes() {
     let shaped = DuetPhrasePolicy.shapeSchedule(
         schedule,
         noteSnapshot: snapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: 0.7
     )
     #expect(shaped.isEmpty)
@@ -467,4 +467,66 @@ func duetPhrasePolicyAssessScheduleFlagsRegisterCollision() {
     let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
     #expect(assessment.band == .reject)
     #expect(assessment.reasons.contains(.registerCollision))
+}
+
+
+@Test
+func duetPhrasePolicyMapsCompanionActionsToHeldNoteRequestPolicy() {
+    var noteBuffer = DuetPhraseBuffer()
+    noteBuffer.record(duetPhraseEvent(.noteOn(midi: 60, velocity: 88), at: 1.0), sustainIsDown: false)
+    let snapshot = noteBuffer.snapshot(nowTimestampSeconds: 1.2, lookbackSeconds: 4, maxPromptSeconds: 3)
+
+    let support = DuetPhrasePolicy.requestPolicy(
+        for: CompanionDecision(action: .support),
+        noteSnapshot: snapshot
+    )
+    #expect(support.requestWindowSeconds == 0.70)
+    #expect(support.minRequestIntervalSeconds == 0.24)
+    #expect(support.maxTokens == 40)
+
+    let sparse = DuetPhrasePolicy.requestPolicy(
+        for: CompanionDecision(action: .sparse),
+        noteSnapshot: snapshot
+    )
+    #expect(sparse.requestWindowSeconds == 0.45)
+    #expect(sparse.minRequestIntervalSeconds == 0.18)
+    #expect(sparse.maxTokens == 28)
+}
+
+@Test
+func duetPhrasePolicyMapsCompanionActionsWithoutHeldNotes() {
+    let snapshot = DuetPhraseBuffer().snapshot(
+        nowTimestampSeconds: 1.2,
+        lookbackSeconds: 4,
+        maxPromptSeconds: 3
+    )
+
+    let support = DuetPhrasePolicy.requestPolicy(
+        for: CompanionDecision(action: .support),
+        noteSnapshot: snapshot
+    )
+    #expect(support.requestWindowSeconds == 0.60)
+    #expect(support.minRequestIntervalSeconds == 0.22)
+    #expect(support.maxTokens == 36)
+
+    let sparse = DuetPhrasePolicy.requestPolicy(
+        for: CompanionDecision(action: .sparse),
+        noteSnapshot: snapshot
+    )
+    #expect(sparse.maxTokens == 24)
+
+    let respond = DuetPhrasePolicy.requestPolicy(
+        for: CompanionDecision(action: .respond),
+        noteSnapshot: snapshot
+    )
+    #expect(respond.requestWindowSeconds == 0.70)
+    #expect(respond.minRequestIntervalSeconds == 0.24)
+    #expect(respond.maxTokens == 40)
+
+    let listen = DuetPhrasePolicy.requestPolicy(
+        for: CompanionDecision(action: .listen),
+        noteSnapshot: snapshot
+    )
+    #expect(listen.requestWindowSeconds == 0)
+    #expect(listen.maxTokens == 0)
 }

@@ -351,7 +351,7 @@ final class AIPerformanceService {
         practiceSession?.refreshAudioRecognitionForCurrentState()
     }
 
-    private func controlDecision(
+    private func requestCompanionDecision(
         noteSnapshot: DuetPhraseBuffer.Snapshot,
         ccSnapshot: DuetPhraseEventBuffer.Snapshot
     ) async throws -> CompanionDecision {
@@ -365,7 +365,8 @@ final class AIPerformanceService {
                 recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
                 lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
                 lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
-                activePitchCenter: noteSnapshot.activePitchCenter
+                activePitchCenter: noteSnapshot.activePitchCenter,
+                isAIPlaybackActive: isAIPlaybackActive
             )
         )
     }
@@ -413,7 +414,7 @@ final class AIPerformanceService {
         )
         let decision: CompanionDecision
         do {
-            decision = try await controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+            decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
         } catch {
             reportCompanionDecisionFailure()
             await aiPlaybackQueue.clearPendingWindow()
@@ -430,8 +431,13 @@ final class AIPerformanceService {
             }
         }
 
-        if shouldRequestWindow(nowTimestampSeconds: now, decision: decision, noteSnapshot: noteSnapshot) {
-            let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision)
+        let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
+        if shouldRequestWindow(
+            nowTimestampSeconds: now,
+            decision: decision,
+            requestPolicy: requestPolicy,
+            noteSnapshot: noteSnapshot
+        ) {
             let promptEvents = DuetPhrasePolicy.buildPromptEvents(
                 noteSnapshot: noteSnapshot,
                 ccSnapshot: ccSnapshot,
@@ -457,6 +463,7 @@ final class AIPerformanceService {
     private func shouldRequestWindow(
         nowTimestampSeconds: TimeInterval,
         decision: CompanionDecision,
+        requestPolicy: DuetPhrasePolicy.RequestPolicy,
         noteSnapshot: DuetPhraseBuffer.Snapshot
     ) -> Bool {
         guard decision.shouldRequestGeneration else { return false }
@@ -464,7 +471,7 @@ final class AIPerformanceService {
         guard inFlightGenerateTasks.isEmpty else { return false }
 
         if let lastWindowRequestTimestampSeconds,
-           nowTimestampSeconds - lastWindowRequestTimestampSeconds < decision.minRequestIntervalSeconds
+           nowTimestampSeconds - lastWindowRequestTimestampSeconds < requestPolicy.minRequestIntervalSeconds
         {
             return false
         }
@@ -583,18 +590,18 @@ final class AIPerformanceService {
         )
         let decision: CompanionDecision
         do {
-            decision = try await controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+            decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
         } catch {
             reportCompanionDecisionFailure()
             return
         }
         guard decision.shouldRequestGeneration else { return }
-        let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
+        let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
         let evaluations = responses.map {
             evaluateCandidate(
                 response: $0,
                 noteSnapshot: noteSnapshot,
-                controlMode: decision.mode,
+                companionAction: decision.action,
                 horizonSeconds: responsePolicy.requestWindowSeconds
             )
         }
@@ -727,7 +734,7 @@ final class AIPerformanceService {
     private func evaluateCandidate(
         response: CreativeDuetResponse,
         noteSnapshot: DuetPhraseBuffer.Snapshot,
-        controlMode: CompanionParticipationMode,
+        companionAction: CompanionAction,
         horizonSeconds: TimeInterval
     ) -> CandidateEvaluation {
         let rawAssessment = DuetPhrasePolicy.assessSchedule(
@@ -738,7 +745,7 @@ final class AIPerformanceService {
         let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
             response.schedule,
             noteSnapshot: noteSnapshot,
-            controlMode: controlMode,
+            companionAction: companionAction,
             horizonSeconds: horizonSeconds
         )
         let responseLatencySeconds = responseLatencySeconds(for: response)
@@ -990,13 +997,14 @@ final class AIPerformanceService {
         let density = noteSnapshot.recentNoteDensityPerSecond.formatted(.number.precision(.fractionLength(2)))
         let ioiText = noteSnapshot.recentIOIMedianSeconds.map(formatSeconds) ?? "-"
         let generationText = isGenerating ? "生成中" : "监听中"
-        let cadence = formatSeconds(decision.minRequestIntervalSeconds)
-        let horizon = formatSeconds(decision.requestWindowSeconds)
+        let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
+        let cadence = formatSeconds(requestPolicy.minRequestIntervalSeconds)
+        let horizon = formatSeconds(requestPolicy.requestWindowSeconds)
         let diagnostics = latestCandidateDiagnostics.map { diagnostics in
             let reason = diagnostics.topRejectReason.map { " · topReject=\($0.rawValue)" } ?? ""
             return " · q=\(diagnostics.band.rawValue) · candidates=\(diagnostics.candidateCount)\(reason)"
         } ?? ""
-        return "AI 即兴：\(generationText) · mode=\(decision.mode.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s · cadence=\(cadence)s · window=\(horizon)s\(diagnostics)"
+        return "AI 即兴：\(generationText) · action=\(decision.action.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s · cadence=\(cadence)s · window=\(horizon)s\(diagnostics)"
     }
 
     private func formatSeconds(_ seconds: TimeInterval) -> String {

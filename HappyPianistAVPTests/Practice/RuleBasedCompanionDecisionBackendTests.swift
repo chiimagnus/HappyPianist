@@ -18,11 +18,12 @@ func ruleBasedCompanionDecisionBackendYieldsForDenseHeldTexture() async throws {
             recentNoteDensityPerSecond: 3.0,
             lastUserEventTimestampSeconds: 9.8,
             lastNoteOnTimestampSeconds: 9.9,
-            activePitchCenter: 64
+            activePitchCenter: 64,
+            isAIPlaybackActive: false
         )
     )
 
-    #expect(decision.mode == .yield)
+    #expect(decision.action == .yield)
     #expect(decision.shouldRequestGeneration == false)
     #expect(decision.shouldClearFutureWindows)
 }
@@ -40,16 +41,17 @@ func ruleBasedCompanionDecisionBackendYieldsForDenseStaccatoTexture() async thro
             recentNoteDensityPerSecond: 3,
             lastUserEventTimestampSeconds: 9.9,
             lastNoteOnTimestampSeconds: 9.8,
-            activePitchCenter: 64
+            activePitchCenter: 64,
+            isAIPlaybackActive: false
         )
     )
 
-    #expect(decision.mode == .yield)
+    #expect(decision.action == .yield)
     #expect(decision.shouldClearFutureWindows)
 }
 
 @Test
-func ruleBasedCompanionDecisionBackendUsesSparseModeForSustainLedHeldTexture() async throws {
+func ruleBasedCompanionDecisionBackendUsesSparseActionForSustainLedHeldTexture() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
     let decision = try await backend.decide(
         .init(
@@ -61,14 +63,14 @@ func ruleBasedCompanionDecisionBackendUsesSparseModeForSustainLedHeldTexture() a
             recentNoteDensityPerSecond: 1.0,
             lastUserEventTimestampSeconds: 4.9,
             lastNoteOnTimestampSeconds: 4.85,
-            activePitchCenter: 60
+            activePitchCenter: 60,
+            isAIPlaybackActive: false
         )
     )
 
-    #expect(decision.mode == .sparse)
+    #expect(decision.action == .sparse)
     #expect(decision.shouldRequestGeneration)
-    #expect(abs(decision.requestWindowSeconds - 0.45) < 1e-9)
-    #expect(decision.maxTokens == 28)
+    #expect(decision.shouldClearFutureWindows == false)
 }
 
 @Test
@@ -84,18 +86,18 @@ func ruleBasedCompanionDecisionBackendSupportsRecentHeldLine() async throws {
             recentNoteDensityPerSecond: 1.4,
             lastUserEventTimestampSeconds: 19.7,
             lastNoteOnTimestampSeconds: 19.8,
-            activePitchCenter: 67
+            activePitchCenter: 67,
+            isAIPlaybackActive: false
         )
     )
 
-    #expect(decision.mode == .support)
+    #expect(decision.action == .support)
     #expect(decision.shouldRequestGeneration)
     #expect(decision.shouldClearFutureWindows == false)
-    #expect(abs(decision.requestWindowSeconds - 0.70) < 1e-9)
 }
 
 @Test
-func ruleBasedCompanionDecisionBackendIsSilentForStaleInput() async throws {
+func ruleBasedCompanionDecisionBackendListensForStaleInput() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
     let decision = try await backend.decide(
         .init(
@@ -107,11 +109,24 @@ func ruleBasedCompanionDecisionBackendIsSilentForStaleInput() async throws {
             recentNoteDensityPerSecond: 0,
             lastUserEventTimestampSeconds: 98.0,
             lastNoteOnTimestampSeconds: 98.0,
-            activePitchCenter: nil
+            activePitchCenter: nil,
+            isAIPlaybackActive: false
         )
     )
 
-    #expect(decision.mode == .silent)
+    #expect(decision.action == .listen)
     #expect(decision.shouldRequestGeneration == false)
     #expect(decision.shouldClearFutureWindows)
+}
+
+
+@Test
+func companionDecisionSemanticActionsDeriveGenerationAndClearing() {
+    let listen = CompanionDecision(action: .listen)
+    #expect(listen.shouldRequestGeneration == false)
+    #expect(listen.shouldClearFutureWindows)
+
+    let respond = CompanionDecision(action: .respond)
+    #expect(respond.shouldRequestGeneration)
+    #expect(respond.shouldClearFutureWindows == false)
 }

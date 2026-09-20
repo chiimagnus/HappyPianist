@@ -42,7 +42,7 @@ func duetQualityRegressionShapingOutcomesRemainStable() {
     let acceptableShaped = DuetPhrasePolicy.shapeSchedule(
         acceptable.rawSchedule,
         noteSnapshot: acceptable.noteSnapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: acceptable.horizonSeconds
     )
     #expect(acceptableShaped.isEmpty == false)
@@ -51,7 +51,7 @@ func duetQualityRegressionShapingOutcomesRemainStable() {
     let riskyShaped = DuetPhrasePolicy.shapeSchedule(
         risky.rawSchedule,
         noteSnapshot: risky.noteSnapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: risky.horizonSeconds
     )
     #expect(riskyShaped.isEmpty == false)
@@ -70,7 +70,7 @@ func duetQualityRegressionShapingOutcomesRemainStable() {
         let shaped = DuetPhrasePolicy.shapeSchedule(
             rejectingFixture.rawSchedule,
             noteSnapshot: rejectingFixture.noteSnapshot,
-            controlMode: .support,
+            companionAction: .support,
             horizonSeconds: rejectingFixture.horizonSeconds
         )
         #expect(shaped.isEmpty)
@@ -161,7 +161,7 @@ func improvQualityRubricChecksTheScheduleLeftAfterDuetShaping() {
     let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
         rawSchedule,
         noteSnapshot: noteSnapshot,
-        controlMode: .support,
+        companionAction: .support,
         horizonSeconds: 0.7
     )
 
