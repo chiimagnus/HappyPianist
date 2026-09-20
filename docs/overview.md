@@ -9,6 +9,7 @@ HappyPianist 由 visionOS host、共享 Swift 核心、RealityKit 资产和可�
 | 依赖方向与不变量 | [architecture.md](architecture.md) |
 | 曲谱、练习、输入、进度与 AI 的事实流 | [data-flow.md](data-flow.md) |
 | 产品能力可作何种表述 | [piano-performance-quality.md](piano-performance-quality.md) |
+| AI 陪伴的产品需求 | [ai-companion-requirements.md](ai-companion-requirements.md) |
 | 工程设置、权限与可选服务 | [configuration.md](configuration.md) |
 | 持久化与隐私边界 | [storage.md](storage.md) |
 | 自动化、真机与人工证据 | [testing.md](testing.md) |
