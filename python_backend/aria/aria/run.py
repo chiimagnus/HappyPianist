@@ -206,6 +206,7 @@ def _load_inference_model_torch(
     checkpoint_path: str,
     config_name: str,
     strict: bool = True,
+    vocab_size: int | None = None,
 ):
     from safetensors.torch import load_file
 
@@ -215,7 +216,7 @@ def _load_inference_model_torch(
     from aria.config import load_model_config
 
     model_config = ModelConfig(**load_model_config(name=config_name))
-    model_config.set_vocab_size(AbsTokenizer().vocab_size)
+    model_config.set_vocab_size(vocab_size if vocab_size is not None else AbsTokenizer().vocab_size)
     model = TransformerLM(model_config)
 
     state_dict = load_file(filename=checkpoint_path)
@@ -228,6 +229,7 @@ def _load_inference_model_mlx(
     checkpoint_path: str,
     config_name: str,
     strict: bool = True,
+    vocab_size: int | None = None,
 ):
     import mlx.core as mx
 
@@ -237,7 +239,7 @@ def _load_inference_model_mlx(
     from aria.config import load_model_config
 
     model_config = ModelConfig(**load_model_config(name=config_name))
-    model_config.set_vocab_size(AbsTokenizer().vocab_size)
+    model_config.set_vocab_size(vocab_size if vocab_size is not None else AbsTokenizer().vocab_size)
     model = TransformerLM(model_config)
     model.load_weights(checkpoint_path, strict=strict)
     mx.eval(model.parameters())

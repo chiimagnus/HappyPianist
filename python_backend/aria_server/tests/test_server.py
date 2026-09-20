@@ -14,7 +14,7 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from aria_server import server
 from shared.cc_policy import DefaultCCPolicy
-from shared.protocol_v2 import GenerateRequestV2
+from shared.protocol_v2 import ControlChangeEvent, GenerateRequestV2, NoteEvent
 
 
 class FailingPipeline:
@@ -174,6 +174,21 @@ def test_zero_cc_argument_remains_a_valid_midi_value() -> None:
     assert server._parse_optional_cc_arg("off") is None
 
 
+def test_continuation_extraction_removes_prompt_and_preserves_gap() -> None:
+    prompt = [
+        NoteEvent(note=60, velocity=90, time=0.0, duration=0.5),
+        ControlChangeEvent(controller=64, value=0, time=1.0),
+    ]
+    reply = [
+        *prompt,
+        NoteEvent(note=67, velocity=88, time=1.25, duration=0.4),
+    ]
+
+    continuation = server._extract_continuation_events(prompt, reply)
+
+    assert continuation == [NoteEvent(note=67, velocity=88, time=0.25, duration=0.4)]
+
+
 def test_cuda_engine_can_be_selected_explicitly() -> None:
     config = server.parse_args(["--engine", "cuda"])
 
@@ -200,6 +215,7 @@ def test_cuda_pipeline_uses_torch_loader() -> None:
         str(checkpoint),
         config_name="medium-emb",
         strict=False,
+        vocab_size=pipeline._tokenizer.vocab_size,
     )
     mlx_loader.assert_not_called()
     assert pipeline._model is model
