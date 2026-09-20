@@ -31,6 +31,7 @@ class ServerConfig:
     host: str
     port: int
     checkpoint: Path
+    engine: str
     default_cc7: int | None
     default_cc11: int | None
     stream_window_s: float
@@ -57,6 +58,7 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--checkpoint", type=Path, default=_default_checkpoint_path())
+    parser.add_argument("--engine", choices=("mlx", "cuda"), default="mlx")
     parser.add_argument("--default_cc7", default="100")
     parser.add_argument("--default_cc11", default="100")
     parser.add_argument("--stream_window", type=float, default=0.5)
@@ -66,6 +68,7 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
         host=args.host,
         port=args.port,
         checkpoint=args.checkpoint,
+        engine=args.engine,
         default_cc7=_parse_optional_cc_arg(args.default_cc7),
         default_cc11=_parse_optional_cc_arg(args.default_cc11),
         stream_window_s=max(0.05, float(args.stream_window)),
@@ -73,8 +76,9 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
 
 
 class AriaPipeline:
-    def __init__(self, checkpoint: Path):
+    def __init__(self, checkpoint: Path, engine: str):
         self._checkpoint = checkpoint
+        self._engine = engine
         self._lock = threading.Lock()
         self._tokenizer: Any | None = None
         self._model: Any | None = None
@@ -83,7 +87,6 @@ class AriaPipeline:
         if self._model is not None and self._tokenizer is not None:
             return
 
-        from aria.run import _load_inference_model_mlx
         from ariautils.tokenizer import AbsTokenizer
 
         python_backend_dir = Path(__file__).resolve().parents[2]
@@ -93,12 +96,28 @@ class AriaPipeline:
         if self._checkpoint.exists() is False:
             raise FileNotFoundError(f"checkpoint missing: {self._checkpoint}")
 
-        self._model = _load_inference_model_mlx(
-            str(self._checkpoint),
-            config_name="medium-emb",
-            strict=False,
-        )
-        logger.info("Aria model loaded")
+        if self._engine == "cuda":
+            import torch
+            from aria.run import _load_inference_model_torch
+
+            if torch.cuda.is_available() is False:
+                raise RuntimeError("CUDA engine selected but torch.cuda is unavailable")
+            self._model = _load_inference_model_torch(
+                str(self._checkpoint),
+                config_name="medium-emb",
+                strict=False,
+            )
+        elif self._engine == "mlx":
+            from aria.run import _load_inference_model_mlx
+
+            self._model = _load_inference_model_mlx(
+                str(self._checkpoint),
+                config_name="medium-emb",
+                strict=False,
+            )
+        else:
+            raise ValueError(f"unsupported Aria engine: {self._engine}")
+        logger.info("Aria model loaded with engine=%s", self._engine)
 
     def generate(self, prompt_events: list[Any], params: dict[str, Any]) -> tuple[Any, int]:
         with self._lock:
@@ -108,8 +127,14 @@ class AriaPipeline:
                 raise RuntimeError("Aria model failed to initialize")
 
             from aria.inference import get_inference_prompt
-            from aria.inference.sample_mlx import sample_batch
             from shared.midi_events_v2 import MidiBuildConfig, events_to_mididict
+
+            if self._engine == "cuda":
+                from aria.inference.sample_cuda import sample_batch
+            elif self._engine == "mlx":
+                from aria.inference.sample_mlx import sample_batch
+            else:
+                raise ValueError(f"unsupported Aria engine: {self._engine}")
 
             midi_prompt = events_to_mididict(
                 prompt_events,
@@ -324,7 +349,7 @@ async def _bonjour_start(app: web.Application) -> None:
         "ws_path": "/stream",
         "protocol_version": "2",
         "engine": "aria",
-        "engine_impl": "aria",
+        "engine_impl": f"aria-{config.engine}",
     }
 
     broadcaster = BonjourServiceBroadcaster(
@@ -350,7 +375,7 @@ def create_app(
 ) -> web.Application:
     app = web.Application()
     app[CONFIG_KEY] = config
-    app[ARIA_PIPELINE_KEY] = AriaPipeline(checkpoint=config.checkpoint)
+    app[ARIA_PIPELINE_KEY] = AriaPipeline(checkpoint=config.checkpoint, engine=config.engine)
     app[CC_POLICY_KEY] = DefaultCCPolicy(
         default_cc7=config.default_cc7,
         default_cc11=config.default_cc11,
@@ -370,6 +395,7 @@ def create_app(
 def main(argv: list[str] | None = None) -> None:
     config = parse_args(argv)
     print(f"[aria_server] checkpoint={config.checkpoint}", flush=True)
+    print(f"[aria_server] engine={config.engine}", flush=True)
     print(f"[aria_server] listening=http://{config.host}:{config.port}", flush=True)
     print(f"[aria_server] allowed_cc={sorted(ALLOWED_CC_CONTROLLERS)}", flush=True)
     print(f"[aria_server] stream_window_s={config.stream_window_s}", flush=True)
