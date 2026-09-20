@@ -63,7 +63,7 @@ func companionDecisionClientSendsStructuredMIDIContextAndDecodesProbabilities() 
         let json = try #require(
             JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
-        #expect(json["protocol_version"] as? Int == 1)
+        #expect(json["protocol_version"] as? Int == 2)
 
         let input = try #require(json["input"] as? [String: Any])
         #expect(input["held_notes_count"] as? Int == 1)
@@ -74,7 +74,7 @@ func companionDecisionClientSendsStructuredMIDIContextAndDecodesProbabilities() 
         #expect(notes[0]["onset_seconds_ago"] as? Double == 0.4)
 
         let responseBody: [String: Any] = [
-            "protocol_version": 1,
+            "protocol_version": 2,
             "action": "yield",
             "confidence": 0.74,
             "probabilities": [
