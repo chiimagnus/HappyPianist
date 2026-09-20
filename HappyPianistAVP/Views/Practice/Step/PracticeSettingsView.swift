@@ -335,7 +335,7 @@ struct PracticeSettingsView: View {
         case .ruleBased:
             "确定性规则（本机）"
         case .networkBonjourQwen35:
-            "Qwen3.5-0.8B（电脑本地）"
+            "Qwen3.5-0.8B（电脑本地，实验）"
         }
     }
 

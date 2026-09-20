@@ -305,9 +305,44 @@ Jev 的核心思路很适合这一层：不生成文字，只对预先定义好�
 
 当前已经把 Qwen3.5-0.8B 接成**显式可选的第二个陪伴决策后端**，但默认仍使用 RuleBasedCompanionDecisionBackend，不做任何自动回退。Qwen 独立运行在电脑端本地服务，通过同一 CompanionDecisionBackendProtocol 返回 CompanionAction；音乐生成后端仍独立选择 Aria / CoreML / rule。
 
-正式协议除了统计特征，还携带最近最多 16 个 MIDI 音符的音高、力度、距当前时刻的开始时间和时值，以及 AI 当前是否正在演奏。这样后续微调可以直接复用线上真实输入，而不是依赖人工写出的“明显终止式”等语义提示。
+正式决策协议 v2 除了统计特征，还携带最近最多 16 个 MIDI 音符的音高、力度、距当前时刻的开始时间和时值，以及 AI 当前是否正在演奏。这样后续微调可以直接复用线上真实输入，而不是依赖人工写出的“明显终止式”等语义提示。
 
-服务启动时先做一次模型预热。本轮 Windows RTX 4060 实测启动预热约 847 ms；预热后的真实 HTTP /decision 请求约 106 ms。此前直接单次前向的热推理中位数约 86～88 ms。控制循环也改为目标约 100 ms 周期，不再在模型推理结束后固定额外等待 100 ms。
+服务启动时先做一次模型预热。单次结构化状态前向的早期基准约 86～88 ms；在下面的真实 MIDI 批量验收中，Qwen HTTP 决策中位数为 130.5 ms（105～157 ms）。控制循环已改为目标约 100 ms 周期，不再在模型推理结束后固定额外等待 100 ms。
+
+#### 真实 MIDI 端到端验收
+
+2026-09-20 又使用仓库现成的 6 个真实 MIDI 进行服务级端到端验收：classical.mid、nocturne.mid、pokey_jazz.mid、smooth_jazz.mid、waltz.mid、yesterday.mid。每首分别构造持续演奏、乐句结束、延音停顿、AI 演奏时用户重新接管、完全静默 5 种状态，共 30 个场景。完整链路为：
+
+真实 MIDI → 演奏状态特征 → Qwen /decision → Aria /generate → 输出 MIDI
+
+技术链路结果：
+
+- 30/30 场景都完成 Qwen 决策并进入真实 Aria CUDA 生成，最终得到可解析的 MIDI 文件；
+- 所有生成 MIDI 的 Note On / Note Off 数量配平，没有挂音；
+- Aria 热生成中位数约 1386.5 ms（1367～1413 ms）；首次冷启动生成明显更慢；
+- 生成结果中 20/30 在当前动作对应的实时播放窗口内至少出现一个可播放音符。
+
+但是**决策质量没有通过验收**：
+
+- 总体只有 7/30（23.3%）符合当前场景语义；
+- 乐句结束：6/6 正确选择 respond；
+- 延音停顿：1/6 符合预期；
+- 持续演奏：0/6；
+- 用户重新接管：0/6；
+- 完全静默：0/6；
+- 30 次决策中出现 26 次 respond、4 次 sparse，没有一次 listen、support 或 yield，说明零样本模型存在明显的“回应”偏置。
+
+Aria 的实时性也暴露出独立问题：虽然生成 MIDI 技术上合法，但部分续奏第一音远晚于当前 0.45～0.70 秒播放窗口；尤其乐句结束场景只有 1/6 在 0.70 秒内出现首批可播放音符。因此“能生成 MIDI”不能等同于“实时陪伴可用”。
+
+这轮真实验收还直接发现并修复了三个之前 smoke test 没暴露的问题：
+
+1. 决策 note schema 从 time_seconds 改为 onset_seconds_ago 后仍沿用协议 v1；现在 breaking change 已明确升级为决策协议 v2，不保留兼容兜底；
+2. Swift 与 Python 曾实际使用不同字段名；现在双方统一为 onset_seconds_ago；
+3. Aria 曾要求 detokenize 后的复杂 MIDI 事件严格保持 prompt 顺序，真实 MIDI 会因为规范化和时间排序触发误判；现在改为先验证 token 前缀，再按规范化事件身份扣除 prompt，只保留真实续奏。
+
+因此当前结论是：**Qwen3.5-0.8B 可以作为实验后端保留，但不能取代默认的确定性规则后端。下一阶段的重点已经从“能不能接入”转为“如何用真实交互数据把决策模型微调到可用”。**
+
+这仍然只是服务级真实验收。由于当前 macOS/Xcode 执行环境不可用，还没有证明 visionOS App 内部从实际 MIDI 输入、Swift AIPerformanceService、网络后端、DuetPhrasePolicy、DuetAIPlaybackQueue 到 CoreMIDI 播放的完整 App 链路。
 
 ### Qwen3.5 微调方向
 
