@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
+import random
 import statistics
 import urllib.error
 import urllib.request
@@ -49,20 +51,41 @@ class ParsedMIDI:
 
 @dataclass(frozen=True)
 class Scenario:
+    source: str
+    file: str
     name: str
     cutoff: float
-    tail_gap: float
+    provenance: str
     ai_playback_active: bool
-    acceptable_actions: tuple[str, ...]
-    forced_sustain_value: int | None = None
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input-dir",
+        "--corpus-index",
         type=Path,
-        default=Path("aria/example-prompts"),
+        default=Path(".outputs/companion-corpus/index.json"),
+    )
+    parser.add_argument(
+        "--maestro-root",
+        type=Path,
+        default=Path(".datasets/maestro-v3/extracted/maestro-v3.0.0"),
+    )
+    parser.add_argument(
+        "--pop909-root",
+        type=Path,
+        default=Path(".datasets/pop909/extracted/POP909"),
+    )
+    parser.add_argument("--cases-per-state-per-source", type=int, default=5)
+    parser.add_argument("--seed", type=int, default=20260920)
+    parser.add_argument(
+        "--states",
+        default="active_dense,active_sparse,sustain_pause,natural_silence,piece_end,takeover_overlay",
+    )
+    parser.add_argument(
+        "--decision-only",
+        action="store_true",
+        help="Evaluate Qwen decisions without calling Aria.",
     )
     parser.add_argument(
         "--output-dir",
@@ -133,38 +156,56 @@ def load_midi(path: Path) -> ParsedMIDI:
     return ParsedMIDI(notes=notes, ccs=ccs, duration=current_time)
 
 
-def percentile_cutoff(parsed: ParsedMIDI, fraction: float) -> float:
-    if not parsed.notes:
-        return parsed.duration
-    index = min(len(parsed.notes) - 1, max(0, int(len(parsed.notes) * fraction)))
-    return parsed.notes[index].start
+def resolve_under_python_backend(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    return Path(__file__).resolve().parents[1] / path
 
 
-def scenarios_for(parsed: ParsedMIDI) -> list[Scenario]:
-    active_cutoff = percentile_cutoff(parsed, 0.55)
-    sustain_cutoff = percentile_cutoff(parsed, 0.63)
-    takeover_cutoff = percentile_cutoff(parsed, 0.72)
-    last_note_end = max((n.start + n.duration for n in parsed.notes), default=parsed.duration)
-    return [
-        Scenario(
-            "active",
-            active_cutoff,
-            0.05,
-            False,
-            ("listen", "support", "sparse", "yield"),
-        ),
-        Scenario("phrase_end", last_note_end, 0.75, False, ("respond",)),
-        Scenario(
-            "sustain_pause",
-            sustain_cutoff,
-            0.30,
-            False,
-            ("listen", "support", "sparse"),
-            forced_sustain_value=127,
-        ),
-        Scenario("takeover", takeover_cutoff, 0.05, True, ("yield",)),
-        Scenario("silence", last_note_end, 2.0, False, ("listen",), forced_sustain_value=0),
-    ]
+def sample_scenarios(
+    corpus_index: dict[str, Any],
+    *,
+    states: set[str],
+    cases_per_state_per_source: int,
+    seed: int,
+) -> list[Scenario]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for candidate in corpus_index.get("candidates", []):
+        state = str(candidate["state"])
+        if state not in states:
+            continue
+        source = str(candidate["source"])
+        grouped.setdefault((source, state), []).append(candidate)
+
+    rng = random.Random(seed)
+    sampled: list[Scenario] = []
+    for (source, state), candidates in sorted(grouped.items()):
+        count = min(cases_per_state_per_source, len(candidates))
+        for candidate in rng.sample(candidates, count):
+            sampled.append(
+                Scenario(
+                    source=source,
+                    file=str(candidate["file"]),
+                    name=state,
+                    cutoff=float(candidate["timestamp"]),
+                    provenance=str(candidate["provenance"]),
+                    ai_playback_active=state == "takeover_overlay",
+                )
+            )
+    return sampled
+
+
+def scenario_path(
+    scenario: Scenario,
+    *,
+    maestro_root: Path,
+    pop909_root: Path,
+) -> Path:
+    if scenario.source == "maestro":
+        return maestro_root / scenario.file
+    if scenario.source == "pop909":
+        return pop909_root / scenario.file
+    raise ValueError(f"unsupported corpus source: {scenario.source}")
 
 
 def notes_before(parsed: ParsedMIDI, cutoff: float, window: float) -> list[ParsedNote]:
@@ -211,7 +252,7 @@ def decision_payload(
     prompt_window: float,
 ) -> dict[str, Any]:
     context = notes_before(parsed, scenario.cutoff, prompt_window)
-    now = scenario.cutoff + scenario.tail_gap
+    now = scenario.cutoff
     recent_for_density = [n for n in context if n.start >= scenario.cutoff - 1.0]
     active_notes = [
         n for n in context if n.start <= now < (n.start + n.duration)
@@ -232,11 +273,7 @@ def decision_payload(
         "input": {
             "now_timestamp_seconds": now,
             "held_notes_count": len(active_notes),
-            "sustain_value": (
-                scenario.forced_sustain_value
-                if scenario.forced_sustain_value is not None
-                else latest_sustain_value(parsed, scenario.cutoff)
-            ),
+            "sustain_value": latest_sustain_value(parsed, scenario.cutoff),
             "recent_ioi_median_seconds": median_ioi(context),
             "recent_velocity_trend": velocity_trend(context),
             "recent_note_density_per_second": float(len(recent_for_density)),
@@ -435,44 +472,75 @@ def write_midi(events: list[Any], path: Path) -> None:
     midi.save(path)
 
 
+def action_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    actions = sorted({str(row["action"]) for row in rows})
+    return {
+        action: sum(1 for row in rows if row["action"] == action)
+        for action in actions
+    }
+
+
 def main() -> int:
     args = parse_args()
-    input_dir = args.input_dir
-    if not input_dir.is_absolute():
-        input_dir = Path(__file__).resolve().parents[1] / input_dir
-    output_dir = args.output_dir
-    if not output_dir.is_absolute():
-        output_dir = Path(__file__).resolve().parents[1] / output_dir
+    corpus_index_path = resolve_under_python_backend(args.corpus_index)
+    maestro_root = resolve_under_python_backend(args.maestro_root)
+    pop909_root = resolve_under_python_backend(args.pop909_root)
+    output_dir = resolve_under_python_backend(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    corpus_index = json.loads(corpus_index_path.read_text(encoding="utf-8"))
+    selected_states = {
+        state.strip()
+        for state in args.states.split(",")
+        if state.strip()
+    }
+    scenarios = sample_scenarios(
+        corpus_index,
+        states=selected_states,
+        cases_per_state_per_source=args.cases_per_state_per_source,
+        seed=args.seed,
+    )
+    if not scenarios:
+        raise RuntimeError("corpus index produced no scenarios for the selected states")
 
     qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/decision"
     aria_url = f"http://{args.aria_host}:{args.aria_port}/generate"
 
     results: list[dict[str, Any]] = []
     generated_count = 0
+    midi_cache: dict[Path, ParsedMIDI] = {}
 
-    midi_paths = sorted(input_dir.glob("*.mid"))
-    if not midi_paths:
-        raise RuntimeError(f"no MIDI fixtures found in {input_dir}")
+    for case_index, scenario in enumerate(scenarios):
+        midi_path = scenario_path(
+            scenario,
+            maestro_root=maestro_root,
+            pop909_root=pop909_root,
+        )
+        parsed = midi_cache.get(midi_path)
+        if parsed is None:
+            parsed = load_midi(midi_path)
+            midi_cache[midi_path] = parsed
 
-    for midi_path in midi_paths:
-        parsed = load_midi(midi_path)
-        for scenario in scenarios_for(parsed):
-            decision_request = decision_payload(parsed, scenario, args.prompt_window)
-            decision = post_json(qwen_url, decision_request, args.timeout)
-            action = str(decision["action"])
-            row: dict[str, Any] = {
-                "input": midi_path.name,
-                "scenario": scenario.name,
-                "action": action,
-                "acceptable_actions": list(scenario.acceptable_actions),
-                "decision_pass": action in scenario.acceptable_actions,
-                "confidence": float(decision["confidence"]),
-                "decision_latency_ms": int(decision["latency_ms"]),
-                "generated": False,
-            }
+        decision_request = decision_payload(parsed, scenario, args.prompt_window)
+        decision = post_json(qwen_url, decision_request, args.timeout)
+        action = str(decision["action"])
+        row: dict[str, Any] = {
+            "source": scenario.source,
+            "input": scenario.file,
+            "state": scenario.name,
+            "provenance": scenario.provenance,
+            "timestamp": scenario.cutoff,
+            "action": action,
+            "confidence": float(decision["confidence"]),
+            "probabilities": decision.get("probabilities", {}),
+            "decision_latency_ms": int(decision["latency_ms"]),
+            "generation_attempted": False,
+            "generated": False,
+        }
 
-            if action in GENERATING_ACTIONS:
+        if not args.decision_only and action in GENERATING_ACTIONS:
+            row["generation_attempted"] = True
+            try:
                 request = aria_request(
                     parsed,
                     scenario,
@@ -485,6 +553,7 @@ def main() -> int:
                     args.timeout,
                 )
                 response = ResultResponseV2.model_validate(response_payload)
+                row["generation_latency_ms"] = response.latency_ms
                 events = legalize_events(response.events)
                 validation = validate_generated_events(request, events)
                 held_notes_count = int(decision_request["input"]["held_notes_count"])
@@ -492,17 +561,18 @@ def main() -> int:
                 realtime_note_count = sum(
                     1
                     for event in events
-                    if isinstance(event, NoteEvent) and float(event.time) <= horizon_seconds
+                    if isinstance(event, NoteEvent)
+                    and float(event.time) <= horizon_seconds
                 )
+                safe_stem = Path(scenario.file).stem
                 output_path = (
                     output_dir
-                    / f"{midi_path.stem}-{scenario.name}-{action}.mid"
+                    / f"{case_index:04d}-{scenario.source}-{safe_stem}-{scenario.name}-{action}.mid"
                 )
                 write_midi(events, output_path)
                 row.update(
                     {
                         "generated": True,
-                        "generation_latency_ms": response.latency_ms,
                         "output": str(output_path),
                         "realtime_horizon_seconds": horizon_seconds,
                         "realtime_note_count": realtime_note_count,
@@ -511,37 +581,107 @@ def main() -> int:
                     }
                 )
                 generated_count += 1
+            except Exception as error:
+                row["generation_error"] = f"{type(error).__name__}: {error}"
 
-            results.append(row)
-            print(json.dumps(row, ensure_ascii=False), flush=True)
+        results.append(row)
+        print(json.dumps(row, ensure_ascii=False), flush=True)
 
-    decision_pass_count = sum(1 for row in results if row["decision_pass"])
+    attempted_rows = [row for row in results if row["generation_attempted"]]
     generated_rows = [row for row in results if row["generated"]]
+    failed_rows = [
+        row for row in attempted_rows if row["generated"] is False
+    ]
     realtime_pass_count = sum(
         1 for row in generated_rows if row.get("realtime_window_pass")
     )
-    summary = {
+
+    by_state: dict[str, dict[str, int]] = {}
+    for state in sorted({str(row["state"]) for row in results}):
+        by_state[state] = action_counts(
+            [row for row in results if row["state"] == state]
+        )
+
+    by_source_state: dict[str, dict[str, dict[str, int]]] = {}
+    for source in sorted({str(row["source"]) for row in results}):
+        by_source_state[source] = {}
+        source_rows = [row for row in results if row["source"] == source]
+        for state in sorted({str(row["state"]) for row in source_rows}):
+            by_source_state[source][state] = action_counts(
+                [row for row in source_rows if row["state"] == state]
+            )
+
+    decision_latencies = [float(row["decision_latency_ms"]) for row in results]
+    generation_latencies = [
+        float(row["generation_latency_ms"])
+        for row in attempted_rows
+        if row.get("generation_latency_ms") is not None
+    ]
+    summary: dict[str, Any] = {
         "decision_cases": len(results),
-        "decision_passes": decision_pass_count,
-        "decision_pass_rate": decision_pass_count / len(results) if results else 0.0,
-        "generated_cases": generated_count,
-        "realtime_window_passes": realtime_pass_count,
-        "realtime_window_pass_rate": (
-            realtime_pass_count / len(generated_rows) if generated_rows else 0.0
-        ),
-        "inputs": len(midi_paths),
-        "actions": {
-            action: sum(1 for row in results if row["action"] == action)
-            for action in sorted({row["action"] for row in results})
+        "decision_only": bool(args.decision_only),
+        "sample_seed": args.seed,
+        "cases_per_state_per_source": args.cases_per_state_per_source,
+        "states": sorted(selected_states),
+        "sources": sorted({str(row["source"]) for row in results}),
+        "actions": action_counts(results),
+        "actions_by_state": by_state,
+        "actions_by_source_state": by_source_state,
+        "decision_latency_ms": {
+            "median": statistics.median(decision_latencies),
+            "min": min(decision_latencies),
+            "max": max(decision_latencies),
         },
+        "generation_attempts": len(attempted_rows),
+        "generated_cases": generated_count,
+        "generation_failures": len(failed_rows),
+        "generation_failure_types": dict(
+            sorted(
+                Counter(
+                    str(row.get("generation_error", "unknown")).split(":", 1)[0]
+                    for row in failed_rows
+                ).items()
+            )
+        ),
     }
+
+    if generated_rows:
+        summary["generation_latency_ms"] = {
+            "median": statistics.median(generation_latencies),
+            "min": min(generation_latencies),
+            "max": max(generation_latencies),
+        }
+        summary["realtime_window_passes"] = realtime_pass_count
+        summary["realtime_window_pass_rate"] = (
+            realtime_pass_count / len(generated_rows)
+        )
+        summary["realtime_window_pass_rate_over_attempts"] = (
+            realtime_pass_count / len(attempted_rows)
+            if attempted_rows
+            else 0.0
+        )
+
     (output_dir / "results.json").write_text(
-        json.dumps({"summary": summary, "cases": results}, ensure_ascii=False, indent=2),
+        json.dumps(
+            {
+                "summary": summary,
+                "cases": results,
+                "methodology_note": (
+                    "This run reports behavior distributions, technical validity, and "
+                    "realtime availability. It does not claim decision accuracy because "
+                    "the corpus has no human turn-taking labels. takeover_overlay is the "
+                    "only explicitly synthetic interaction state."
+                ),
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
         encoding="utf-8",
     )
     print(json.dumps({"summary": summary}, ensure_ascii=False, indent=2))
-    if generated_count == 0:
-        raise AssertionError("no scenario reached the real Aria generation stage")
+
+    if not args.decision_only and generated_count == 0:
+        raise AssertionError("no sampled scenario reached the real Aria generation stage")
     return 0
 
 
