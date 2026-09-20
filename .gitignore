@@ -30,6 +30,7 @@ Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/
 
 python_backend/**/.venv*/
 python_backend/**/out/
+python_backend/.outputs/
 
 __pycache__/
 .pytest_cache/
