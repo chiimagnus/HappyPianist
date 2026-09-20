@@ -75,6 +75,22 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
     )
 
 
+def _extract_continuation_events(prompt_events: list[Any], reply_events: list[Any]) -> list[Any]:
+    prefix_count = len(prompt_events)
+    if reply_events[:prefix_count] != prompt_events:
+        raise RuntimeError("Aria model reply did not preserve the prompt prefix")
+
+    continuation = reply_events[prefix_count:]
+    if not continuation:
+        raise RuntimeError("Aria model returned no continuation events")
+
+    prompt_time = max((float(event.time) for event in prompt_events), default=0.0)
+    return [
+        event.model_copy(update={"time": max(0.0, float(event.time) - prompt_time)})
+        for event in continuation
+    ]
+
+
 class AriaPipeline:
     def __init__(self, checkpoint: Path, engine: str):
         self._checkpoint = checkpoint
@@ -106,6 +122,7 @@ class AriaPipeline:
                 str(self._checkpoint),
                 config_name="medium-emb",
                 strict=False,
+                vocab_size=self._tokenizer.vocab_size,
             )
         elif self._engine == "mlx":
             from aria.run import _load_inference_model_mlx
@@ -114,6 +131,7 @@ class AriaPipeline:
                 str(self._checkpoint),
                 config_name="medium-emb",
                 strict=False,
+                vocab_size=self._tokenizer.vocab_size,
             )
         else:
             raise ValueError(f"unsupported Aria engine: {self._engine}")
@@ -127,7 +145,7 @@ class AriaPipeline:
                 raise RuntimeError("Aria model failed to initialize")
 
             from aria.inference import get_inference_prompt
-            from shared.midi_events_v2 import MidiBuildConfig, events_to_mididict
+            from shared.midi_events_v2 import MidiBuildConfig, events_to_mididict, mididict_to_events
 
             if self._engine == "cuda":
                 from aria.inference.sample_cuda import sample_batch
@@ -136,15 +154,17 @@ class AriaPipeline:
             else:
                 raise ValueError(f"unsupported Aria engine: {self._engine}")
 
-            midi_prompt = events_to_mididict(
-                prompt_events,
-                config=MidiBuildConfig(ticks_per_beat=480, bpm=120, channel=0),
-            )
+            midi_config = MidiBuildConfig(ticks_per_beat=480, bpm=120, channel=0)
+            midi_prompt = events_to_mididict(prompt_events, config=midi_config)
             prompt = get_inference_prompt(
                 midi_dict=midi_prompt,
                 tokenizer=self._tokenizer,
                 prompt_len_ms=15_000,
             )
+            decoded_prompt = self._tokenizer.detokenize(prompt)
+            if decoded_prompt is None:
+                raise RuntimeError("Aria tokenizer returned no MIDI prompt")
+            decoded_prompt_events = mididict_to_events(decoded_prompt)
 
             max_new_tokens = int(params.get("max_tokens", 512))
             results = sample_batch(
@@ -164,6 +184,11 @@ class AriaPipeline:
             reply = self._tokenizer.detokenize(results[0])
             if reply is None:
                 raise RuntimeError("Aria tokenizer returned no MIDI reply")
+            continuation_events = _extract_continuation_events(
+                decoded_prompt_events,
+                mididict_to_events(reply),
+            )
+            reply = events_to_mididict(continuation_events, config=midi_config)
 
             latency_ms = int(round((time.perf_counter() - started) * 1000))
             logger.info("Aria generation completed in %d ms", latency_ms)
