@@ -145,10 +145,10 @@ func companionDecisionBackendSelectionDefaultsToRulesAndRejectsUnknownStoredValu
     #expect(selection.selectedKind() == .ruleBased)
 
     defaults.set(
-        CompanionDecisionBackendKind.networkBonjourQwen35.rawValue,
+        CompanionDecisionBackendKind.networkBonjourJev.rawValue,
         forKey: CompanionDecisionBackendSelection.userDefaultsKey
     )
-    #expect(selection.selectedKind() == .networkBonjourQwen35)
+    #expect(selection.selectedKind() == .networkBonjourJev)
 
     defaults.set(
         "removed_decision_backend",
@@ -163,7 +163,7 @@ func companionDecisionBackendRegistryDoesNotFallbackWhenSelectedBackendIsUnavail
         backends: [RuleBasedCompanionDecisionBackend()]
     )
 
-    #expect(throws: CompanionDecisionBackendRegistryError.unavailable(.networkBonjourQwen35)) {
-        _ = try registry.backend(for: .networkBonjourQwen35)
+    #expect(throws: CompanionDecisionBackendRegistryError.unavailable(.networkBonjourJev)) {
+        _ = try registry.backend(for: .networkBonjourJev)
     }
 }

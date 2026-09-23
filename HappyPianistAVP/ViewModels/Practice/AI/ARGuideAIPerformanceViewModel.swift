@@ -10,7 +10,7 @@ final class ARGuideAIPerformanceViewModel {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     let ariaDiscoveryService: BonjourBackendDiscoveryService
     let ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService
-    let qwenDecisionDiscoveryService: BonjourBackendDiscoveryService
+    let jevDecisionDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let companionDecisionBackendSelection = CompanionDecisionBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
@@ -58,7 +58,7 @@ final class ARGuideAIPerformanceViewModel {
     init(
         ariaDiscoveryService: BonjourBackendDiscoveryService? = nil,
         ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService? = nil,
-        qwenDecisionDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        jevDecisionDiscoveryService: BonjourBackendDiscoveryService? = nil,
         aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
@@ -79,12 +79,12 @@ final class ARGuideAIPerformanceViewModel {
                 "engine": "aria",
             ]
         )
-        self.qwenDecisionDiscoveryService = qwenDecisionDiscoveryService ?? BonjourBackendDiscoveryService(
+        self.jevDecisionDiscoveryService = jevDecisionDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
-                "path": "/decision",
-                "protocol_version": "2",
-                "engine": "qwen3.5-decision",
+                "path": "/v1/classifier",
+                "protocol_version": "1",
+                "engine": "jev-classifier",
             ]
         )
         if let aiPlaybackServiceFactory {
@@ -153,11 +153,11 @@ final class ARGuideAIPerformanceViewModel {
         switch selectedKind {
         case .ruleBased:
             return "陪伴决策：确定性规则（本机）"
-        case .networkBonjourQwen35:
+        case .networkBonjourJev:
             return backendDiscoveryStatusText(
-                backendName: "Qwen3.5-0.8B（实验）",
-                state: qwenDecisionDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 Qwen3.5 陪伴决策服务。"
+                backendName: "Jev 分类器（实验）",
+                state: jevDecisionDiscoveryService.state,
+                notFoundHint: "请先在电脑端启动 Jev 分类服务。"
             ).replacingOccurrences(of: "后端：", with: "陪伴决策：")
         }
     }
@@ -171,7 +171,7 @@ final class ARGuideAIPerformanceViewModel {
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
         aiPerformanceService.setEnabled(isEnabled)
         if isEnabled == false {
-            qwenDecisionDiscoveryService.stop()
+            jevDecisionDiscoveryService.stop()
         }
     }
 
@@ -257,7 +257,7 @@ final class ARGuideAIPerformanceViewModel {
         // We must not permanently "shutdown" the AIPerformanceService here, otherwise it cannot be re-enabled
         // after returning to practice. Treat this as a reversible teardown.
         aiPerformanceService.setEnabled(false)
-        qwenDecisionDiscoveryService.stop()
+        jevDecisionDiscoveryService.stop()
     }
 
     private func makeBackendRegistry() -> ImprovBackendRegistry {
@@ -275,8 +275,8 @@ final class ARGuideAIPerformanceViewModel {
         CompanionDecisionBackendRegistry(
             backends: [
                 RuleBasedCompanionDecisionBackend(),
-                QwenNetworkCompanionDecisionBackend(
-                    discoveryService: qwenDecisionDiscoveryService
+                JevNetworkCompanionDecisionBackend(
+                    discoveryService: jevDecisionDiscoveryService
                 ),
             ]
         )

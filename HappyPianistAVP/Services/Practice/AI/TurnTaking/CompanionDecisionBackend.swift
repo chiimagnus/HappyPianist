@@ -2,7 +2,7 @@ import Foundation
 
 enum CompanionDecisionBackendKind: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case ruleBased = "rule_based"
-    case networkBonjourQwen35 = "network_bonjour_qwen35"
+    case networkBonjourJev = "network_bonjour_jev"
 
     var id: String { rawValue }
 }
