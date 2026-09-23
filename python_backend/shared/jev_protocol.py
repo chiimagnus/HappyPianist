@@ -142,7 +142,7 @@ def _labels(count: int) -> list[str]:
 
 
 def _shared_system(questions: dict[str, Question]) -> str:
-    instructions = [question.instructions for question in questions.values()]
+    instructions = [questions[question_id].instructions for question_id in sorted(questions)]
     return "\n\n".join(
         [
             BASE_SYSTEM,

@@ -116,6 +116,28 @@ def test_choice_prompt_is_domain_agnostic_and_deterministic() -> None:
     assert reversed_plan.messages[1]["content"] == plan.messages[1]["content"]
 
 
+def test_shared_system_question_order_is_deterministic() -> None:
+    route = ChoiceQuestion(
+        instructions="Choose a route.",
+        criteria={"billing": None, "technical": None},
+    )
+    urgency = NoulQuestion(instructions="Is this urgent?")
+    state = {"message": "hello"}
+
+    first = build_choice_prompt(
+        state,
+        {"route": route, "urgency": urgency},
+        "route",
+    )
+    reversed_order = build_choice_prompt(
+        state,
+        {"urgency": urgency, "route": route},
+        "route",
+    )
+
+    assert first.messages == reversed_order.messages
+
+
 def test_noul_prompt_uses_numeric_answer_boundary() -> None:
     request = ClassifierRequest(
         model="Qwen/Qwen3.5-0.8B",

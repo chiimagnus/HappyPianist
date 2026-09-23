@@ -318,7 +318,7 @@ class TransformersJevRuntime:
 
             compiled = [
                 self._compile_question(request, question_id)
-                for question_id in request.questions
+                for question_id in sorted(request.questions)
             ]
             pad_token_id = self._tokenizer.pad_token_id
             if pad_token_id is None:
