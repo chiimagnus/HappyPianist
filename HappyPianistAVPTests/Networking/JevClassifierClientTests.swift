@@ -162,7 +162,7 @@ func jevClassifierClientDecodesNoulAnswer() async throws {
             "answers": [
                 "yield": [
                     "type": "noul",
-                    "noul": 0.83,
+                    "noul": 0.77,
                     "calibrated": false,
                     "rating": [
                         "expected_score": 7.7,
@@ -214,11 +214,123 @@ func jevClassifierClientDecodesNoulAnswer() async throws {
         Issue.record("Expected a Noul answer.")
         return
     }
-    #expect(answer.noul == 0.83)
+    #expect(answer.noul == 0.77)
     #expect(answer.calibrated == false)
     #expect(answer.rating.expectedScore == 7.7)
     #expect(answer.rating.probabilities["8"] == 0.7)
     #expect(response.usage.outputTokens == 0)
+}
+
+@Test
+func jevClassifierClientFailsExplicitlyForBadHTTPMalformedAnswerAndOutputTokens() async throws {
+    defer { JevClassifierStubURLProtocol.clearHandler() }
+
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [JevClassifierStubURLProtocol.self]
+    let client = JevClassifierClient(
+        urlSession: URLSession(configuration: configuration)
+    )
+
+    func classify() async throws -> JevClassifierResponse {
+        try await client.classify(
+            host: "example.com",
+            port: 8767,
+            model: "Qwen/Qwen3.5-0.8B",
+            state: "generic state",
+            questions: [
+                "route": .choice(
+                    instructions: "Choose a route.",
+                    criteria: ["a": nil, "b": nil]
+                ),
+            ],
+            timeoutSeconds: 1
+        )
+    }
+
+    JevClassifierStubURLProtocol.setHandler { request in
+        try jevClassifierHTTPResponse(
+            request: request,
+            statusCode: 500,
+            body: ["message": "classification_failed"]
+        )
+    }
+    do {
+        _ = try await classify()
+        Issue.record("Expected HTTP failure.")
+    } catch let error as JevClassifierClientError {
+        #expect(error == .httpError(statusCode: 500, message: "classification_failed"))
+    }
+
+    JevClassifierStubURLProtocol.setHandler { request in
+        try jevClassifierHTTPResponse(
+            request: request,
+            statusCode: 200,
+            body: jevClassifierChoiceResponse(
+                outputTokens: 0,
+                includeConfidence: false
+            )
+        )
+    }
+    do {
+        _ = try await classify()
+        Issue.record("Expected malformed answer to fail decoding.")
+    } catch let error as JevClassifierClientError {
+        #expect(error == .decodeFailed)
+    }
+
+    JevClassifierStubURLProtocol.setHandler { request in
+        try jevClassifierHTTPResponse(
+            request: request,
+            statusCode: 200,
+            body: jevClassifierChoiceResponse(
+                outputTokens: 1,
+                includeConfidence: true
+            )
+        )
+    }
+    do {
+        _ = try await classify()
+        Issue.record("Expected non-zero output token count to be rejected.")
+    } catch let error as JevClassifierClientError {
+        #expect(error == .unexpectedOutputTokens(1))
+    }
+}
+
+private func jevClassifierChoiceResponse(
+    outputTokens: Int,
+    includeConfidence: Bool
+) -> [String: Any] {
+    var answer: [String: Any] = [
+        "type": "choice",
+        "choice": "a",
+        "probabilities": ["a": 0.8, "b": 0.2],
+    ]
+    if includeConfidence {
+        answer["confidence"] = 0.8
+    }
+    return [
+        "model": "Qwen/Qwen3.5-0.8B",
+        "answers": ["route": answer],
+        "usage": ["input_tokens": 12, "output_tokens": outputTokens],
+        "latency_ms": 4,
+    ]
+}
+
+private func jevClassifierHTTPResponse(
+    request: URLRequest,
+    statusCode: Int,
+    body: [String: Any]
+) throws -> (HTTPURLResponse, Data) {
+    let url = try #require(request.url)
+    let response = try #require(
+        HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+    )
+    return (response, try JSONSerialization.data(withJSONObject: body))
 }
 
 private func jevClassifierHTTPBodyData(from request: URLRequest) -> Data? {

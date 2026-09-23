@@ -241,6 +241,151 @@ def test_shared_prefix_does_not_consume_entire_shortest_prompt() -> None:
     assert server.TransformersJevRuntime._common_prefix_length(compiled) == 2
 
 
+def test_noul_scoring_returns_complete_distribution_and_expected_probability() -> None:
+    import torch
+
+    class TokenizerStub:
+        pad_token_id = 0
+        eos_token_id = 0
+
+    class NoulScoringRuntime(server.TransformersJevRuntime):
+        def __init__(self) -> None:
+            super().__init__("test-model", "cpu")
+            self._model = object()
+            self._tokenizer = TokenizerStub()
+
+        def _compile_question(
+            self,
+            request: ClassifierRequest,
+            question_id: str,
+        ) -> server.CompiledQuestion:
+            assert isinstance(request.questions[question_id], NoulQuestion)
+            return server.CompiledQuestion(
+                question_id=question_id,
+                question_type="noul",
+                token_ids=[1, 2, 3],
+                candidate_ids=list(range(9)),
+                choices=list("123456789"),
+            )
+
+        def _forward_with_shared_prefix(
+            self,
+            compiled: list[server.CompiledQuestion],
+            torch_module: Any,
+            pad_token_id: int,
+        ) -> list[Any]:
+            assert len(compiled) == 1
+            assert pad_token_id == 0
+            return [torch_module.zeros(9)]
+
+    response = NoulScoringRuntime().classify(
+        ClassifierRequest(
+            model="test-model",
+            state={"signal": "neutral"},
+            questions={
+                "supported": NoulQuestion(
+                    instructions="Is the proposition supported?"
+                )
+            },
+        )
+    )
+    answer = response.answers["supported"]
+    assert answer.type == "noul"
+    assert set(answer.rating.probabilities) == set("123456789")
+    assert sum(answer.rating.probabilities.values()) == pytest.approx(1.0)
+    assert answer.rating.expected_score == pytest.approx(5.0)
+    assert answer.noul == pytest.approx(0.5)
+    assert 0.1 <= answer.noul <= 0.9
+    assert response.usage.output_tokens == 0
+
+
+def test_candidate_boundary_rejects_non_single_token_labels() -> None:
+    class UnstableTokenizer:
+        pad_token_id = 0
+        eos_token_id = 0
+
+        def apply_chat_template(self, *_: Any, **__: Any) -> str:
+            return "prompt"
+
+        def encode(self, text: str, *, add_special_tokens: bool) -> list[int]:
+            assert add_special_tokens is False
+            if text.endswith("A") or text.endswith("B"):
+                return [1, 2, 99, 100]
+            return [1, 2, 3]
+
+    runtime = server.TransformersJevRuntime("test-model", "cpu")
+    runtime._tokenizer = UnstableTokenizer()
+    request = ClassifierRequest(
+        model="test-model",
+        state={"value": 1},
+        questions={
+            "route": ChoiceQuestion(
+                instructions="Choose a route.",
+                criteria={"a": None, "b": None},
+            )
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="not single-token stable"):
+        runtime._compile_question(request, "route")
+
+
+def test_qwen35_shared_prefix_matches_full_forward() -> None:
+    import torch
+    from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
+
+    torch.manual_seed(0)
+    config = Qwen3_5TextConfig(
+        vocab_size=128,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=4,
+        num_attention_heads=2,
+        num_key_value_heads=1,
+        head_dim=16,
+        linear_key_head_dim=8,
+        linear_value_head_dim=8,
+        linear_num_key_heads=2,
+        linear_num_value_heads=2,
+        max_position_embeddings=128,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+        layer_types=[
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+        ],
+    )
+    runtime = server.TransformersJevRuntime("tiny-qwen35", "cpu")
+    runtime._model = Qwen3_5ForCausalLM(config).eval()
+    compiled = [
+        server.CompiledQuestion(
+            question_id="a",
+            question_type="choice",
+            token_ids=list(range(3, 43)),
+            candidate_ids=[80, 81],
+            choices=["x", "y"],
+        ),
+        server.CompiledQuestion(
+            question_id="b",
+            question_type="choice",
+            token_ids=list(range(3, 38)) + [60, 61, 62, 63, 64],
+            candidate_ids=[80, 81],
+            choices=["x", "y"],
+        ),
+    ]
+
+    with torch.inference_mode():
+        full = runtime._forward_full(compiled, torch, 0)
+        shared = runtime._forward_with_shared_prefix(compiled, torch, 0)
+
+    assert len(full) == len(shared)
+    for full_logits, shared_logits in zip(full, shared):
+        assert torch.allclose(full_logits, shared_logits, atol=1e-5, rtol=1e-5)
+
+
 def test_device_selection_is_explicit() -> None:
     assert server.parse_args(["--device", "cuda"]).device == "cuda"
     assert server.parse_args(["--device", "cpu"]).device == "cpu"
