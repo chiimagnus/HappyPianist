@@ -171,24 +171,6 @@ class TransformersJevRuntime:
             choices=plan.choices,
         )
 
-    @staticmethod
-    def _common_prefix_length(compiled: list[CompiledQuestion]) -> int:
-        if len(compiled) < 2:
-            return 0
-
-        sequences = [item.token_ids for item in compiled]
-        limit = min(len(sequence) for sequence in sequences)
-        common = 0
-        while common < limit:
-            token = sequences[0][common]
-            if any(sequence[common] != token for sequence in sequences[1:]):
-                break
-            common += 1
-
-        # Every question must retain at least one uncached token so its own
-        # selected-question suffix is evaluated after the shared prefix.
-        return min(common, limit - 1)
-
     def _forward_full(
         self,
         compiled: list[CompiledQuestion],
@@ -226,84 +208,6 @@ class TransformersJevRuntime:
             for row, item in enumerate(compiled)
         ]
 
-    def _forward_with_shared_prefix(
-        self,
-        compiled: list[CompiledQuestion],
-        torch: Any,
-        pad_token_id: int,
-    ) -> list[Any]:
-        common = self._common_prefix_length(compiled)
-        if common < 32:
-            return self._forward_full(compiled, torch, pad_token_id)
-
-        prefix_ids = torch.tensor(
-            [compiled[0].token_ids[:common]],
-            dtype=torch.long,
-            device=self._device,
-        )
-        prefix_output = self._model(
-            input_ids=prefix_ids,
-            use_cache=True,
-        )
-        cache = prefix_output.past_key_values
-        if cache is None:
-            return self._forward_full(compiled, torch, pad_token_id)
-
-        batch_size = len(compiled)
-        cache.reorder_cache(
-            torch.zeros(
-                batch_size,
-                dtype=torch.long,
-                device=self._device,
-            )
-        )
-
-        suffixes = [
-            item.token_ids[common:]
-            for item in compiled
-        ]
-        max_suffix_length = max(len(suffix) for suffix in suffixes)
-        suffix_ids = torch.full(
-            (batch_size, max_suffix_length),
-            pad_token_id,
-            dtype=torch.long,
-            device=self._device,
-        )
-        suffix_mask = torch.zeros(
-            (batch_size, max_suffix_length),
-            dtype=torch.long,
-            device=self._device,
-        )
-        for row, suffix in enumerate(suffixes):
-            suffix_ids[row, :len(suffix)] = torch.tensor(
-                suffix,
-                dtype=torch.long,
-                device=self._device,
-            )
-            suffix_mask[row, :len(suffix)] = 1
-
-        attention_mask = torch.cat(
-            [
-                torch.ones(
-                    (batch_size, common),
-                    dtype=torch.long,
-                    device=self._device,
-                ),
-                suffix_mask,
-            ],
-            dim=1,
-        )
-        output = self._model(
-            input_ids=suffix_ids,
-            attention_mask=attention_mask,
-            past_key_values=cache,
-            use_cache=False,
-        ).logits
-        return [
-            output[row, len(suffix) - 1]
-            for row, suffix in enumerate(suffixes)
-        ]
-
     def classify(self, request: ClassifierRequest) -> ClassifierResponse:
         with self._lock:
             if self._model is None or self._tokenizer is None:
@@ -330,7 +234,7 @@ class TransformersJevRuntime:
                 torch.cuda.synchronize()
             started = time.perf_counter()
             with torch.inference_mode():
-                last_logits = self._forward_with_shared_prefix(
+                last_logits = self._forward_full(
                     compiled,
                     torch,
                     int(pad_token_id),

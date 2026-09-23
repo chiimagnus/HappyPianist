@@ -221,48 +221,6 @@ def test_choice_question_rejects_non_decision_candidate_counts() -> None:
 
 
 
-def test_shared_prefix_keeps_question_specific_suffix() -> None:
-    compiled = [
-        server.CompiledQuestion(
-            question_id="a",
-            question_type="noul",
-            token_ids=[1, 2, 3, 4, 5],
-            candidate_ids=[10],
-            choices=["1"],
-        ),
-        server.CompiledQuestion(
-            question_id="b",
-            question_type="noul",
-            token_ids=[1, 2, 3, 8, 9],
-            candidate_ids=[10],
-            choices=["1"],
-        ),
-    ]
-
-    assert server.TransformersJevRuntime._common_prefix_length(compiled) == 3
-
-
-def test_shared_prefix_does_not_consume_entire_shortest_prompt() -> None:
-    compiled = [
-        server.CompiledQuestion(
-            question_id="a",
-            question_type="noul",
-            token_ids=[1, 2, 3],
-            candidate_ids=[10],
-            choices=["1"],
-        ),
-        server.CompiledQuestion(
-            question_id="b",
-            question_type="noul",
-            token_ids=[1, 2, 3, 4],
-            candidate_ids=[10],
-            choices=["1"],
-        ),
-    ]
-
-    assert server.TransformersJevRuntime._common_prefix_length(compiled) == 2
-
-
 def test_noul_scoring_returns_complete_distribution_and_expected_probability() -> None:
     import torch
 
@@ -290,7 +248,7 @@ def test_noul_scoring_returns_complete_distribution_and_expected_probability() -
                 choices=list("123456789"),
             )
 
-        def _forward_with_shared_prefix(
+        def _forward_full(
             self,
             compiled: list[server.CompiledQuestion],
             torch_module: Any,
@@ -350,62 +308,6 @@ def test_candidate_boundary_rejects_non_single_token_labels() -> None:
 
     with pytest.raises(RuntimeError, match="not single-token stable"):
         runtime._compile_question(request, "route")
-
-
-def test_qwen35_shared_prefix_matches_full_forward() -> None:
-    import torch
-    from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
-
-    torch.manual_seed(0)
-    config = Qwen3_5TextConfig(
-        vocab_size=128,
-        hidden_size=32,
-        intermediate_size=64,
-        num_hidden_layers=4,
-        num_attention_heads=2,
-        num_key_value_heads=1,
-        head_dim=16,
-        linear_key_head_dim=8,
-        linear_value_head_dim=8,
-        linear_num_key_heads=2,
-        linear_num_value_heads=2,
-        max_position_embeddings=128,
-        pad_token_id=0,
-        bos_token_id=1,
-        eos_token_id=2,
-        layer_types=[
-            "linear_attention",
-            "linear_attention",
-            "linear_attention",
-            "full_attention",
-        ],
-    )
-    runtime = server.TransformersJevRuntime("tiny-qwen35", "cpu")
-    runtime._model = Qwen3_5ForCausalLM(config).eval()
-    compiled = [
-        server.CompiledQuestion(
-            question_id="a",
-            question_type="choice",
-            token_ids=list(range(3, 43)),
-            candidate_ids=[80, 81],
-            choices=["x", "y"],
-        ),
-        server.CompiledQuestion(
-            question_id="b",
-            question_type="choice",
-            token_ids=list(range(3, 38)) + [60, 61, 62, 63, 64],
-            candidate_ids=[80, 81],
-            choices=["x", "y"],
-        ),
-    ]
-
-    with torch.inference_mode():
-        full = runtime._forward_full(compiled, torch, 0)
-        shared = runtime._forward_with_shared_prefix(compiled, torch, 0)
-
-    assert len(full) == len(shared)
-    for full_logits, shared_logits in zip(full, shared):
-        assert torch.allclose(full_logits, shared_logits, atol=1e-5, rtol=1e-5)
 
 
 def test_device_selection_is_explicit() -> None:
