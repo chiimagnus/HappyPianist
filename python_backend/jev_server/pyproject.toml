@@ -1,0 +1,24 @@
+[project]
+name = "happy-pianist-jev-server"
+version = "0.0.1"
+description = "Generic local Jev-like typed choice classifier for HappyPianist."
+requires-python = ">=3.11"
+
+dependencies = [
+    "aiohttp",
+    "huggingface-hub",
+    "pydantic>=2",
+    "torch>=2.3",
+    "transformers>=5.17.0",
+    "zeroconf",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu132", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
