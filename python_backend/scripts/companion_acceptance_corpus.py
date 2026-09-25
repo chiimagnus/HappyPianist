@@ -148,6 +148,16 @@ def pedal_value_at(index: TimelineIndex, timestamp: float) -> int:
     return index.pedal_values[position] if position >= 0 else 0
 
 
+def settled_end_timestamp(
+    index: TimelineIndex,
+    performance_end: float,
+) -> float | None:
+    if index.pedal_values and index.pedal_values[-1] >= 64:
+        return None
+    last_pedal_event = index.pedal_times[-1] if index.pedal_times else 0.0
+    return max(performance_end, last_pedal_event) + 0.75
+
+
 def held_notes_at(index: TimelineIndex, timestamp: float) -> int:
     starts = bisect.bisect_right(index.note_starts, timestamp)
     ended = bisect.bisect_right(index.note_ends, timestamp)
@@ -224,9 +234,15 @@ def validate_candidate(candidate: Candidate) -> None:
             raise AssertionError(f"natural_silence gap invariant failed: {candidate}")
         return
 
-    if candidate.state == "piece_end":
-        if candidate.held_notes != 0 or candidate.next_onset_gap is not None:
-            raise AssertionError(f"piece_end invariant failed: {candidate}")
+    if candidate.state == "settled_end":
+        if (
+            candidate.held_notes != 0
+            or candidate.sustain_value >= 64
+            or candidate.next_onset_gap is not None
+            or candidate.previous_onset_gap is None
+            or candidate.previous_onset_gap < 0.50
+        ):
+            raise AssertionError(f"settled_end invariant failed: {candidate}")
         return
 
     raise AssertionError(f"unsupported candidate state: {candidate.state}")
@@ -369,18 +385,19 @@ def extract_candidates(
         )
 
     performance_end = max(note.end for note in notes)
-    final_timestamp = performance_end + 0.75
-    result.append(
-        make_candidate(
-            source,
-            relative_file,
-            "piece_end",
-            final_timestamp,
-            "natural_boundary",
-            index,
-            onsets,
+    final_timestamp = settled_end_timestamp(index, performance_end)
+    if final_timestamp is not None:
+        result.append(
+            make_candidate(
+                source,
+                relative_file,
+                "settled_end",
+                final_timestamp,
+                "natural_settled_boundary",
+                index,
+                onsets,
+            )
         )
-    )
 
     for dense_timestamp in spaced_take(dense_times, limit=max_per_state):
         result.append(
@@ -496,7 +513,11 @@ def main() -> int:
             "active_sparse": "Natural MIDI: 100-550ms to next onset and <=4 onsets in previous 1s.",
             "sustain_pause": "Natural MIDI: 300-900ms onset gap and actual CC64 >=64 during the gap.",
             "natural_silence": "Natural MIDI: >=1.2s onset gap, pedal up and no physically held note at sampled time.",
-            "piece_end": "Natural boundary: 750ms after final physical note end.",
+            "settled_end": (
+                "Natural settled boundary: 750ms after the final physical note end and "
+                "the final sustain-pedal event. Files whose final pedal state is still down "
+                "do not receive this state."
+            ),
             "takeover_overlay": "Synthetic AI-playback flag over a naturally dense user-performance window; not claimed as corpus ground truth.",
         },
         "files": file_stats,
