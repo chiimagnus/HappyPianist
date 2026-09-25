@@ -3,17 +3,33 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import hashlib
 import json
 import random
 import statistics
+import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+PYTHON_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(PYTHON_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(PYTHON_BACKEND_ROOT))
+
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo, second2tick
 
+from shared.companion_prompt_profiles import (
+    action_from_semantics,
+    action_mapping_metadata,
+    classifier_payload,
+    median_semantic_peak_probabilities,
+    median_semantic_scores,
+    profile_names,
+    semantic_peak_probabilities,
+    semantic_scores,
+)
 from shared.protocol_v2 import (
     ControlChangeEvent,
     GenerateParams,
@@ -58,6 +74,10 @@ class Scenario:
     provenance: str
     ai_playback_active: bool
 
+    @property
+    def case_id(self) -> str:
+        return f"{self.source}|{self.name}|{self.file}|{self.cutoff:.6f}"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -80,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=20260920)
     parser.add_argument(
         "--states",
-        default="active_dense,active_sparse,sustain_pause,natural_silence,piece_end,takeover_overlay",
+        default="active_dense,active_sparse,sustain_pause,natural_silence,settled_end,takeover_overlay",
     )
     parser.add_argument(
         "--decision-only",
@@ -94,6 +114,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--qwen-host", default="127.0.0.1")
     parser.add_argument("--qwen-port", type=int, default=8767)
+    parser.add_argument("--qwen-model", default="Qwen/Qwen3.5-0.8B")
+    parser.add_argument(
+        "--prompt-profile",
+        choices=profile_names(),
+        default="direct",
+    )
     parser.add_argument("--aria-host", default="127.0.0.1")
     parser.add_argument("--aria-port", type=int, default=8766)
     parser.add_argument("--timeout", type=float, default=45.0)
@@ -177,21 +203,38 @@ def sample_scenarios(
         source = str(candidate["source"])
         grouped.setdefault((source, state), []).append(candidate)
 
+    if cases_per_state_per_source <= 0:
+        raise ValueError("cases_per_state_per_source must be positive")
+
+    sources = sorted(
+        str(source)
+        for source, count in corpus_index.get("files", {}).items()
+        if int(count) > 0
+    )
+    if not sources:
+        sources = sorted({source for source, _ in grouped})
+
     rng = random.Random(seed)
     sampled: list[Scenario] = []
-    for (source, state), candidates in sorted(grouped.items()):
-        count = min(cases_per_state_per_source, len(candidates))
-        for candidate in rng.sample(candidates, count):
-            sampled.append(
-                Scenario(
-                    source=source,
-                    file=str(candidate["file"]),
-                    name=state,
-                    cutoff=float(candidate["timestamp"]),
-                    provenance=str(candidate["provenance"]),
-                    ai_playback_active=state == "takeover_overlay",
+    for source in sources:
+        for state in sorted(states):
+            candidates = grouped.get((source, state), [])
+            if len(candidates) < cases_per_state_per_source:
+                raise RuntimeError(
+                    f"insufficient candidates for {source}/{state}: "
+                    f"need {cases_per_state_per_source}, have {len(candidates)}"
                 )
-            )
+            for candidate in rng.sample(candidates, cases_per_state_per_source):
+                sampled.append(
+                    Scenario(
+                        source=source,
+                        file=str(candidate["file"]),
+                        name=state,
+                        cutoff=float(candidate["timestamp"]),
+                        provenance=str(candidate["provenance"]),
+                        ai_playback_active=state == "takeover_overlay",
+                    )
+                )
     return sampled
 
 
@@ -260,37 +303,38 @@ def decision_payload(
     last_note_on = max((n.start for n in context), default=None)
     last_event = max(
         [
+            *(n.start for n in context if n.start <= now),
             *(n.start + n.duration for n in context if n.start + n.duration <= now),
             *(cc.time for cc in parsed.ccs if cc.time <= now),
         ],
-        default=last_note_on,
+        default=None,
     )
     pitch_center = statistics.mean(n.note for n in context) if context else None
     tail = context[-16:]
 
     return {
-        "protocol_version": 2,
-        "input": {
-            "now_timestamp_seconds": now,
-            "held_notes_count": len(active_notes),
-            "sustain_value": latest_sustain_value(parsed, scenario.cutoff),
-            "recent_ioi_median_seconds": median_ioi(context),
-            "recent_velocity_trend": velocity_trend(context),
-            "recent_note_density_per_second": float(len(recent_for_density)),
-            "last_user_event_timestamp_seconds": last_event,
-            "last_note_on_timestamp_seconds": last_note_on,
-            "active_pitch_center": pitch_center,
-            "is_ai_playback_active": scenario.ai_playback_active,
-            "recent_notes": [
-                {
-                    "midi": note.note,
-                    "velocity": note.velocity,
-                    "onset_seconds_ago": max(0.0, now - note.start),
-                    "duration_seconds": note.duration,
-                }
-                for note in tail
-            ],
-        },
+        "held_notes_count": len(active_notes),
+        "sustain_value": latest_sustain_value(parsed, scenario.cutoff),
+        "recent_ioi_median_seconds": median_ioi(context),
+        "recent_velocity_trend": velocity_trend(context),
+        "recent_note_density_per_second": float(len(recent_for_density)),
+        "seconds_since_last_user_event": (
+            None if last_event is None else max(0.0, now - last_event)
+        ),
+        "seconds_since_last_note_on": (
+            None if last_note_on is None else max(0.0, now - last_note_on)
+        ),
+        "active_pitch_center": pitch_center,
+        "is_ai_playback_active": scenario.ai_playback_active,
+        "recent_notes": [
+            {
+                "midi": note.note,
+                "velocity": note.velocity,
+                "onset_seconds_ago": max(0.0, now - note.start),
+                "duration_seconds": note.duration,
+            }
+            for note in tail
+        ],
     }
 
 
@@ -488,7 +532,9 @@ def main() -> int:
     output_dir = resolve_under_python_backend(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    corpus_index = json.loads(corpus_index_path.read_text(encoding="utf-8"))
+    corpus_index_bytes = corpus_index_path.read_bytes()
+    corpus_index_sha256 = hashlib.sha256(corpus_index_bytes).hexdigest()
+    corpus_index = json.loads(corpus_index_bytes)
     selected_states = {
         state.strip()
         for state in args.states.split(",")
@@ -503,7 +549,7 @@ def main() -> int:
     if not scenarios:
         raise RuntimeError("corpus index produced no scenarios for the selected states")
 
-    qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/decision"
+    qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/v1/classifier"
     aria_url = f"http://{args.aria_host}:{args.aria_port}/generate"
 
     results: list[dict[str, Any]] = []
@@ -521,18 +567,29 @@ def main() -> int:
             parsed = load_midi(midi_path)
             midi_cache[midi_path] = parsed
 
-        decision_request = decision_payload(parsed, scenario, args.prompt_window)
+        decision_state = decision_payload(parsed, scenario, args.prompt_window)
+        decision_request = classifier_payload(
+            model=args.qwen_model,
+            state=decision_state,
+            profile=args.prompt_profile,
+        )
         decision = post_json(qwen_url, decision_request, args.timeout)
-        action = str(decision["action"])
+        if decision.get("usage", {}).get("output_tokens") != 0:
+            raise AssertionError("Jev classifier returned non-zero output_tokens")
+        scores = semantic_scores(decision)
+        peak_probabilities = semantic_peak_probabilities(decision)
+        action = action_from_semantics(decision_state, scores)
         row: dict[str, Any] = {
+            "case_id": scenario.case_id,
             "source": scenario.source,
             "input": scenario.file,
             "state": scenario.name,
             "provenance": scenario.provenance,
             "timestamp": scenario.cutoff,
             "action": action,
-            "confidence": float(decision["confidence"]),
-            "probabilities": decision.get("probabilities", {}),
+            "prompt_profile": args.prompt_profile,
+            "semantic_scores": scores,
+            "semantic_peak_probabilities": peak_probabilities,
             "decision_latency_ms": int(decision["latency_ms"]),
             "generation_attempted": False,
             "generated": False,
@@ -556,7 +613,7 @@ def main() -> int:
                 row["generation_latency_ms"] = response.latency_ms
                 events = legalize_events(response.events)
                 validation = validate_generated_events(request, events)
-                held_notes_count = int(decision_request["input"]["held_notes_count"])
+                held_notes_count = int(decision_state["held_notes_count"])
                 horizon_seconds = generation_horizon_seconds(action, held_notes_count)
                 realtime_note_count = sum(
                     1
@@ -617,16 +674,56 @@ def main() -> int:
         for row in attempted_rows
         if row.get("generation_latency_ms") is not None
     ]
+    states_in_results = sorted({str(row["state"]) for row in results})
+    sources_in_results = sorted({str(row["source"]) for row in results})
+    semantic_by_state = {
+        state: median_semantic_scores(
+            [row for row in results if row["state"] == state]
+        )
+        for state in states_in_results
+    }
+    semantic_confidence_by_state = {
+        state: median_semantic_peak_probabilities(
+            [row for row in results if row["state"] == state]
+        )
+        for state in states_in_results
+    }
+    semantic_by_source_state: dict[str, dict[str, dict[str, float]]] = {}
+    semantic_confidence_by_source_state: dict[str, dict[str, dict[str, float]]] = {}
+    for source in sources_in_results:
+        source_rows = [row for row in results if row["source"] == source]
+        semantic_by_source_state[source] = {}
+        semantic_confidence_by_source_state[source] = {}
+        for state in states_in_results:
+            state_rows = [row for row in source_rows if row["state"] == state]
+            if not state_rows:
+                continue
+            semantic_by_source_state[source][state] = median_semantic_scores(state_rows)
+            semantic_confidence_by_source_state[source][state] = (
+                median_semantic_peak_probabilities(state_rows)
+            )
+
     summary: dict[str, Any] = {
         "decision_cases": len(results),
         "decision_only": bool(args.decision_only),
+        "qwen_model": args.qwen_model,
+        "prompt_profile": args.prompt_profile,
+        "action_mapping": action_mapping_metadata(),
+        "corpus_index_sha256": corpus_index_sha256,
+        "case_ids": [row["case_id"] for row in results],
         "sample_seed": args.seed,
         "cases_per_state_per_source": args.cases_per_state_per_source,
         "states": sorted(selected_states),
-        "sources": sorted({str(row["source"]) for row in results}),
+        "sources": sources_in_results,
         "actions": action_counts(results),
         "actions_by_state": by_state,
         "actions_by_source_state": by_source_state,
+        "semantic_medians_by_state": semantic_by_state,
+        "semantic_medians_by_source_state": semantic_by_source_state,
+        "semantic_peak_probability_medians_by_state": semantic_confidence_by_state,
+        "semantic_peak_probability_medians_by_source_state": (
+            semantic_confidence_by_source_state
+        ),
         "decision_latency_ms": {
             "median": statistics.median(decision_latencies),
             "min": min(decision_latencies),
