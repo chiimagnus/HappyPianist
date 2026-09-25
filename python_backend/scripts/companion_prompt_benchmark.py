@@ -104,8 +104,20 @@ def screening_diagnostics(result: dict[str, Any]) -> dict[str, Any]:
     dominant_share = dominant_count / total_actions
 
     extremes = semantic_extreme_shares(cases)
-    dense_finished = float(summary["semantic_medians_by_state"]["active_dense"]["finished"])
+    dense_continuing = float(
+        summary["semantic_medians_by_state"]["active_dense"]["continuing"]
+    )
+    dense_finished = float(
+        summary["semantic_medians_by_state"]["active_dense"]["finished"]
+    )
     dense_respond_rate = action_rate(summary, "active_dense", "respond")
+    settled_continuing = float(
+        summary["semantic_medians_by_state"]["settled_end"]["continuing"]
+    )
+    settled_finished = float(
+        summary["semantic_medians_by_state"]["settled_end"]["finished"]
+    )
+    settled_respond_rate = action_rate(summary, "settled_end", "respond")
     dense_reasserted = float(
         summary["semantic_medians_by_state"]["active_dense"]["reasserted"]
     )
@@ -141,6 +153,17 @@ def screening_diagnostics(result: dict[str, Any]) -> dict[str, Any]:
         automatic_stop_reasons.append(
             f"active_dense_overfinished_or_responding:{dense_finished:.3f}:{dense_respond_rate:.3f}"
         )
+    if (
+        settled_finished <= dense_finished
+        or settled_continuing >= dense_continuing
+        or settled_respond_rate <= dense_respond_rate
+    ):
+        automatic_stop_reasons.append(
+            "settled_end_not_separated_from_active_dense:"
+            f"finished={settled_finished:.3f}/{dense_finished:.3f}:"
+            f"continuing={settled_continuing:.3f}/{dense_continuing:.3f}:"
+            f"respond={settled_respond_rate:.3f}/{dense_respond_rate:.3f}"
+        )
 
     source_conflicts = cross_source_direction_conflicts(summary)
     return {
@@ -151,8 +174,17 @@ def screening_diagnostics(result: dict[str, Any]) -> dict[str, Any]:
         "semantic_extreme_shares": extremes,
         "key_boundaries": {
             "active_dense": {
+                "continuing_median": dense_continuing,
                 "finished_median": dense_finished,
                 "respond_rate": dense_respond_rate,
+            },
+            "settled_end": {
+                "continuing_median": settled_continuing,
+                "finished_median": settled_finished,
+                "respond_rate": settled_respond_rate,
+                "active_dense_continuing_median": dense_continuing,
+                "active_dense_finished_median": dense_finished,
+                "active_dense_respond_rate": dense_respond_rate,
             },
             "sustain_pause": {
                 "continuing_median": sustain_continuing,

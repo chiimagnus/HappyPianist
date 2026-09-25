@@ -11,6 +11,7 @@ SCRIPTS_ROOT = PYTHON_BACKEND_ROOT / "scripts"
 if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
 
+from companion_prompt_benchmark import screening_diagnostics
 from companion_e2e_acceptance import (
     ParsedMIDI,
     ParsedNote,
@@ -185,6 +186,62 @@ class CompanionPromptBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(payload["seconds_since_last_user_event"], 0.1)
         self.assertAlmostEqual(payload["seconds_since_last_note_on"], 0.1)
         self.assertEqual(payload["held_notes_count"], 1)
+
+    def test_stage_a_rejects_a_profile_that_cannot_separate_settled_end(
+        self,
+    ) -> None:
+        states = [
+            "active_dense",
+            "active_sparse",
+            "natural_silence",
+            "settled_end",
+            "sustain_pause",
+            "takeover_overlay",
+        ]
+        neutral = {key: 0.5 for key in ("continuing", "finished", "space", "reasserted")}
+        semantic_by_state = {state: dict(neutral) for state in states}
+        semantic_by_state["active_dense"].update(
+            {"continuing": 0.70, "finished": 0.40, "reasserted": 0.40}
+        )
+        semantic_by_state["settled_end"].update(
+            {"continuing": 0.60, "finished": 0.50}
+        )
+        semantic_by_state["takeover_overlay"].update({"reasserted": 0.70})
+        result = {
+            "summary": {
+                "actions": {"listen": 50, "yield": 20, "support": 20, "sparse": 10},
+                "actions_by_state": {
+                    "active_dense": {"listen": 20},
+                    "active_sparse": {"support": 20},
+                    "natural_silence": {"listen": 20},
+                    "settled_end": {"listen": 20},
+                    "sustain_pause": {"sparse": 20},
+                    "takeover_overlay": {"yield": 20},
+                },
+                "semantic_medians_by_state": semantic_by_state,
+                "sources": ["maestro"],
+                "states": states,
+                "semantic_medians_by_source_state": {
+                    "maestro": semantic_by_state,
+                },
+            },
+            "cases": [
+                {"semantic_scores": dict(neutral)}
+                for _ in range(10)
+            ],
+        }
+
+        diagnostics = screening_diagnostics(result)
+        self.assertTrue(
+            any(
+                reason.startswith("settled_end_not_separated_from_active_dense:")
+                for reason in diagnostics["automatic_stop_reasons"]
+            )
+        )
+        self.assertEqual(
+            diagnostics["key_boundaries"]["settled_end"]["respond_rate"],
+            0.0,
+        )
 
     def test_prompt_profiles_cover_the_planned_distinct_experiment_families(
         self,
