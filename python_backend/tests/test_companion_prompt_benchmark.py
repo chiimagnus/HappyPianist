@@ -24,6 +24,7 @@ from shared.companion_prompt_profiles import (
     action_mapping_metadata,
     profile_names,
     semantic_peak_probabilities,
+    semantic_questions,
     semantic_scores,
 )
 
@@ -122,6 +123,27 @@ class CompanionPromptBenchmarkTests(unittest.TestCase):
         invalid["answers"].pop("space")
         with self.assertRaisesRegex(ValueError, "expected semantic answers"):
             semantic_scores(invalid)
+
+    def test_binary_semantic_response_uses_true_probability_as_score(self) -> None:
+        response = {
+            "answers": {
+                key: {
+                    "type": "choice",
+                    "choice": "true",
+                    "confidence": 0.8,
+                    "probabilities": {"false": 0.2, "true": 0.8},
+                }
+                for key in ("continuing", "finished", "space", "reasserted")
+            }
+        }
+
+        self.assertEqual(semantic_scores(response), semantic_values(
+            continuing=0.8, finished=0.8, space=0.8, reasserted=0.8
+        ))
+        self.assertEqual(
+            semantic_peak_probabilities(response),
+            {key: 0.8 for key in ("continuing", "finished", "space", "reasserted")},
+        )
 
     def test_sampling_is_fixed_stratified_and_fails_when_a_stratum_is_short(
         self,
@@ -254,8 +276,13 @@ class CompanionPromptBenchmarkTests(unittest.TestCase):
                 "observable_thresholds",
                 "observable_examples",
                 "conservative",
+                "choice_strict",
             ),
         )
+
+        questions = semantic_questions("choice_strict")
+        self.assertTrue(all(question["type"] == "choice" for question in questions.values()))
+        self.assertIn("0.75", questions["finished"]["criteria"]["true"])
 
 
 if __name__ == "__main__":

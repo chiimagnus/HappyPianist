@@ -97,6 +97,32 @@ SEMANTIC_PROMPT_PROFILES: dict[str, dict[str, str]] = {
             "AI 未在演奏时必须否定。"
         ),
     },
+    "choice_strict": {
+        "continuing": "根据规则二选一：用户是否仍在演奏？",
+        "finished": "根据规则二选一：本轮是否已经明确结束？",
+        "space": "根据规则二选一：用户仍在演奏时是否存在轻量伴奏空间？",
+        "reasserted": "根据规则二选一：AI 演奏期间用户是否已经重新取得主导？",
+    },
+}
+
+
+CHOICE_STRICT_CRITERIA: dict[str, dict[str, str]] = {
+    "continuing": {
+        "true": "按住音符数大于 0，或延音踏板按下，或距最后一次按键小于 0.5 秒。",
+        "false": "按住音符数为 0、延音踏板抬起、距最后一次按键大于等于 0.75 秒。",
+    },
+    "finished": {
+        "true": "三个条件同时成立：按住音符数为 0；延音踏板抬起；距最后一次按键大于等于 0.75 秒。",
+        "false": "任一强继续证据成立：仍有按住音符；延音踏板按下；距最后一次按键小于 0.5 秒。",
+    },
+    "space": {
+        "true": "仍有继续证据，并且最近 1 秒音符密度低于约 2 音/秒或最近音符间隔较长。",
+        "false": "已经结束，或最近 1 秒音符密度达到约 2 音/秒以上且连续活跃。",
+    },
+    "reasserted": {
+        "true": "AI当前正在演奏=是，并且用户最近 0.5 秒内有明确按键、按住音符或连续进入。",
+        "false": "AI当前正在演奏=否；此时必须判为否。",
+    },
 }
 
 
@@ -110,14 +136,19 @@ def semantic_questions(profile: str) -> dict[str, dict[str, Any]]:
     except KeyError as exc:
         raise ValueError(f"unknown prompt profile: {profile}") from exc
 
+    is_binary = profile == "choice_strict"
     return {
         question_id: {
-            "type": "noul",
+            "type": "choice" if is_binary else "noul",
             "instructions": prompt,
-            "criteria": {
-                "true": "当前状态支持这个判断。",
-                "false": "当前状态不支持这个判断。",
-            },
+            "criteria": (
+                CHOICE_STRICT_CRITERIA[question_id]
+                if is_binary
+                else {
+                    "true": "当前状态支持这个判断。",
+                    "false": "当前状态不支持这个判断。",
+                }
+            ),
         }
         for question_id, prompt in instructions.items()
     }
@@ -177,27 +208,55 @@ def _semantic_answers(response: dict[str, Any]) -> dict[str, dict[str, Any]]:
         raise ValueError("classifier response does not contain the expected semantic answers")
     for question_id in SEMANTIC_KEYS:
         answer = answers[question_id]
-        if not isinstance(answer, dict) or answer.get("type") != "noul":
-            raise ValueError(f"semantic answer {question_id!r} is not a Noul answer")
-        value = float(answer["noul"])
-        if not 0.1 <= value <= 0.9:
-            raise ValueError(f"semantic answer {question_id!r} is outside 0.1...0.9")
+        if not isinstance(answer, dict):
+            raise ValueError(f"semantic answer {question_id!r} is invalid")
+        if answer.get("type") == "noul":
+            value = float(answer["noul"])
+            if not 0.1 <= value <= 0.9:
+                raise ValueError(f"semantic answer {question_id!r} is outside 0.1...0.9")
+            continue
+        if answer.get("type") == "choice":
+            probabilities = answer.get("probabilities")
+            if (
+                answer.get("choice") not in {"true", "false"}
+                or not isinstance(probabilities, dict)
+                or set(probabilities) != {"true", "false"}
+            ):
+                raise ValueError(f"semantic answer {question_id!r} is not a binary choice answer")
+            values = [float(probabilities[label]) for label in ("false", "true")]
+            if any(value < 0 or value > 1 for value in values) or abs(sum(values) - 1.0) > 1e-4:
+                raise ValueError(f"semantic answer {question_id!r} has invalid probabilities")
+            continue
+        raise ValueError(f"semantic answer {question_id!r} has unsupported type")
     return answers
 
 
 def semantic_scores(response: dict[str, Any]) -> dict[str, float]:
     answers = _semantic_answers(response)
-    return {question_id: float(answers[question_id]["noul"]) for question_id in SEMANTIC_KEYS}
+    return {
+        question_id: (
+            float(answers[question_id]["noul"])
+            if answers[question_id]["type"] == "noul"
+            else float(answers[question_id]["probabilities"]["true"])
+        )
+        for question_id in SEMANTIC_KEYS
+    }
 
 
 def semantic_peak_probabilities(response: dict[str, Any]) -> dict[str, float]:
     answers = _semantic_answers(response)
     result: dict[str, float] = {}
     for question_id in SEMANTIC_KEYS:
-        probabilities = answers[question_id].get("rating", {}).get("probabilities")
-        if not isinstance(probabilities, dict) or set(probabilities) != set("123456789"):
-            raise ValueError(f"semantic answer {question_id!r} has an invalid probability distribution")
-        values = [float(probabilities[label]) for label in "123456789"]
+        answer = answers[question_id]
+        if answer["type"] == "noul":
+            probabilities = answer.get("rating", {}).get("probabilities")
+            labels = "123456789"
+            if not isinstance(probabilities, dict) or set(probabilities) != set(labels):
+                raise ValueError(f"semantic answer {question_id!r} has an invalid probability distribution")
+        else:
+            probabilities = answer["probabilities"]
+            labels = ("false", "true")
+        values = [float(probabilities[label]) for label in labels]
         if any(value < 0 or value > 1 for value in values) or abs(sum(values) - 1.0) > 1e-4:
             raise ValueError(f"semantic answer {question_id!r} has invalid probabilities")
         result[question_id] = max(values)
