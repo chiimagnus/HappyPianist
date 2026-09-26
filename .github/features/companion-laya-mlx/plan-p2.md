@@ -47,33 +47,40 @@ Swift client 改为 Laya 名称，继续 POST `/v1/classifier`，支持 Laya `ch
 
 ---
 
-## P2-T2 建立固定 Laya companion 行为 benchmark
+## P2-T2 建立统一 Companion 二元语义 benchmark 并重测 Laya
 
 **Files:**
 - Reuse: `python_backend/scripts/companion_acceptance_corpus.py`
 - Reuse: `python_backend/tests/test_companion_acceptance_corpus.py`
-- Add: `python_backend/scripts/companion_laya_benchmark.py`
-- Add: `python_backend/tests/test_companion_laya_benchmark.py`
+- Add: `python_backend/shared/companion_semantics.py`
+- Replace: `python_backend/scripts/companion_laya_benchmark.py` -> `python_backend/scripts/companion_semantic_benchmark.py`
+- Replace: `python_backend/tests/test_companion_laya_benchmark.py` -> `python_backend/tests/test_companion_semantic_benchmark.py`
 
 **Step 1: 固定样本**
 
-沿用现有 corpus 索引与 source/state 分层，固定 seed；Stage A 使用 120 case，并固定 case IDs。状态至少覆盖 `active_dense / active_sparse / sustain_pause / takeover_overlay / natural_silence / settled_end`。
+沿用同一 corpus 索引与 source/state 分层，固定 `seed=20260920`；Stage A 使用 120 cases，并固定 ordered case IDs。状态覆盖 `active_dense / active_sparse / sustain_pause / takeover_overlay / natural_silence / settled_end`，模型都接收相同 compact structured state，不含 `recent_notes`。
 
-**Step 2: 固定行为不变量**
+**Step 2: 固定模型无关语义协议**
 
-这些不变量只验证 synthetic boundary reproduction，不宣称真人 turn-taking accuracy：`active_dense` 不得大量 `respond`；`takeover_overlay` 应以 `yield/listen` 为主；`settled_end` 与 `active_dense` 必须产生可观察分离；`active_sparse` 不允许单一极端动作吞没全部样本。
+不再直接让任一模型五分类。统一只问四个二元语义：`continuing / finished / space / reasserted`。每个问题使用同一 instructions/criteria，并分别以 `false,true` 与 `true,false` 两种 option order 请求；按语义标签对齐后平均 `true` probability，消除候选顺序偏置。所有后端都使用同一 `semantic_threshold=0.55` 与同一确定性 `semantic-v1` action mapping；`support/sparse` 只由相同 `recent_note_density_per_second=2.0` 阈值区分。
 
-**Step 3: 延迟与稳定性**
+这套 benchmark 必须保持模型无关：未来切到 Qwen 时直接指向另一 classifier server，不能为模型改 state、问题、阈值、mapping、样本或 Gate。
 
-记录 action 分布、confidence、server latency、端到端 latency 的 p50/p95。以当前 App 1s request timeout 为硬上限；热态 p95 需要留下足够控制环余量。
+**Step 3: 固定语义与行为 Gate**
 
-**Step 4: 最小迭代**
+关键语义边界必须同时成立：`active_dense continuing=true / finished=false / space=false / reasserted=false`；`active_sparse continuing=true / finished=false / space=true`；`settled_end continuing=false / finished=true`；`sustain_pause continuing=true / finished=false`；`takeover_overlay reasserted=true`。同时要求 `settled_end` 的 respond 高于 `active_dense`，`takeover_overlay` 的 yield 高于 `active_dense`，不得发生全局 action collapse 或跨 MAESTRO/POP909 的方向性冲突。
 
-若 Stage A 失败，只允许调整同一个 action question 的 instructions/criteria；不得新增 Prompt profile zoo、额外模型或动态样本。通过后再跑固定 600-case Stage B。
+**Step 4: 延迟与可重复性**
 
-**Step 5: 原子提交**
+记录 server 与 round-trip latency 的 median/p95/max，以及每个 semantic 的 option-order gap。当前 App 1s request timeout 是硬 Gate，不能通过提高 timeout 获得通过。完整 120-case Stage A 至少复跑两次；ordered case IDs、canonical corpus SHA、semantic scores、actions 必须一致。
 
-提交 benchmark runner、固定规则和最小回归测试；输出 evidence 保持 gitignored。
+**Step 5: Laya 统一协议重测**
+
+旧的 Laya 直接五分类 120/120 `listen` 只保留为诊断证据，不能再作为与 Qwen/CLM 的模型级结论。Laya 必须按上述统一二元语义协议重新评估；若统一协议仍失败，则记录具体 semantic boundary、order gap、cross-source conflict 与 latency blocker，再决定是否进入 P3。
+
+**Step 6: 原子提交**
+
+提交模型无关 semantic protocol、统一 benchmark runner、固定 Gate 与回归测试；输出 evidence 保持 gitignored。
 
 ---
 
