@@ -106,9 +106,15 @@ def test_protocol_accepts_laya_choice_score_and_noul_questions() -> None:
     assert set(request.questions) == {"route", "urgency", "refund"}
 
 
-def test_choice_question_rejects_invalid_candidates() -> None:
-    with pytest.raises(ValidationError):
-        ChoiceQuestion(instructions="Choose.", criteria=["only"])
+def test_protocol_does_not_keep_old_jev_candidate_count_limits() -> None:
+    assert ChoiceQuestion(instructions="Choose.", criteria=["only"]).criteria == ["only"]
+    assert len(
+        ChoiceQuestion(
+            instructions="Choose.",
+            criteria=[f"candidate-{index}" for index in range(51)],
+        ).criteria
+    ) == 51
+    assert ScoreQuestion(instructions="Score.", criteria=["only"]).criteria == ["only"]
 
     with pytest.raises(ValidationError):
         ChoiceQuestion(instructions="Choose.", criteria=["same", "same"])

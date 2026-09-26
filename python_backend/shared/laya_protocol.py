@@ -19,8 +19,8 @@ class ChoiceQuestion(BaseModel):
         value: dict[str, str | None] | list[str],
     ) -> dict[str, str | None] | list[str]:
         labels = list(value) if isinstance(value, dict) else value
-        if not 2 <= len(labels) <= 50:
-            raise ValueError("choice questions require 2 to 50 criteria")
+        if not labels:
+            raise ValueError("choice questions require at least one criterion")
         if any(not isinstance(label, str) or label.strip() == "" for label in labels):
             raise ValueError("choice labels must be non-empty strings")
         if len(set(labels)) != len(labels):
@@ -38,8 +38,8 @@ class ScoreQuestion(BaseModel):
     @field_validator("criteria")
     @classmethod
     def validate_criteria(cls, value: list[str]) -> list[str]:
-        if not 2 <= len(value) <= 50:
-            raise ValueError("score questions require 2 to 50 rubric levels")
+        if not value:
+            raise ValueError("score questions require at least one rubric level")
         if any(item.strip() == "" for item in value):
             raise ValueError("score rubric levels must be non-empty")
         return value
@@ -79,8 +79,8 @@ class ClassifierRequest(BaseModel):
     @field_validator("questions")
     @classmethod
     def validate_questions(cls, value: dict[str, Question]) -> dict[str, Question]:
-        if not 1 <= len(value) <= 256:
-            raise ValueError("classifier requests require 1 to 256 questions")
+        if not value:
+            raise ValueError("classifier requests require at least one question")
         if any(key.strip() == "" for key in value):
             raise ValueError("question ids must be non-empty")
         return value
