@@ -15,13 +15,6 @@ enum CompanionAction: String, Codable, Equatable, Sendable {
     case respond
 }
 
-struct CompanionDecisionNote: Codable, Equatable, Sendable {
-    let midi: Int
-    let velocity: Int
-    let onsetSecondsAgo: TimeInterval
-    let durationSeconds: TimeInterval
-}
-
 struct CompanionDecisionInput: Codable, Equatable, Sendable {
     let nowTimestampSeconds: TimeInterval
     let heldNotesCount: Int
@@ -33,7 +26,6 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
     let lastNoteOnTimestampSeconds: TimeInterval?
     let activePitchCenter: Double?
     let isAIPlaybackActive: Bool
-    let recentNotes: [CompanionDecisionNote]
 
     init(
         nowTimestampSeconds: TimeInterval,
@@ -45,8 +37,7 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
         lastUserEventTimestampSeconds: TimeInterval?,
         lastNoteOnTimestampSeconds: TimeInterval?,
         activePitchCenter: Double?,
-        isAIPlaybackActive: Bool,
-        recentNotes: [CompanionDecisionNote] = []
+        isAIPlaybackActive: Bool
     ) {
         self.nowTimestampSeconds = nowTimestampSeconds
         self.heldNotesCount = heldNotesCount
@@ -58,7 +49,6 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
         self.lastNoteOnTimestampSeconds = lastNoteOnTimestampSeconds
         self.activePitchCenter = activePitchCenter
         self.isAIPlaybackActive = isAIPlaybackActive
-        self.recentNotes = recentNotes
     }
 }
 

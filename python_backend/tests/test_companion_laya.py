@@ -11,12 +11,17 @@ from python_backend.shared.companion_laya import (
 
 
 def test_classifier_payload_uses_one_direct_action_question() -> None:
-    state = {"held_notes_count": 2, "sustain_value": 0}
+    state = {
+        "held_notes_count": 2,
+        "sustain_value": 0,
+        "recent_notes": [{"midi": 64}],
+    }
 
     payload = classifier_payload(model=DEFAULT_LAYA_MODEL, state=state)
 
-    assert payload["model"] == "aac6fef/laya-multilingual-mlx"
-    assert payload["state"] is state
+    assert payload["model"] == DEFAULT_LAYA_MODEL
+    assert payload["state"] == {"held_notes_count": 2, "sustain_value": 0}
+    assert "recent_notes" not in payload["state"]
     assert set(payload["questions"]) == {"action"}
     assert payload["questions"]["action"]["type"] == "choice"
     assert set(payload["questions"]["action"]["criteria"]) == set(ACTION_CRITERIA)

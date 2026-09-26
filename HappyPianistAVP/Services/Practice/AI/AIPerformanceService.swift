@@ -364,20 +364,6 @@ final class AIPerformanceService {
             throw CompanionDecisionBackendRegistryError.invalidSelection
         }
         let backend = try companionDecisionBackendRegistry.backend(for: kind)
-        let latestPromptEnd = noteSnapshot.promptNotes.map { $0.time + $0.duration }.max() ?? 0
-        let tailGapSeconds = noteSnapshot.heldNotes.isEmpty
-            ? noteSnapshot.lastUserEventTimestampSeconds.map {
-                max(0, noteSnapshot.nowTimestampSeconds - $0)
-            } ?? 0
-            : 0
-        let recentNotes = noteSnapshot.promptNotes.suffix(16).map { note in
-            CompanionDecisionNote(
-                midi: note.note,
-                velocity: note.velocity,
-                onsetSecondsAgo: tailGapSeconds + max(0, latestPromptEnd - note.time),
-                durationSeconds: note.duration
-            )
-        }
         let decision = try await backend.decide(
             .init(
                 nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
@@ -389,8 +375,7 @@ final class AIPerformanceService {
                 lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
                 lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
                 activePitchCenter: noteSnapshot.activePitchCenter,
-                isAIPlaybackActive: isAIPlaybackActive,
-                recentNotes: recentNotes
+                isAIPlaybackActive: isAIPlaybackActive
             )
         )
         guard selectedCompanionDecisionBackendKind() == kind else {

@@ -35,7 +35,7 @@ Swift client 改为 Laya 名称，继续 POST `/v1/classifier`，支持 Laya `ch
 
 **Step 2: companion adapter**
 
-直接发送一个 `action` choice question；criteria 明确定义五种 companion action 的可观察边界。结构化 state 使用与 Python `decision_payload` 一致的字段：held/sustain、最近事件间隔、density、pitch center、AI playback 和 recent notes。修正 `CompanionDecisionInput` initializer，使 recent notes 真正进入运行路径；删除旧 `formatState` 文本拼接路径。
+直接发送一个 `action` choice question；criteria 明确定义五种 companion action 的可观察边界。结构化 state 只发送 Laya 决策所需的汇总观测：held/sustain、最近事件间隔、density、pitch center 与 AI playback。执行中测得 120-case 中 76 个包含 16 条 recent notes 的 state 超过 1000 tokens，而去掉逐音符明细后约 170–200 tokens；逐音符明细没有改善 action collapse，反而显著增加延迟，因此从 `AIPerformanceService -> CompanionDecisionInput -> Laya state` 整条链删除 recent notes。删除旧 `formatState` 文本拼接路径。
 
 **Step 3: discovery/settings**
 

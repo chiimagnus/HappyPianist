@@ -9,20 +9,6 @@ enum LayaNetworkCompanionDecisionBackendError: Error, Equatable {
     case invalidAction(String)
 }
 
-private struct LayaCompanionNote: Encodable, Sendable {
-    let midi: Int
-    let velocity: Int
-    let onsetSecondsAgo: TimeInterval
-    let durationSeconds: TimeInterval
-
-    enum CodingKeys: String, CodingKey {
-        case midi
-        case velocity
-        case onsetSecondsAgo = "onset_seconds_ago"
-        case durationSeconds = "duration_seconds"
-    }
-}
-
 private struct LayaCompanionState: Encodable, Sendable {
     let heldNotesCount: Int
     let sustainValue: Int
@@ -33,7 +19,6 @@ private struct LayaCompanionState: Encodable, Sendable {
     let secondsSinceLastNoteOn: TimeInterval?
     let activePitchCenter: Double?
     let isAIPlaybackActive: Bool
-    let recentNotes: [LayaCompanionNote]
 
     enum CodingKeys: String, CodingKey {
         case heldNotesCount = "held_notes_count"
@@ -45,7 +30,6 @@ private struct LayaCompanionState: Encodable, Sendable {
         case secondsSinceLastNoteOn = "seconds_since_last_note_on"
         case activePitchCenter = "active_pitch_center"
         case isAIPlaybackActive = "is_ai_playback_active"
-        case recentNotes = "recent_notes"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -75,7 +59,6 @@ private struct LayaCompanionState: Encodable, Sendable {
             try container.encodeNil(forKey: .activePitchCenter)
         }
         try container.encode(isAIPlaybackActive, forKey: .isAIPlaybackActive)
-        try container.encode(recentNotes, forKey: .recentNotes)
     }
 }
 
@@ -161,15 +144,7 @@ actor LayaNetworkCompanionDecisionBackend: CompanionDecisionBackendProtocol {
             secondsSinceLastUserEvent: elapsed(since: input.lastUserEventTimestampSeconds),
             secondsSinceLastNoteOn: elapsed(since: input.lastNoteOnTimestampSeconds),
             activePitchCenter: input.activePitchCenter,
-            isAIPlaybackActive: input.isAIPlaybackActive,
-            recentNotes: input.recentNotes.map {
-                LayaCompanionNote(
-                    midi: $0.midi,
-                    velocity: $0.velocity,
-                    onsetSecondsAgo: $0.onsetSecondsAgo,
-                    durationSeconds: $0.durationSeconds
-                )
-            }
+            isAIPlaybackActive: input.isAIPlaybackActive
         )
     }
 

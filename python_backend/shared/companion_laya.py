@@ -37,9 +37,14 @@ ACTION_QUESTION = {
 
 
 def classifier_payload(*, model: str, state: dict[str, Any]) -> dict[str, Any]:
+    compact_state = {
+        key: value
+        for key, value in state.items()
+        if key != "recent_notes"
+    }
     return {
         "model": model,
-        "state": state,
+        "state": compact_state,
         "questions": {"action": ACTION_QUESTION},
     }
 

@@ -97,15 +97,7 @@ func layaCompanionBackendSendsStructuredStateAndMapsDirectAction() async throws 
             lastUserEventTimestampSeconds: 98.8,
             lastNoteOnTimestampSeconds: 98.5,
             activePitchCenter: nil,
-            isAIPlaybackActive: false,
-            recentNotes: [
-                CompanionDecisionNote(
-                    midi: 64,
-                    velocity: 81,
-                    onsetSecondsAgo: 1.5,
-                    durationSeconds: 0.7
-                ),
-            ]
+            isAIPlaybackActive: false
         )
     )
 
@@ -131,12 +123,7 @@ func layaCompanionBackendSendsStructuredStateAndMapsDirectAction() async throws 
     #expect(state["seconds_since_last_note_on"] as? Double == 1.5)
     #expect(state["active_pitch_center"] is NSNull)
     #expect(state["is_ai_playback_active"] as? Bool == false)
-    let notes = try #require(state["recent_notes"] as? [[String: Any]])
-    #expect(notes.count == 1)
-    #expect(notes[0]["midi"] as? Int == 64)
-    #expect(notes[0]["velocity"] as? Int == 81)
-    #expect(notes[0]["onset_seconds_ago"] as? Double == 1.5)
-    #expect(notes[0]["duration_seconds"] as? Double == 0.7)
+    #expect(state["recent_notes"] == nil)
 
     guard case let .choice(instructions, criteria) = try #require(call.questions["action"]) else {
         Issue.record("Expected one Laya choice question.")
