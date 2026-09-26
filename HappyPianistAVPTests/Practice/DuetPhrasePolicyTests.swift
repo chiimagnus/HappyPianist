@@ -495,7 +495,8 @@ func duetPhrasePolicyMapsCompanionActionsToHeldNoteRequestPolicy() {
 
 @Test
 func duetPhrasePolicyMapsCompanionActionsWithoutHeldNotes() {
-    let snapshot = DuetPhraseBuffer().snapshot(
+    var buffer = DuetPhraseBuffer()
+    let snapshot = buffer.snapshot(
         nowTimestampSeconds: 1.2,
         lookbackSeconds: 4,
         maxPromptSeconds: 3

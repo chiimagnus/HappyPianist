@@ -11,8 +11,8 @@ APP_NAME ?= HappyPianistAVP
 BUNDLE_ID ?= com.chiimagnus.HappyPianistAVP
 CONFIGURATION ?= Debug
 
-SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
 SIMULATOR_NAME ?= Apple Vision Pro
+SIMULATOR_ID ?= ${shell xcrun simctl list devices available 2>/dev/null | grep -F '$(SIMULATOR_NAME) (' | head -1 | cut -d '(' -f 2 | cut -d ')' -f 1}
 DEVICE_ID ?= A687F5B3-44BC-5C55-B5C4-22A807A27C6F
 SIMULATOR_BOOT_TIMEOUT_SECONDS ?= 180
 DESTINATION_TIMEOUT_SECONDS ?= 60
