@@ -20,15 +20,10 @@ if str(PYTHON_BACKEND_ROOT) not in sys.path:
 
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo, second2tick
 
-from shared.companion_prompt_profiles import (
-    action_from_semantics,
-    action_mapping_metadata,
+from shared.companion_laya import (
+    DEFAULT_LAYA_MODEL,
+    action_answer,
     classifier_payload,
-    median_semantic_peak_probabilities,
-    median_semantic_scores,
-    profile_names,
-    semantic_peak_probabilities,
-    semantic_scores,
 )
 from shared.protocol_v2 import (
     ControlChangeEvent,
@@ -105,21 +100,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--decision-only",
         action="store_true",
-        help="Evaluate Qwen decisions without calling Aria.",
+        help="Evaluate Laya decisions without calling Aria.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".outputs/companion-decision-e2e"),
+        default=Path(".outputs/companion-laya-e2e"),
     )
-    parser.add_argument("--qwen-host", default="127.0.0.1")
-    parser.add_argument("--qwen-port", type=int, default=8767)
-    parser.add_argument("--qwen-model", default="Qwen/Qwen3.5-0.8B")
-    parser.add_argument(
-        "--prompt-profile",
-        choices=profile_names(),
-        default="direct",
-    )
+    parser.add_argument("--laya-host", default="127.0.0.1")
+    parser.add_argument("--laya-port", type=int, default=8767)
+    parser.add_argument("--laya-model", default=DEFAULT_LAYA_MODEL)
     parser.add_argument("--aria-host", default="127.0.0.1")
     parser.add_argument("--aria-port", type=int, default=8766)
     parser.add_argument("--timeout", type=float, default=45.0)
@@ -549,7 +539,7 @@ def main() -> int:
     if not scenarios:
         raise RuntimeError("corpus index produced no scenarios for the selected states")
 
-    qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/v1/classifier"
+    laya_url = f"http://{args.laya_host}:{args.laya_port}/v1/classifier"
     aria_url = f"http://{args.aria_host}:{args.aria_port}/generate"
 
     results: list[dict[str, Any]] = []
@@ -569,16 +559,11 @@ def main() -> int:
 
         decision_state = decision_payload(parsed, scenario, args.prompt_window)
         decision_request = classifier_payload(
-            model=args.qwen_model,
+            model=args.laya_model,
             state=decision_state,
-            profile=args.prompt_profile,
         )
-        decision = post_json(qwen_url, decision_request, args.timeout)
-        if decision.get("usage", {}).get("output_tokens") != 0:
-            raise AssertionError("Jev classifier returned non-zero output_tokens")
-        scores = semantic_scores(decision)
-        peak_probabilities = semantic_peak_probabilities(decision)
-        action = action_from_semantics(decision_state, scores)
+        decision = post_json(laya_url, decision_request, args.timeout)
+        action, confidence, probabilities = action_answer(decision)
         row: dict[str, Any] = {
             "case_id": scenario.case_id,
             "source": scenario.source,
@@ -587,9 +572,8 @@ def main() -> int:
             "provenance": scenario.provenance,
             "timestamp": scenario.cutoff,
             "action": action,
-            "prompt_profile": args.prompt_profile,
-            "semantic_scores": scores,
-            "semantic_peak_probabilities": peak_probabilities,
+            "decision_confidence": confidence,
+            "action_probabilities": probabilities,
             "decision_latency_ms": int(decision["latency_ms"]),
             "generation_attempted": False,
             "generated": False,
@@ -676,39 +660,19 @@ def main() -> int:
     ]
     states_in_results = sorted({str(row["state"]) for row in results})
     sources_in_results = sorted({str(row["source"]) for row in results})
-    semantic_by_state = {
-        state: median_semantic_scores(
-            [row for row in results if row["state"] == state]
+    confidence_by_state = {
+        state: statistics.median(
+            float(row["decision_confidence"])
+            for row in results
+            if row["state"] == state
         )
         for state in states_in_results
     }
-    semantic_confidence_by_state = {
-        state: median_semantic_peak_probabilities(
-            [row for row in results if row["state"] == state]
-        )
-        for state in states_in_results
-    }
-    semantic_by_source_state: dict[str, dict[str, dict[str, float]]] = {}
-    semantic_confidence_by_source_state: dict[str, dict[str, dict[str, float]]] = {}
-    for source in sources_in_results:
-        source_rows = [row for row in results if row["source"] == source]
-        semantic_by_source_state[source] = {}
-        semantic_confidence_by_source_state[source] = {}
-        for state in states_in_results:
-            state_rows = [row for row in source_rows if row["state"] == state]
-            if not state_rows:
-                continue
-            semantic_by_source_state[source][state] = median_semantic_scores(state_rows)
-            semantic_confidence_by_source_state[source][state] = (
-                median_semantic_peak_probabilities(state_rows)
-            )
 
     summary: dict[str, Any] = {
         "decision_cases": len(results),
         "decision_only": bool(args.decision_only),
-        "qwen_model": args.qwen_model,
-        "prompt_profile": args.prompt_profile,
-        "action_mapping": action_mapping_metadata(),
+        "laya_model": args.laya_model,
         "corpus_index_sha256": corpus_index_sha256,
         "case_ids": [row["case_id"] for row in results],
         "sample_seed": args.seed,
@@ -718,12 +682,7 @@ def main() -> int:
         "actions": action_counts(results),
         "actions_by_state": by_state,
         "actions_by_source_state": by_source_state,
-        "semantic_medians_by_state": semantic_by_state,
-        "semantic_medians_by_source_state": semantic_by_source_state,
-        "semantic_peak_probability_medians_by_state": semantic_confidence_by_state,
-        "semantic_peak_probability_medians_by_source_state": (
-            semantic_confidence_by_source_state
-        ),
+        "decision_confidence_median_by_state": confidence_by_state,
         "decision_latency_ms": {
             "median": statistics.median(decision_latencies),
             "min": min(decision_latencies),
