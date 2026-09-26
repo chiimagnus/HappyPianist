@@ -20,31 +20,32 @@ from python_backend.shared.companion_semantics import (
 def test_binary_questions_are_order_balanced_with_identical_semantics() -> None:
     questions = order_balanced_questions()
     assert set(questions) == {
-        f"{semantic}__{order}"
+        f"{semantic}__{variant}"
         for semantic in SEMANTIC_KEYS
-        for order in ("false_true", "true_false")
+        for variant in ("true_a", "true_b")
     }
     for semantic in SEMANTIC_KEYS:
-        forward = questions[f"{semantic}__false_true"]
-        reverse = questions[f"{semantic}__true_false"]
-        assert list(forward["criteria"]) == ["false", "true"]
-        assert list(reverse["criteria"]) == ["true", "false"]
-        assert forward["criteria"] == reverse["criteria"]
-        assert forward["instructions"] == reverse["instructions"]
+        true_a = questions[f"{semantic}__true_a"]
+        true_b = questions[f"{semantic}__true_b"]
+        assert list(true_a["criteria"]) == ["A", "B"]
+        assert list(true_b["criteria"]) == ["A", "B"]
+        assert true_a["criteria"]["A"] == true_b["criteria"]["B"]
+        assert true_a["criteria"]["B"] == true_b["criteria"]["A"]
+        assert true_a["instructions"] == true_b["instructions"]
 
 
 def test_semantic_scores_align_labels_before_averaging_orders() -> None:
     answers = {}
     for semantic in SEMANTIC_KEYS:
-        answers[f"{semantic}__false_true"] = {
+        answers[f"{semantic}__true_a"] = {
             "type": "choice",
-            "choice": "true",
-            "probabilities": {"false": 0.2, "true": 0.8},
+            "choice": "A",
+            "probabilities": {"A": 0.8, "B": 0.2},
         }
-        answers[f"{semantic}__true_false"] = {
+        answers[f"{semantic}__true_b"] = {
             "type": "choice",
-            "choice": "false",
-            "probabilities": {"true": 0.4, "false": 0.6},
+            "choice": "A",
+            "probabilities": {"A": 0.6, "B": 0.4},
         }
     response = {
         "answers": answers,

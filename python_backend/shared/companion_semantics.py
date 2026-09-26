@@ -6,7 +6,7 @@ from typing import Any
 SEMANTIC_KEYS = ("continuing", "finished", "space", "reasserted")
 SEMANTIC_THRESHOLD = 0.55
 SPARSE_DENSITY_THRESHOLD = 2.0
-SEMANTIC_PROTOCOL_ID = "observable-binary-v1-order-balanced"
+SEMANTIC_PROTOCOL_ID = "observable-binary-v2-label-swapped"
 ACTION_MAPPING_ID = "semantic-v1"
 
 SEMANTIC_INSTRUCTIONS: dict[str, str] = {
@@ -68,20 +68,20 @@ def order_balanced_questions() -> dict[str, dict[str, Any]]:
     questions: dict[str, dict[str, Any]] = {}
     for semantic in SEMANTIC_KEYS:
         criteria = SEMANTIC_CRITERIA[semantic]
-        questions[f"{semantic}__false_true"] = {
+        questions[f"{semantic}__true_a"] = {
             "type": "choice",
             "instructions": SEMANTIC_INSTRUCTIONS[semantic],
             "criteria": {
-                "false": criteria["false"],
-                "true": criteria["true"],
+                "A": criteria["true"],
+                "B": criteria["false"],
             },
         }
-        questions[f"{semantic}__true_false"] = {
+        questions[f"{semantic}__true_b"] = {
             "type": "choice",
             "instructions": SEMANTIC_INSTRUCTIONS[semantic],
             "criteria": {
-                "true": criteria["true"],
-                "false": criteria["false"],
+                "A": criteria["false"],
+                "B": criteria["true"],
             },
         }
     return questions
@@ -95,23 +95,28 @@ def classifier_payload(*, model: str, state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _true_probability(answer: Any, question_id: str) -> float:
+def _true_probability(
+    answer: Any,
+    question_id: str,
+    *,
+    true_label: str,
+) -> float:
     if not isinstance(answer, dict) or answer.get("type") != "choice":
         raise ValueError(f"semantic answer {question_id!r} is not a choice answer")
     probabilities = answer.get("probabilities")
-    if not isinstance(probabilities, dict) or set(probabilities) != {"false", "true"}:
+    if not isinstance(probabilities, dict) or set(probabilities) != {"A", "B"}:
         raise ValueError(f"semantic answer {question_id!r} is not binary")
-    false_probability = float(probabilities["false"])
-    true_probability = float(probabilities["true"])
+    a_probability = float(probabilities["A"])
+    b_probability = float(probabilities["B"])
     if (
-        false_probability < 0
-        or true_probability < 0
-        or false_probability > 1
-        or true_probability > 1
-        or abs(false_probability + true_probability - 1.0) > 1e-4
+        a_probability < 0
+        or b_probability < 0
+        or a_probability > 1
+        or b_probability > 1
+        or abs(a_probability + b_probability - 1.0) > 1e-4
     ):
         raise ValueError(f"semantic answer {question_id!r} has invalid probabilities")
-    return true_probability
+    return float(probabilities[true_label])
 
 
 def semantic_scores(response: dict[str, Any]) -> dict[str, float]:
@@ -125,15 +130,17 @@ def semantic_scores(response: dict[str, Any]) -> dict[str, float]:
 
     scores: dict[str, float] = {}
     for semantic in SEMANTIC_KEYS:
-        forward = _true_probability(
-            answers[f"{semantic}__false_true"],
-            f"{semantic}__false_true",
+        true_on_a = _true_probability(
+            answers[f"{semantic}__true_a"],
+            f"{semantic}__true_a",
+            true_label="A",
         )
-        reversed_order = _true_probability(
-            answers[f"{semantic}__true_false"],
-            f"{semantic}__true_false",
+        true_on_b = _true_probability(
+            answers[f"{semantic}__true_b"],
+            f"{semantic}__true_b",
+            true_label="B",
         )
-        scores[semantic] = (forward + reversed_order) / 2.0
+        scores[semantic] = (true_on_a + true_on_b) / 2.0
     return scores
 
 
@@ -146,12 +153,14 @@ def semantic_order_gaps(response: dict[str, Any]) -> dict[str, float]:
     return {
         semantic: abs(
             _true_probability(
-                answers[f"{semantic}__false_true"],
-                f"{semantic}__false_true",
+                answers[f"{semantic}__true_a"],
+                f"{semantic}__true_a",
+                true_label="A",
             )
             - _true_probability(
-                answers[f"{semantic}__true_false"],
-                f"{semantic}__true_false",
+                answers[f"{semantic}__true_b"],
+                f"{semantic}__true_b",
+                true_label="B",
             )
         )
         for semantic in SEMANTIC_KEYS
@@ -189,6 +198,6 @@ def action_mapping_metadata() -> dict[str, Any]:
         "semantic_threshold": SEMANTIC_THRESHOLD,
         "sparse_density_threshold": SPARSE_DENSITY_THRESHOLD,
         "priority": ["yield", "respond", "listen", "support_or_sparse"],
-        "binary_ordering": ["false_true", "true_false"],
-        "order_aggregation": "mean_true_probability",
+        "binary_ordering": ["true_on_A", "true_on_B"],
+        "order_aggregation": "mean_semantic_true_probability_after_label_alignment",
     }
