@@ -80,7 +80,11 @@ class BonjourServiceBroadcaster:
         else:
             service_type = f"{service_type}.local."
 
-        self._zc = AsyncZeroconf()
+        self._zc = (
+            AsyncZeroconf(interfaces=parsed_addresses)
+            if parsed_addresses is not None
+            else AsyncZeroconf()
+        )
         self._info = ServiceInfo(
             service_type,
             f"{instance}.{service_type}",
