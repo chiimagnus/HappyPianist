@@ -3,7 +3,7 @@ import Foundation
 import os
 import Testing
 
-private final class JevClassifierStubURLProtocol: URLProtocol {
+private final class LayaClassifierStubURLProtocol: URLProtocol {
     struct State {
         var requestHandler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
     }
@@ -45,26 +45,38 @@ private final class JevClassifierStubURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+private struct LayaClientTestState: Encodable, Sendable {
+    let heldNotesCount: Int
+    let isAIPlaybackActive: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case heldNotesCount = "held_notes_count"
+        case isAIPlaybackActive = "is_ai_playback_active"
+    }
+}
+
 @Test
-func jevClassifierClientSendsGenericStateAndTypedQuestion() async throws {
-    defer { JevClassifierStubURLProtocol.clearHandler() }
+func layaClassifierClientSendsStructuredStateAndTypedQuestion() async throws {
+    defer { LayaClassifierStubURLProtocol.clearHandler() }
 
     let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [JevClassifierStubURLProtocol.self]
-    let client = JevClassifierClient(
+    configuration.protocolClasses = [LayaClassifierStubURLProtocol.self]
+    let client = LayaClassifierClient(
         urlSession: URLSession(configuration: configuration)
     )
 
-    JevClassifierStubURLProtocol.setHandler { request in
+    LayaClassifierStubURLProtocol.setHandler { request in
         #expect(request.httpMethod == "POST")
         #expect(request.url?.path == "/v1/classifier")
 
-        let data = try #require(jevClassifierHTTPBodyData(from: request))
+        let data = try #require(layaClassifierHTTPBodyData(from: request))
         let json = try #require(
             JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
-        #expect(json["model"] as? String == "Qwen/Qwen3.5-0.8B")
-        #expect(json["state"] as? String == #"{"held_notes_count":1}"#)
+        #expect(json["model"] as? String == "aac6fef/laya-multilingual-mlx")
+        let state = try #require(json["state"] as? [String: Any])
+        #expect(state["held_notes_count"] as? Int == 1)
+        #expect(state["is_ai_playback_active"] as? Bool == true)
 
         let questions = try #require(json["questions"] as? [String: Any])
         let action = try #require(questions["action"] as? [String: Any])
@@ -74,45 +86,21 @@ func jevClassifierClientSendsGenericStateAndTypedQuestion() async throws {
         #expect(criteria["listen"] as? String == "Keep listening.")
         #expect(criteria["yield"] as? String == "Yield to the user.")
 
-        let responseBody: [String: Any] = [
-            "model": "Qwen/Qwen3.5-0.8B",
-            "answers": [
-                "action": [
-                    "type": "choice",
-                    "choice": "yield",
-                    "confidence": 0.74,
-                    "probabilities": [
-                        "listen": 0.26,
-                        "yield": 0.74,
-                    ],
-                ],
-            ],
-            "usage": [
-                "input_tokens": 123,
-                "output_tokens": 0,
-            ],
-            "latency_ms": 97,
-        ]
-        let responseData = try JSONSerialization.data(
-            withJSONObject: responseBody
+        return try layaClassifierHTTPResponse(
+            request: request,
+            statusCode: 200,
+            body: layaClassifierChoiceResponse(outputTokens: 0, includeConfidence: true)
         )
-        let url = try #require(request.url)
-        let response = try #require(
-            HTTPURLResponse(
-                url: url,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )
-        )
-        return (response, responseData)
     }
 
     let response = try await client.classify(
         host: "example.com",
         port: 8767,
-        model: "Qwen/Qwen3.5-0.8B",
-        state: #"{"held_notes_count":1}"#,
+        model: "aac6fef/laya-multilingual-mlx",
+        state: LayaClientTestState(
+            heldNotesCount: 1,
+            isAIPlaybackActive: true
+        ),
         questions: [
             "action": .choice(
                 instructions: "Choose an action.",
@@ -132,123 +120,120 @@ func jevClassifierClientSendsGenericStateAndTypedQuestion() async throws {
     }
     #expect(answer.choice == "yield")
     #expect(answer.confidence == 0.74)
+    #expect(answer.action.actProbability == 0.61)
     #expect(answer.probabilities["yield"] == 0.74)
     #expect(response.usage.outputTokens == 0)
-    #expect(response.latencyMS == 97)
+    #expect(response.latencyMS == 17)
 }
 
-
 @Test
-func jevClassifierClientDecodesNoulAnswer() async throws {
-    defer { JevClassifierStubURLProtocol.clearHandler() }
+func layaClassifierClientEncodesScoreAndNoulAndDecodesTheirAnswers() async throws {
+    defer { LayaClassifierStubURLProtocol.clearHandler() }
 
     let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [JevClassifierStubURLProtocol.self]
-    let client = JevClassifierClient(
+    configuration.protocolClasses = [LayaClassifierStubURLProtocol.self]
+    let client = LayaClassifierClient(
         urlSession: URLSession(configuration: configuration)
     )
 
-    JevClassifierStubURLProtocol.setHandler { request in
-        let data = try #require(jevClassifierHTTPBodyData(from: request))
-        let json = try #require(
-            JSONSerialization.jsonObject(with: data) as? [String: Any]
-        )
+    LayaClassifierStubURLProtocol.setHandler { request in
+        let data = try #require(layaClassifierHTTPBodyData(from: request))
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let questions = try #require(json["questions"] as? [String: Any])
-        let yieldQuestion = try #require(questions["yield"] as? [String: Any])
-        #expect(yieldQuestion["type"] as? String == "noul")
+        #expect((questions["urgency"] as? [String: Any])?["type"] as? String == "score")
+        #expect((questions["supported"] as? [String: Any])?["type"] as? String == "noul")
 
-        let responseBody: [String: Any] = [
-            "model": "Qwen/Qwen3.5-0.8B",
-            "answers": [
-                "yield": [
-                    "type": "noul",
-                    "noul": 0.77,
-                    "calibrated": false,
-                    "rating": [
-                        "expected_score": 7.7,
-                        "probabilities": [
-                            "7": 0.3,
-                            "8": 0.7,
-                        ],
+        return try layaClassifierHTTPResponse(
+            request: request,
+            statusCode: 200,
+            body: [
+                "model": "aac6fef/laya-multilingual-mlx",
+                "answers": [
+                    "urgency": [
+                        "type": "score",
+                        "score": 1.75,
+                        "confidence": 0.51,
+                        "action": ["act_probability": 0.44],
+                        "legend": ["0": "low", "1": "medium", "2": "high"],
+                        "probabilities": ["0": 0.05, "1": 0.15, "2": 0.80],
+                    ],
+                    "supported": [
+                        "type": "noul",
+                        "noul": 0.82,
+                        "confidence": 0.82,
+                        "action": ["act_probability": 0.37],
                     ],
                 ],
-            ],
-            "usage": [
-                "input_tokens": 180,
-                "output_tokens": 0,
-            ],
-            "latency_ms": 120,
-        ]
-        let responseData = try JSONSerialization.data(
-            withJSONObject: responseBody
+                "usage": ["input_tokens": 99, "output_tokens": 0],
+                "latency_ms": 12,
+            ]
         )
-        let url = try #require(request.url)
-        let response = try #require(
-            HTTPURLResponse(
-                url: url,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )
-        )
-        return (response, responseData)
     }
 
     let response = try await client.classify(
         host: "example.com",
         port: 8767,
-        model: "Qwen/Qwen3.5-0.8B",
-        state: "AI 正在演奏，用户重新进入高密度演奏。",
+        model: "aac6fef/laya-multilingual-mlx",
+        state: ["signal": "strong"],
         questions: [
-            "yield": .noul(
-                instructions: "AI 是否应该让位？",
-                trueDescription: "应该让位。",
-                falseDescription: "不应该让位。"
+            "urgency": .score(
+                instructions: "Rate urgency.",
+                criteria: ["low", "medium", "high"]
+            ),
+            "supported": .noul(
+                instructions: "Is this supported?",
+                trueDescription: "Supported.",
+                falseDescription: "Not supported."
             ),
         ],
         timeoutSeconds: 1
     )
 
-    let rawAnswer = try #require(response.answers["yield"])
-    guard case let .noul(answer) = rawAnswer else {
-        Issue.record("Expected a Noul answer.")
+    guard case let .score(score) = try #require(response.answers["urgency"]) else {
+        Issue.record("Expected a score answer.")
         return
     }
-    #expect(answer.noul == 0.77)
-    #expect(answer.calibrated == false)
-    #expect(answer.rating.expectedScore == 7.7)
-    #expect(answer.rating.probabilities["8"] == 0.7)
-    #expect(response.usage.outputTokens == 0)
+    #expect(score.score == 1.75)
+    #expect(score.legend["2"] == "high")
+    #expect(score.action.actProbability == 0.44)
+
+    guard case let .noul(noul) = try #require(response.answers["supported"]) else {
+        Issue.record("Expected a noul answer.")
+        return
+    }
+    #expect(noul.noul == 0.82)
+    #expect(noul.confidence == 0.82)
+    #expect(noul.action.actProbability == 0.37)
 }
 
 @Test
-func jevClassifierClientFailsExplicitlyForBadHTTPMalformedAnswerAndOutputTokens() async throws {
-    defer { JevClassifierStubURLProtocol.clearHandler() }
+func layaClassifierClientFailsExplicitlyForBadHTTPMalformedAnswerAndOutputTokens() async throws {
+    defer { LayaClassifierStubURLProtocol.clearHandler() }
 
     let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [JevClassifierStubURLProtocol.self]
-    let client = JevClassifierClient(
+    configuration.protocolClasses = [LayaClassifierStubURLProtocol.self]
+    let client = LayaClassifierClient(
         urlSession: URLSession(configuration: configuration)
     )
 
-    func classify() async throws -> JevClassifierResponse {
+    func classify() async throws -> LayaClassifierResponse {
         try await client.classify(
             host: "example.com",
             port: 8767,
-            model: "Qwen/Qwen3.5-0.8B",
-            state: "generic state",
+            model: "aac6fef/laya-multilingual-mlx",
+            state: ["value": 1],
             questions: [
-                "route": .choice(
-                    instructions: "Choose a route.",
-                    criteria: ["a": nil, "b": nil]
+                "action": .choice(
+                    instructions: "Choose.",
+                    criteria: ["listen": nil, "yield": nil]
                 ),
             ],
             timeoutSeconds: 1
         )
     }
 
-    JevClassifierStubURLProtocol.setHandler { request in
-        try jevClassifierHTTPResponse(
+    LayaClassifierStubURLProtocol.setHandler { request in
+        try layaClassifierHTTPResponse(
             request: request,
             statusCode: 500,
             body: ["message": "classification_failed"]
@@ -257,66 +242,61 @@ func jevClassifierClientFailsExplicitlyForBadHTTPMalformedAnswerAndOutputTokens(
     do {
         _ = try await classify()
         Issue.record("Expected HTTP failure.")
-    } catch let error as JevClassifierClientError {
+    } catch let error as LayaClassifierClientError {
         #expect(error == .httpError(statusCode: 500, message: "classification_failed"))
     }
 
-    JevClassifierStubURLProtocol.setHandler { request in
-        try jevClassifierHTTPResponse(
+    LayaClassifierStubURLProtocol.setHandler { request in
+        try layaClassifierHTTPResponse(
             request: request,
             statusCode: 200,
-            body: jevClassifierChoiceResponse(
-                outputTokens: 0,
-                includeConfidence: false
-            )
+            body: layaClassifierChoiceResponse(outputTokens: 0, includeConfidence: false)
         )
     }
     do {
         _ = try await classify()
         Issue.record("Expected malformed answer to fail decoding.")
-    } catch let error as JevClassifierClientError {
+    } catch let error as LayaClassifierClientError {
         #expect(error == .decodeFailed)
     }
 
-    JevClassifierStubURLProtocol.setHandler { request in
-        try jevClassifierHTTPResponse(
+    LayaClassifierStubURLProtocol.setHandler { request in
+        try layaClassifierHTTPResponse(
             request: request,
             statusCode: 200,
-            body: jevClassifierChoiceResponse(
-                outputTokens: 1,
-                includeConfidence: true
-            )
+            body: layaClassifierChoiceResponse(outputTokens: 1, includeConfidence: true)
         )
     }
     do {
         _ = try await classify()
         Issue.record("Expected non-zero output token count to be rejected.")
-    } catch let error as JevClassifierClientError {
+    } catch let error as LayaClassifierClientError {
         #expect(error == .unexpectedOutputTokens(1))
     }
 }
 
-private func jevClassifierChoiceResponse(
+private func layaClassifierChoiceResponse(
     outputTokens: Int,
     includeConfidence: Bool
 ) -> [String: Any] {
     var answer: [String: Any] = [
         "type": "choice",
-        "choice": "a",
-        "probabilities": ["a": 0.8, "b": 0.2],
+        "choice": "yield",
+        "action": ["act_probability": 0.61],
+        "probabilities": ["listen": 0.26, "yield": 0.74],
     ]
     if includeConfidence {
-        answer["confidence"] = 0.8
+        answer["confidence"] = 0.74
     }
     return [
-        "model": "Qwen/Qwen3.5-0.8B",
-        "answers": ["route": answer],
+        "model": "aac6fef/laya-multilingual-mlx",
+        "answers": ["action": answer],
         "usage": ["input_tokens": 12, "output_tokens": outputTokens],
-        "latency_ms": 4,
+        "latency_ms": 17,
     ]
 }
 
-private func jevClassifierHTTPResponse(
+private func layaClassifierHTTPResponse(
     request: URLRequest,
     statusCode: Int,
     body: [String: Any]
@@ -333,7 +313,7 @@ private func jevClassifierHTTPResponse(
     return (response, try JSONSerialization.data(withJSONObject: body))
 }
 
-private func jevClassifierHTTPBodyData(from request: URLRequest) -> Data? {
+private func layaClassifierHTTPBodyData(from request: URLRequest) -> Data? {
     if let body = request.httpBody {
         return body
     }
