@@ -27,11 +27,11 @@ note = "Swift 产品调用链已切到结构化 Laya state；build:simulator 通
 
 [[tasks]]
 id = "P2-T2"
-title = "建立固定 Laya companion 行为 benchmark"
+title = "建立统一 Companion 二元语义 benchmark 并重测 Laya"
 status = "blocked"
 plan = "plan-p2.md#p2-t2"
-commit = "c6c7a60e"
-note = "固定 120-case Stage A 已可重复运行；两次 case IDs、canonical corpus SHA 与 120 个 choice 完全一致。compact state 后热态 server p95 53ms、round-trip p95 61.3ms，但默认 Laya action choice 仍 120/120 listen；允许范围内的单 question instructions/criteria 最小迭代也无法让 settled_end/respond 与 support 稳定出现，因此 P2 Gate=No-Go，P3 不启动。"
+commit = ""
+note = "统一 benchmark 实现提交 4bcc70fc。已纠正测试口径：旧 Laya 直接五分类只保留为诊断，不能作为模型级结论。统一协议固定同一 compact state、4 个二元语义 continuing/finished/space/reasserted、每题 false→true 与 true→false 双顺序、对齐 true probability 后求均值、threshold=0.55、同一 semantic-v1 action mapping 与 120-case Stage A。Laya 完整复跑两次时 ordered case IDs、canonical corpus SHA、全部 semantic scores 与全部 actions 均完全一致。最终 actions=listen77/sparse12/support11/yield20/respond0；settled_end.finished median=0.115、active_dense.continuing=0.165、active_dense.reasserted=0.575，存在 3 个 MAESTRO/POP909 方向冲突；round-trip p95 两次约 2.23s/1.49s，均超过 1s Gate。因此统一测试下 Laya 仍 No-Go，P3 不启动。"
 
 [[tasks]]
 id = "P3-T1"
