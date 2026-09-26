@@ -103,7 +103,7 @@ id = "P2-T4"
 title = "迭代 Prompt 优化并重新验证关键边界"
 status = "completed"
 plan = "plan-p2.md#p2-t4"
-commit = "a0d46ea"
+commit = "45b7e5f"
 note = "补做多轮真实迭代后确认：choice_strict 在原始 Jev runtime 上 Stage A 仍失败（settled_end finished=0.469、dense space=0.706）；此前看似通过的 600-case 结果混入未提交的二元 Choice 标签顺序消偏 runtime，不能作为纯 Prompt 证据。Noul、predicate、语义标签、categorical、hybrid 均未在原始 runtime 通过；结论修正为 Prompt-only 仍不足，并定位到 A/B candidate prior。"
 
 [[tasks]]
