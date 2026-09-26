@@ -36,7 +36,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 - source/performed identity、range/loop、MIDI/音频输出 reset、generation、interruption 与无残留发声；
 - observation 的 capability、unknown/insufficient、alignment、assessment、单一 coaching action；
 - recording、session、progress 的 checkpoint、flush-before-teardown、恢复与持久化边界；
-- AI 请求取消、乱序响应、generation 隔离与 teardown；
+- AI 请求取消、乱序响应、generation 隔离与 teardown；Qwen classifier schema、A/B 双顺序概率对齐、semantic mapping 与失败不回退；
 
 ### 示范手纯值 Gate
 
@@ -56,7 +56,8 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 | 证据 | 状态 | 不能替代 |
 | --- | --- | --- |
-| Simulator 自动化 suite、corpus manifest、score/performance snapshot、observation replay | `failed`：2026-08-23，`8fa0f7d`；999 通过、11 失败 | 真机、听感、教师或教学证据 |
+| Simulator 自动化 suite | `failed`：2026-09-26，基于 `0a8f63a`；1010 通过、11 失败，失败集中在手部骨架 / hand motion / local sampler | 真机、听感、教师或教学证据 |
+| Qwen / Companion 定向回归 | `passed`：2026-09-26；Swift 8/8，Python semantic/corpus/Qwen 17/17 | 固定 Stage A 的模型质量、Windows CUDA 实时延迟、产品级 E2E |
 | 多 exporter 合法 fixture | `blocked evidence` | 内部 fixture、伪造 provenance、不明来源下载 |
 | 真机硬件、钢琴家盲评、教师标注、coaching 研究 | `pending evidence` | Simulator bucket、诊断字段、点击次数或单个 demo |
 

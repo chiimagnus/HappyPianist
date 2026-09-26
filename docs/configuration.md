@@ -12,15 +12,15 @@ visionOS target 仅声明实际使用的权限：
 
 - Bluetooth MIDI、麦克风、手部追踪；
 - 虚拟钢琴平面放置所需的 world sensing；
-- 用户选择 Aria 网络后端时的 Local Network 与 Bonjour `_lpduet._tcp`。
+- 用户选择 Aria 或 Qwen 网络后端时的 Local Network 与 Bonjour `_lpduet._tcp`。
 
 MusicXML 和 MXL 的 imported type 已在 visionOS host 声明。仓库根的 `Resources/SeedScores` 由 AVP target 打包，并通过 `BundledSongLibraryProvider` 发现。`Packages/RealityKitContent` 承载空间资产；私有 SoundFont、CoreML 模型和未分发的 SeedScores 仍会使相关资源测试跳过，不能视为集成通过。
 
-## 用户设置与可选 Aria 服务
+## 用户设置与可选电脑端服务
 
 练习范围、左右手、速度、循环、音量、输入/输出端点、round defaults 与 AI backend 都由各自的 settings provider 保存；key、默认值和迁移逻辑以代码为准，新增设置不得绕过 provider 直接散落读写 `UserDefaults`。
 
-Aria v2 是可选的本地服务，不是 App 运行前提。安装、启动、smoketest 和网络排查见[Python 后端说明](../python_backend/README.md)。用户选择网络后端后才请求发现和连接；失败不自动回退到其他后端。
+Aria v2 与 Qwen3.5-0.8B 都是可选电脑端服务，不是 App 启动前提。Aria 负责音乐生成；Qwen 是当前唯一实验型网络陪伴决策后端，RuleBased 仍是默认决策基线。安装、启动、smoketest 和网络排查见[Python 后端说明](../python_backend/README.md)。只有用户选择对应网络后端时才发现和连接；失败不自动回退。
 
 ## 常见问题
 
@@ -29,4 +29,4 @@ Aria v2 是可选的本地服务，不是 App 运行前提。安装、启动、s
 | Simulator 不可用 | `make destinations`、配置的 `SIMULATOR_ID` 与 Xcode 版本。 |
 | `make test:simulator` 超时 | `.build/TestResults` 中的 result bundle/Simulator 诊断；保留 timeout，定位卡住的测试或生命周期。 |
 | 没有手部或虚拟琴 | 权限、Full Space、provider 状态和真机能力；Simulator 不能证明真实追踪。 |
-| 找不到 Aria | 同一局域网、服务端口、防火墙、Bonjour 与模型 checkpoint。 |
+| 找不到 Aria / Qwen | 同一局域网、对应服务端口、防火墙、Bonjour 与电脑端服务状态。 |

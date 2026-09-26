@@ -1,6 +1,6 @@
 # 项目概览
 
-HappyPianist 由 visionOS host、共享 Swift 核心、RealityKit 资产和可选 Aria v2 服务组成。源码位置、符号和调用关系以 CodeGraph 为准；AVP host 负责 composition root 与 App Sandbox，核心包不反向依赖 host。
+HappyPianist 由 visionOS host、共享 Swift 核心、RealityKit 资产和可选电脑端 AI 服务组成：Aria v2 负责音乐生成，Qwen3.5-0.8B 可负责实验型陪伴决策。源码位置、符号和调用关系以 CodeGraph 为准；AVP host 负责 composition root 与 App Sandbox，核心包不反向依赖 host。
 
 ## 导航
 

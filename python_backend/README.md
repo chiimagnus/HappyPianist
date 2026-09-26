@@ -39,7 +39,7 @@
 
 ### 陪伴决策实验
 
-统一 benchmark 位于 `scripts/companion_semantic_benchmark.py`。不同模型必须使用同一 compact state、同一 4 个二元问题、同一 A/B 顺序消偏、同一阈值、同一 mapping、同一 120-case Stage A；不能为模型单独改口径。
+统一 benchmark 位于 `scripts/companion_semantic_benchmark.py`。后续 Qwen 调整必须保持同一 compact state、4 个二元问题、A/B 顺序消偏、阈值、mapping 和固定 120-case Stage A；不能为了通过 Gate 改评测口径。
 
 ## 故障排查
 
