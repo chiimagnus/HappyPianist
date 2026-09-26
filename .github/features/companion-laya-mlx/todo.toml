@@ -1,0 +1,58 @@
+version = 1
+current_task_id = ""
+
+[[tasks]]
+id = "P1-T1"
+title = "建立 Laya-MLX HTTP 决策服务"
+status = "completed"
+plan = "plan-p1.md#p1-t1"
+commit = "5cf9b427"
+note = "Mac 真实模型 SHA256 校验通过；Laya direct predict 热态 median 10.15ms；HTTP smoke/Bonjour browse 通过；Python 9/9。"
+
+[[tasks]]
+id = "P1-T2"
+title = "删除 Qwen/Jev/CLM 实验路径并收敛 Python 工具"
+status = "completed"
+plan = "plan-p1.md#p1-t2"
+commit = "d5791fe7"
+note = "Laya direct action adapter 与 E2E 已替换旧 Prompt profiles；Python 5/5 + corpus 2/2；python_backend 旧 Qwen/Jev/CLM 决策符号扫描为 0。"
+
+[[tasks]]
+id = "P2-T1"
+title = "将 Swift Jev 接入整体替换为 Laya"
+status = "pending"
+plan = "plan-p2.md#p2-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P2-T2"
+title = "建立固定 Laya companion 行为 benchmark"
+status = "pending"
+plan = "plan-p2.md#p2-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T1"
+title = "运行 Laya 到 companion 与 Aria/MIDI 真实链路"
+status = "pending"
+plan = "plan-p3.md#p3-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T2"
+title = "执行完整 Swift/Python 回归"
+status = "pending"
+plan = "plan-p3.md#p3-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T3"
+title = "更新长期文档并清除旧实现"
+status = "pending"
+plan = "plan-p3.md#p3-t3"
+commit = ""
+note = ""
