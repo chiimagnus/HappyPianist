@@ -20,10 +20,11 @@ if str(PYTHON_BACKEND_ROOT) not in sys.path:
 
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo, second2tick
 
-from shared.companion_laya import (
-    DEFAULT_LAYA_MODEL,
-    action_answer,
+from shared.companion_semantics import (
+    action_from_semantics,
     classifier_payload,
+    semantic_order_gaps,
+    semantic_scores,
 )
 from shared.protocol_v2 import (
     ControlChangeEvent,
@@ -100,16 +101,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--decision-only",
         action="store_true",
-        help="Evaluate Laya decisions without calling Aria.",
+        help="Evaluate Qwen decisions without calling Aria.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".outputs/companion-laya-e2e"),
+        default=Path(".outputs/companion-qwen-e2e"),
     )
-    parser.add_argument("--laya-host", default="127.0.0.1")
-    parser.add_argument("--laya-port", type=int, default=8767)
-    parser.add_argument("--laya-model", default=DEFAULT_LAYA_MODEL)
+    parser.add_argument("--qwen-host", default="127.0.0.1")
+    parser.add_argument("--qwen-port", type=int, default=8767)
+    parser.add_argument("--qwen-model", default="Qwen/Qwen3.5-0.8B")
     parser.add_argument("--aria-host", default="127.0.0.1")
     parser.add_argument("--aria-port", type=int, default=8766)
     parser.add_argument("--timeout", type=float, default=45.0)
@@ -539,7 +540,7 @@ def main() -> int:
     if not scenarios:
         raise RuntimeError("corpus index produced no scenarios for the selected states")
 
-    laya_url = f"http://{args.laya_host}:{args.laya_port}/v1/classifier"
+    qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/v1/classifier"
     aria_url = f"http://{args.aria_host}:{args.aria_port}/generate"
 
     results: list[dict[str, Any]] = []
@@ -559,11 +560,13 @@ def main() -> int:
 
         decision_state = decision_payload(parsed, scenario, args.prompt_window)
         decision_request = classifier_payload(
-            model=args.laya_model,
+            model=args.qwen_model,
             state=decision_state,
         )
-        decision = post_json(laya_url, decision_request, args.timeout)
-        action, confidence, probabilities = action_answer(decision)
+        decision = post_json(qwen_url, decision_request, args.timeout)
+        scores = semantic_scores(decision)
+        order_gaps = semantic_order_gaps(decision)
+        action = action_from_semantics(decision_state, scores)
         row: dict[str, Any] = {
             "case_id": scenario.case_id,
             "source": scenario.source,
@@ -572,8 +575,8 @@ def main() -> int:
             "provenance": scenario.provenance,
             "timestamp": scenario.cutoff,
             "action": action,
-            "decision_confidence": confidence,
-            "action_probabilities": probabilities,
+            "semantic_scores": scores,
+            "semantic_order_gaps": order_gaps,
             "decision_latency_ms": int(decision["latency_ms"]),
             "generation_attempted": False,
             "generated": False,
@@ -660,19 +663,22 @@ def main() -> int:
     ]
     states_in_results = sorted({str(row["state"]) for row in results})
     sources_in_results = sorted({str(row["source"]) for row in results})
-    confidence_by_state = {
-        state: statistics.median(
-            float(row["decision_confidence"])
-            for row in results
-            if row["state"] == state
-        )
+    semantic_medians_by_state = {
+        state: {
+            semantic: statistics.median(
+                float(row["semantic_scores"][semantic])
+                for row in results
+                if row["state"] == state
+            )
+            for semantic in ("continuing", "finished", "space", "reasserted")
+        }
         for state in states_in_results
     }
 
     summary: dict[str, Any] = {
         "decision_cases": len(results),
         "decision_only": bool(args.decision_only),
-        "laya_model": args.laya_model,
+        "qwen_model": args.qwen_model,
         "corpus_index_sha256": corpus_index_sha256,
         "case_ids": [row["case_id"] for row in results],
         "sample_seed": args.seed,
@@ -682,7 +688,7 @@ def main() -> int:
         "actions": action_counts(results),
         "actions_by_state": by_state,
         "actions_by_source_state": by_source_state,
-        "decision_confidence_median_by_state": confidence_by_state,
+        "semantic_medians_by_state": semantic_medians_by_state,
         "decision_latency_ms": {
             "median": statistics.median(decision_latencies),
             "min": min(decision_latencies),

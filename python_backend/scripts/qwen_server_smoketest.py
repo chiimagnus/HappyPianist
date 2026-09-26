@@ -6,14 +6,11 @@ import json
 import urllib.request
 
 
-DEFAULT_MODEL = "aac6fef/laya-multilingual-mlx"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8767)
-    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--model", default="Qwen/Qwen3.5-0.8B")
     args = parser.parse_args()
 
     payload = {
@@ -40,7 +37,7 @@ def main() -> None:
         headers={"Content-Type": "application/json"},
         data=json.dumps(payload).encode("utf-8"),
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
+    with urllib.request.urlopen(request, timeout=5) as response:
         body = json.loads(response.read().decode("utf-8"))
 
     assert body["answers"]["color"]["choice"] == "red"

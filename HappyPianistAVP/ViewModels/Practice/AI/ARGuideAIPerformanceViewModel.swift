@@ -10,7 +10,7 @@ final class ARGuideAIPerformanceViewModel {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     let ariaDiscoveryService: BonjourBackendDiscoveryService
     let ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService
-    let layaDecisionDiscoveryService: BonjourBackendDiscoveryService
+    let qwenDecisionDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let companionDecisionBackendSelection = CompanionDecisionBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
@@ -58,7 +58,7 @@ final class ARGuideAIPerformanceViewModel {
     init(
         ariaDiscoveryService: BonjourBackendDiscoveryService? = nil,
         ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService? = nil,
-        layaDecisionDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        qwenDecisionDiscoveryService: BonjourBackendDiscoveryService? = nil,
         aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
@@ -79,12 +79,12 @@ final class ARGuideAIPerformanceViewModel {
                 "engine": "aria",
             ]
         )
-        self.layaDecisionDiscoveryService = layaDecisionDiscoveryService ?? BonjourBackendDiscoveryService(
+        self.qwenDecisionDiscoveryService = qwenDecisionDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
                 "path": "/v1/classifier",
                 "protocol_version": "1",
-                "engine": "laya-mlx",
+                "engine": "qwen-classifier",
             ]
         )
         if let aiPlaybackServiceFactory {
@@ -153,11 +153,11 @@ final class ARGuideAIPerformanceViewModel {
         switch selectedKind {
         case .ruleBased:
             return "陪伴决策：确定性规则（本机）"
-        case .networkBonjourLaya:
+        case .networkBonjourQwen:
             return backendDiscoveryStatusText(
-                backendName: "Laya-MLX 分类器（Mac 本地，实验）",
-                state: layaDecisionDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 Laya-MLX 分类服务。"
+                backendName: "Qwen3.5-0.8B（电脑本地，实验）",
+                state: qwenDecisionDiscoveryService.state,
+                notFoundHint: "请先在电脑端启动 Qwen3.5-0.8B 分类服务。"
             ).replacingOccurrences(of: "后端：", with: "陪伴决策：")
         }
     }
@@ -171,7 +171,7 @@ final class ARGuideAIPerformanceViewModel {
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
         aiPerformanceService.setEnabled(isEnabled)
         if isEnabled == false {
-            layaDecisionDiscoveryService.stop()
+            qwenDecisionDiscoveryService.stop()
         }
     }
 
@@ -257,7 +257,7 @@ final class ARGuideAIPerformanceViewModel {
         // We must not permanently "shutdown" the AIPerformanceService here, otherwise it cannot be re-enabled
         // after returning to practice. Treat this as a reversible teardown.
         aiPerformanceService.setEnabled(false)
-        layaDecisionDiscoveryService.stop()
+        qwenDecisionDiscoveryService.stop()
     }
 
     private func makeBackendRegistry() -> ImprovBackendRegistry {
@@ -275,8 +275,8 @@ final class ARGuideAIPerformanceViewModel {
         CompanionDecisionBackendRegistry(
             backends: [
                 RuleBasedCompanionDecisionBackend(),
-                LayaNetworkCompanionDecisionBackend(
-                    discoveryService: layaDecisionDiscoveryService
+                QwenNetworkCompanionDecisionBackend(
+                    discoveryService: qwenDecisionDiscoveryService
                 ),
             ]
         )

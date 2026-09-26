@@ -7,7 +7,7 @@ from pathlib import Path
 
 def _bootstrap_import_path() -> None:
     python_backend_dir = Path(__file__).resolve().parents[1]
-    server_dir = python_backend_dir / "laya_server"
+    server_dir = python_backend_dir / "qwen_server"
 
     sys.path.insert(0, str(python_backend_dir))
     sys.path.insert(0, str(server_dir))
@@ -16,7 +16,7 @@ def _bootstrap_import_path() -> None:
 def main() -> None:
     _bootstrap_import_path()
 
-    from laya_server.server import main as server_main
+    from qwen_server.server import main as server_main
 
     server_main()
 
