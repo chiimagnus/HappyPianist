@@ -2,7 +2,7 @@ import Foundation
 
 enum CompanionDecisionBackendKind: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case ruleBased = "rule_based"
-    case networkBonjourQwen35 = "network_bonjour_qwen35"
+    case networkBonjourLaya = "network_bonjour_laya"
 
     var id: String { rawValue }
 }
@@ -13,13 +13,6 @@ enum CompanionAction: String, Codable, Equatable, Sendable {
     case sparse
     case yield
     case respond
-}
-
-struct CompanionDecisionNote: Codable, Equatable, Sendable {
-    let midi: Int
-    let velocity: Int
-    let onsetSecondsAgo: TimeInterval
-    let durationSeconds: TimeInterval
 }
 
 struct CompanionDecisionInput: Codable, Equatable, Sendable {
@@ -33,7 +26,30 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
     let lastNoteOnTimestampSeconds: TimeInterval?
     let activePitchCenter: Double?
     let isAIPlaybackActive: Bool
-    let recentNotes: [CompanionDecisionNote] = []
+
+    init(
+        nowTimestampSeconds: TimeInterval,
+        heldNotesCount: Int,
+        sustainValue: Int,
+        recentIOIMedianSeconds: TimeInterval?,
+        recentVelocityTrend: Double,
+        recentNoteDensityPerSecond: Double,
+        lastUserEventTimestampSeconds: TimeInterval?,
+        lastNoteOnTimestampSeconds: TimeInterval?,
+        activePitchCenter: Double?,
+        isAIPlaybackActive: Bool
+    ) {
+        self.nowTimestampSeconds = nowTimestampSeconds
+        self.heldNotesCount = heldNotesCount
+        self.sustainValue = sustainValue
+        self.recentIOIMedianSeconds = recentIOIMedianSeconds
+        self.recentVelocityTrend = recentVelocityTrend
+        self.recentNoteDensityPerSecond = recentNoteDensityPerSecond
+        self.lastUserEventTimestampSeconds = lastUserEventTimestampSeconds
+        self.lastNoteOnTimestampSeconds = lastNoteOnTimestampSeconds
+        self.activePitchCenter = activePitchCenter
+        self.isAIPlaybackActive = isAIPlaybackActive
+    }
 }
 
 struct CompanionDecision: Equatable, Sendable {
