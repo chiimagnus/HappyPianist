@@ -1,0 +1,115 @@
+version = 1
+current_task_id = "P2-T5"
+
+[[tasks]]
+id = "P1-T1"
+title = "完成通用 Jev typed runtime 与 logits scoring"
+status = "completed"
+plan = "plan-p1.md#p1-t1"
+commit = "f6d3f56"
+note = "基础 runtime 由 f6d3f56 完成；2db9f58 固定多 question/criteria 顺序；71d38b8 按 P1 约束删除未证明必要的 shared-prefix/KV-cache 双轨，统一 batched full forward。当前 Jev Python 10/10、py_compile、P1 diff-check 通过。"
+
+[[tasks]]
+id = "P1-T2"
+title = "完成 Swift 通用 Jev transport 并删除旧专用路径"
+status = "completed"
+plan = "plan-p1.md#p1-t2"
+commit = "783bc8f"
+note = "Swift generic Jev transport、/v1/classifier Bonjour contract 与旧 /decision 服务/client/protocol 清理由 783bc8f 完成；95eef0d 清理 README 旧启动命令与旧协议说明。生产旧符号扫描为 0；选择 Jev 失败时显式停止，不回退规则后端。"
+
+[[tasks]]
+id = "P1-T3"
+title = "建立 runtime 等价性与失败边界回归"
+status = "completed"
+plan = "plan-p1.md#p1-t3"
+commit = "2279142"
+note = "边界回归覆盖 Noul distribution、candidate single-token boundary、server failure、Swift bad HTTP/缺字段/output_tokens!=0。shared-prefix 已由 71d38b8 删除，因此等价性测试不再适用；当前 Python 10/10。Windows 无 Xcode，Swift 测试仅做源码/CodeGraph 审核，未冒充执行。"
+
+[[tasks]]
+id = "P2-T1"
+title = "固定大规模 MIDI 状态语料与抽样不变量"
+status = "completed"
+plan = "plan-p2.md#p2-t1"
+commit = "19e71ef"
+note = "固定 1276 MAESTRO + 909 POP909 主 MIDI；全量 2185 文件 0 error，两次 index SHA256 均为 6D544631C7A005A5AC059A0D3E1939E417F89EA82F6762A59E7F831A8BB24C52；takeover provenance 全为 synthetic。gitignore 已预先覆盖 python_backend/.datasets 与 .outputs，无需重复修改。"
+
+[[tasks]]
+id = "P2-T2"
+title = "建立两阶段 Prompt benchmark"
+status = "completed"
+plan = "plan-p2.md#p2-t2"
+commit = "46399e3"
+note = "固定 semantic-v1 映射与 5 个差异化 Prompt profiles；Stage A 固定 seed=20260920、120 case/profile、同一 corpus SHA/case IDs。direct 因 dense respond=50% 淘汰；observable_examples 与 conservative 均 120/120 listen collapse；observable 与 observable_thresholds 无自动停止项且无跨来源方向冲突，进入 P2-T3。py_compile 与 5/5 unittest 通过。"
+
+[[tasks]]
+id = "P2-T3"
+title = "对 Stage A 候选运行固定 600-case 并形成结论"
+status = "completed"
+plan = "plan-p2.md#p2-t3"
+commit = ""
+no_commit_reason = "Stage B 仅产生 gitignored 实验证据；benchmark 能力已由 P2-T2 提交，审计修复另有独立 commits。"
+note = "Stage B 历史运行固定 seed=20260920，共 2x600 case，同 corpus SHA/case IDs/semantic-v1；observable=484 listen/15 sparse/1 support/100 yield/0 respond，thresholds=501 listen/99 yield/0 respond，二者 settled_end 均 0 respond。审计 F-02 修复后重算 Stage A，observable 与 observable_thresholds 都因 settled_end 无法与 active_dense 分离而应在 Stage A 淘汰，因此最终结论为 Prompt-only 暂不足，P3 产品 profile 候选为空；Stage B 仅保留为佐证。"
+
+[[tasks]]
+id = "P3-T1"
+title = "让 Swift companion adapter 与实验真源一致"
+status = "pending"
+plan = "plan-p3.md#p3-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T2"
+title = "运行固定分层 Qwen-Aria-MIDI E2E"
+status = "pending"
+plan = "plan-p3.md#p3-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T3"
+title = "核对实时控制环接入与失败行为"
+status = "pending"
+plan = "plan-p3.md#p3-t3"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P4-T1"
+title = "执行 Python 协议与真实服务回归"
+status = "pending"
+plan = "plan-p4.md#p4-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P4-T2"
+title = "执行 Swift build test 与 App 级可达性验证"
+status = "pending"
+plan = "plan-p4.md#p4-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P4-T3"
+title = "更新文档并删除所有过时实现结论"
+status = "pending"
+plan = "plan-p4.md#p4-t3"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P2-T4"
+title = "迭代 Prompt 优化并重新验证关键边界"
+status = "completed"
+plan = "plan-p2.md#p2-t4"
+commit = "a0d46ea"
+note = "补做多轮真实迭代后确认：choice_strict 在原始 Jev runtime 上 Stage A 仍失败（settled_end finished=0.469、dense space=0.706）；此前看似通过的 600-case 结果混入未提交的二元 Choice 标签顺序消偏 runtime，不能作为纯 Prompt 证据。Noul、predicate、语义标签、categorical、hybrid 均未在原始 runtime 通过；结论修正为 Prompt-only 仍不足，并定位到 A/B candidate prior。"
+
+[[tasks]]
+id = "P2-T5"
+title = "消除二元 Choice 标签顺序偏置并验证产品候选"
+status = "in_progress"
+plan = "plan-p2.md#p2-t5"
+commit = ""
+note = ""
