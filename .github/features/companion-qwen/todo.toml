@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P1-T1"
+current_task_id = ""
 
 [[tasks]]
 id = "P0-T1"
@@ -60,26 +60,27 @@ note = "绑定 activation/phrase/playback/post-start-note/backend identity；100
 [[tasks]]
 id = "P1-T1"
 title = "重建可重复 Qwen Stage A baseline"
-status = "pending"
+status = "completed"
 plan = "plan-p1.md#p1-t1"
 commit = ""
-note = "仅使用 P0-T2 新 manifest，在 Windows RTX 4060 固定 Qwen CUDA service 完整双跑；旧 corpus SHA/case digest/2026-09-26 score 只作历史 sanity check。"
+no_commit_reason = "仅产生 Windows ignored benchmark evidence，无代码差异"
+note = "Windows RTX 4060 当前正式 scripts/qwen_server.py；Stage A 120-case x2 行为逐 case 0 mismatch；RTT p95=379.7/380.8ms，server p95=359/359ms；稳定 blockers=MAESTRO settled_end.finished 0.543<0.55 + latency。"
 
 [[tasks]]
 id = "P1-T2"
 title = "定位 Qwen 决策时延和 Prompt 冗余"
-status = "pending"
+status = "completed"
 plan = "plan-p1.md#p1-t2"
-commit = ""
-note = "分解 render/tokenize/tensor/GPU/decode/HTTP；只删除有 timing 证据的旧 generic prompt scaffold，不改冻结 semantic contract/Gate。"
+commit = "85436def2e39e08bce5d07333cd1cdc9529b977f"
+note = "profile 证明 GPU forward 主导：schema≈0.004ms、prompt/tokenize≈30.5ms、tensor≈2.1ms、GPU≈376.3ms、decode≈2.7ms。compact raw prompt RTT p95≈187.3ms 但 120/120 collapse=listen，拒绝。并发 6ad4b7e2 logits_to_keep 双跑 RTT p95=385.0/385.9ms，比基线 379.7/380.8ms 无收益，已由 85436def 回退。causal-conv1d 无 Windows wheel，当前无 cl/nvcc/CUDA_PATH。"
 
 [[tasks]]
 id = "P1-T3"
 title = "用同一 Stage A 收口 Qwen Gate"
-status = "pending"
+status = "blocked"
 plan = "plan-p1.md#p1-t3"
 commit = ""
-note = "最多 baseline 与一个有证据 compact candidate；Windows localhost Stage A 的 RTT P95 <100ms 只是 backend 必要 Gate，不代表 Vision Pro 局域网；失败则以 deterministic blocker 停止。"
+note = "最终保留原实现；Stage A x2 逐 case 0 mismatch，但 MAESTRO settled_end.finished=0.543<0.55，RTT p95=379.7/380.8ms>=100ms。按 plan stop condition 阻塞，不放宽 Gate。"
 
 [[tasks]]
 id = "P2-T1"
