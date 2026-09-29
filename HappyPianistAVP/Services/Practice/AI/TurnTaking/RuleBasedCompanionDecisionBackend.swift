@@ -13,12 +13,12 @@ struct RuleBasedCompanionDecisionBackend: CompanionDecisionBackendProtocol {
         let isDenseTexture = input.recentNoteDensityPerSecond >= 2.2
         let hasRecentActivity = (timeSinceLastEvent ?? 10) <= 1.2
 
-        if hasRecentActivity == false {
-            return CompanionDecision(action: .listen)
+        if input.isAIPlaybackActive, input.userNoteOnSinceAIPlaybackStarted {
+            return CompanionDecision(action: .yield)
         }
 
-        if isFastFigure || isDenseTexture {
-            return CompanionDecision(action: .yield)
+        if hasRecentActivity == false || isFastFigure || isDenseTexture {
+            return CompanionDecision(action: .listen)
         }
 
         if input.heldNotesCount > 0 {

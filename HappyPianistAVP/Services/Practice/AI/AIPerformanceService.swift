@@ -113,8 +113,12 @@ final class AIPerformanceService {
     private var lastWindowRequestTimestampSeconds: TimeInterval?
 
     private var isGenerating = false
-    private var isAIPlaybackActive = false
+    private var playbackPhase: DuetAIPlaybackQueue.PlaybackPhase = .idle
     private var userNoteOnSinceAIPlaybackStarted = false
+
+    private var isAIPlaybackActive: Bool {
+        playbackPhase == .playing
+    }
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var lastImprovStatusText: String?
     private var generationFailureStatusText: String?
@@ -124,10 +128,10 @@ final class AIPerformanceService {
     private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = .init(
         diagnosticsReporter: diagnosticsReporter,
         playbackServiceFactory: aiPlaybackServiceFactory,
-        onPlaybackActiveChanged: { [weak self] isActive in
+        onPlaybackPhaseChanged: { [weak self] phase in
             guard let self else { return }
-            isAIPlaybackActive = isActive
-            if isActive {
+            playbackPhase = phase
+            if phase == .playing {
                 userNoteOnSinceAIPlaybackStarted = false
             }
             notifyStateChanged()
@@ -196,7 +200,7 @@ final class AIPerformanceService {
             discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
 
-            isAIPlaybackActive = false
+            playbackPhase = .idle
             resetPhraseInput()
 
             latestSchedule = []
@@ -309,7 +313,7 @@ final class AIPerformanceService {
         }
         let invalidatedPhraseGeneration = invalidatePhraseGeneration()
         Task { [aiPlaybackQueue] in
-            await aiPlaybackQueue.invalidatePendingWindows(through: invalidatedPhraseGeneration)
+            await aiPlaybackQueue.invalidateUnstartedWindows(through: invalidatedPhraseGeneration)
         }
         recordPhraseEvent(event)
         notifyStateChanged()
@@ -345,7 +349,7 @@ final class AIPerformanceService {
     private func notifyStateChanged() {
         onStateChanged(
             State(
-                isAIPerformanceActive: isGenerating || isAIPlaybackActive,
+                isAIPerformanceActive: isGenerating || playbackPhase != .idle,
                 isAIGenerating: isGenerating,
                 isAIPlaybackActive: isAIPlaybackActive,
                 latestSchedule: latestSchedule,
@@ -366,20 +370,19 @@ final class AIPerformanceService {
             throw CompanionDecisionBackendRegistryError.invalidSelection
         }
         let backend = try companionDecisionBackendRegistry.backend(for: kind)
-        let decision = try await backend.decide(
-            .init(
-                nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
-                heldNotesCount: noteSnapshot.heldNotes.count,
-                sustainValue: ccSnapshot.sustainValue,
-                recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
-                recentVelocityTrend: noteSnapshot.recentVelocityTrend,
-                recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
-                lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
-                lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
-                isAIPlaybackActive: isAIPlaybackActive,
-                userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted
-            )
+        let input = CompanionDecisionInput(
+            nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
+            heldNotesCount: noteSnapshot.heldNotes.count,
+            sustainValue: ccSnapshot.sustainValue,
+            recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
+            recentVelocityTrend: noteSnapshot.recentVelocityTrend,
+            recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
+            lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
+            lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
+            isAIPlaybackActive: isAIPlaybackActive,
+            userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted
         )
+        let decision = try await backend.decide(input).validated(for: input)
         guard selectedCompanionDecisionBackendKind() == kind else {
             throw CompanionDecisionBackendRegistryError.selectionChanged
         }
@@ -439,18 +442,24 @@ final class AIPerformanceService {
             return
         } catch {
             reportCompanionDecisionFailure()
-            await aiPlaybackQueue.clearPendingWindow()
-            if isAIPlaybackActive == false {
+            await aiPlaybackQueue.clearUnstartedWindows()
+            if playbackPhase != .playing {
                 latestSchedule = []
             }
             return
         }
 
-        if decision.shouldClearFutureWindows {
-            await aiPlaybackQueue.clearPendingWindow()
-            if isAIPlaybackActive == false {
+        switch decision.playbackPolicy {
+        case .preserve:
+            break
+        case .clearUnstarted:
+            await aiPlaybackQueue.clearUnstartedWindows()
+            if playbackPhase != .playing {
                 latestSchedule = []
             }
+        case .yieldCurrent:
+            await aiPlaybackQueue.stopCurrentPlaybackAndClearPending()
+            latestSchedule = []
         }
 
         let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)

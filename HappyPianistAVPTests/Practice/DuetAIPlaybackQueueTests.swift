@@ -168,7 +168,7 @@ func duetAIPlaybackQueueSubmitWindowShiftsLeadInForQueuedWindows() async {
             return PracticeSequencerSequence(midiData: Data(), durationSeconds: end, events: schedule)
         },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
 
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
@@ -210,7 +210,7 @@ func duetAIPlaybackQueueBuildFailureDiagnosticIsClassified() async {
         sleepFor: { _ in },
         buildSequence: { _ in throw DuetAIPlaybackQueueTestError.simulated },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     _ = await queue.submitWindow(
@@ -220,10 +220,9 @@ func duetAIPlaybackQueueBuildFailureDiagnosticIsClassified() async {
         provider: .localRule
     )
 
-    for _ in 0 ..< 200 {
-        await Task.yield()
+    await TestAsyncWait.until("sequence-build diagnostic") {
         let events = await diagnosticsReporter.events
-        if events.contains(where: { $0.reason == "provider=local_rule;failure=sequence_build" }) { break }
+        return events.contains(where: { $0.reason == "provider=local_rule;failure=sequence_build" })
     }
 
     let events = await diagnosticsReporter.events
@@ -250,7 +249,7 @@ func duetAIPlaybackQueuePlaybackStartFailureDiagnosticIsClassified() async {
             return PracticeSequencerSequence(midiData: Data(), durationSeconds: end, events: schedule)
         },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     _ = await queue.submitWindow(
@@ -260,10 +259,9 @@ func duetAIPlaybackQueuePlaybackStartFailureDiagnosticIsClassified() async {
         provider: .localCoreMLDuet
     )
 
-    for _ in 0 ..< 200 {
-        await Task.yield()
+    await TestAsyncWait.until("playback-start diagnostic") {
         let events = await diagnosticsReporter.events
-        if events.contains(where: { $0.reason == "provider=local_coreml_duet;failure=playback_start" }) { break }
+        return events.contains(where: { $0.reason == "provider=local_coreml_duet;failure=playback_start" })
     }
 
     let events = await diagnosticsReporter.events
@@ -272,7 +270,7 @@ func duetAIPlaybackQueuePlaybackStartFailureDiagnosticIsClassified() async {
 }
 
 @Test
-func duetAIPlaybackQueueClearPendingWindowDropsQueuedReplacement() async {
+func duetAIPlaybackQueueClearUnstartedWindowsDropsQueuedReplacement() async {
     let fakeService = await MainActor.run { FakeImmediatePlaybackService() }
     let factory = await MainActor.run {
         DuetAIPlaybackServiceFactory(
@@ -287,7 +285,7 @@ func duetAIPlaybackQueueClearPendingWindowDropsQueuedReplacement() async {
         sleepFor: { _ in },
         buildSequence: { schedule in try await gate.build(schedule) },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
 
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
@@ -304,15 +302,15 @@ func duetAIPlaybackQueueClearPendingWindowDropsQueuedReplacement() async {
     await gate.waitForStart()
     let replacement = await queue.submitWindow(schedule: replacementSchedule, routing: routing, submittedAtUptimeSeconds: 50)
     #expect(abs(replacement.baseDelaySeconds - 0.05) < 1e-9)
-    await queue.clearPendingWindow()
+    await queue.clearUnstartedWindows()
     await gate.resume()
     for _ in 0 ..< 200 {
         await Task.yield()
     }
 
     let counts = await MainActor.run { (fakeService.loadCallCount, fakeService.playCallCount) }
-    #expect(counts.0 == 1)
-    #expect(counts.1 == 1)
+    #expect(counts.0 == 0)
+    #expect(counts.1 == 0)
     await queue.stopAll()
 }
 
@@ -331,7 +329,7 @@ func duetAIPlaybackQueueStopAllPreventsLateBuildFromStartingPlayback() async {
         sleepFor: { _ in },
         buildSequence: { schedule in try await gate.build(schedule) },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     _ = await queue.submitWindow(
@@ -371,7 +369,7 @@ func duetAIPlaybackQueueStopAllPreventsPostWarmUpCommands() async {
             return PracticeSequencerSequence(midiData: Data(), durationSeconds: end, events: schedule)
         },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     _ = await queue.submitWindow(
@@ -411,10 +409,10 @@ func duetAIPlaybackQueueIgnoresSupersededTeardown() async {
             return PracticeSequencerSequence(midiData: Data(), durationSeconds: end, events: schedule)
         },
         playbackServiceFactory: { factory },
-        onPlaybackActiveChanged: { _ in }
+        onPlaybackPhaseChanged: { _ in }
     )
     let routing = PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
-    await queue.invalidatePendingWindows(through: 2)
+    await queue.invalidateUnstartedWindows(through: 2)
     _ = await queue.submitWindow(
         schedule: [PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 80))],
         routing: routing,
@@ -432,5 +430,293 @@ func duetAIPlaybackQueueIgnoresSupersededTeardown() async {
     let counts = await fakeService.callCounts()
     #expect(counts.load == 1)
     #expect(counts.play == 1)
+    await queue.stopAll()
+}
+
+@MainActor
+private final class PlaybackPhaseRecorder {
+    private(set) var phases: [DuetAIPlaybackQueue.PlaybackPhase] = []
+
+    func record(_ phase: DuetAIPlaybackQueue.PlaybackPhase) {
+        phases.append(phase)
+    }
+}
+
+@MainActor
+private final class HoldingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    private(set) var stopCallCount = 0
+    private(set) var playCallCount = 0
+    private(set) var isPlaying = false
+
+    func warmUp() throws {}
+
+    func stop(resetCommands _: [PerformanceTransportCommand]) {
+        stopCallCount += 1
+        isPlaying = false
+    }
+
+    func load(sequence _: PracticeSequencerSequence) throws {}
+
+    func play(fromSeconds _: TimeInterval) throws {
+        playCallCount += 1
+        isPlaying = true
+    }
+
+    func currentSeconds() -> TimeInterval { 0 }
+    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
+    func execute(commands _: [PracticePlaybackCommand]) throws {}
+    func stopAllLiveNotes() {}
+}
+
+private actor PlaybackStartGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var didStart = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func block() async {
+        didStart = true
+        waiters.forEach { $0.resume() }
+        waiters.removeAll()
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func waitForStart() async {
+        guard didStart == false else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private actor GatedPlayPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    private let gate: PlaybackStartGate
+    private var stopCallCountValue = 0
+    private var loadCallCountValue = 0
+    private var playCallCountValue = 0
+
+    init(gate: PlaybackStartGate) {
+        self.gate = gate
+    }
+
+    func warmUp() throws {}
+
+    func stop(resetCommands _: [PerformanceTransportCommand]) {
+        stopCallCountValue += 1
+    }
+
+    func load(sequence _: PracticeSequencerSequence) throws {
+        loadCallCountValue += 1
+    }
+
+    func play(fromSeconds _: TimeInterval) async throws {
+        playCallCountValue += 1
+        await gate.block()
+    }
+
+    func currentSeconds() -> TimeInterval { 0 }
+    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
+    func execute(commands _: [PracticePlaybackCommand]) throws {}
+    func stopAllLiveNotes() {}
+
+    func counts() -> (stop: Int, load: Int, play: Int) {
+        (stopCallCountValue, loadCallCountValue, playCallCountValue)
+    }
+}
+
+@Test
+func duetAIPlaybackQueueReportsPreparingPlayingIdleAtRealPlaybackBoundaries() async {
+    let fakeService = await MainActor.run { FakeImmediatePlaybackService() }
+    let recorder = await MainActor.run { PlaybackPhaseRecorder() }
+    let factory = await MainActor.run {
+        DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: { fakeService },
+            makeExternalMIDIPlaybackService: { _ in fakeService }
+        )
+    }
+    let queue = DuetAIPlaybackQueue(
+        nowUptimeSeconds: { 10 },
+        sleepFor: { _ in },
+        buildSequence: { schedule in
+            let end = schedule.map(\.timeSeconds).max() ?? 0
+            return PracticeSequencerSequence(midiData: Data(), durationSeconds: end, events: schedule)
+        },
+        playbackServiceFactory: { factory },
+        onPlaybackPhaseChanged: { recorder.record($0) }
+    )
+    let routing = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+
+    _ = await queue.submitWindow(
+        schedule: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 90)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
+        ],
+        routing: routing,
+        submittedAtUptimeSeconds: 10,
+        requestGeneration: 1
+    )
+
+    for _ in 0 ..< 200 {
+        let phases = await MainActor.run { recorder.phases }
+        if phases == [.preparing, .playing, .idle] { break }
+        await Task.yield()
+    }
+
+    #expect(await MainActor.run { recorder.phases } == [.preparing, .playing, .idle])
+    await queue.stopAll()
+}
+
+@Test
+func duetAIPlaybackQueueInvalidatingNewInputDoesNotStopAlreadyPlayingWindow() async {
+    let fakeService = await MainActor.run { HoldingPlaybackService() }
+    let recorder = await MainActor.run { PlaybackPhaseRecorder() }
+    let factory = await MainActor.run {
+        DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: { fakeService },
+            makeExternalMIDIPlaybackService: { _ in fakeService }
+        )
+    }
+    let queue = DuetAIPlaybackQueue(
+        nowUptimeSeconds: { 20 },
+        sleepFor: { _ in await Task.yield() },
+        buildSequence: { schedule in
+            PracticeSequencerSequence(midiData: Data(), durationSeconds: 10, events: schedule)
+        },
+        playbackServiceFactory: { factory },
+        onPlaybackPhaseChanged: { recorder.record($0) }
+    )
+    let routing = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+
+    _ = await queue.submitWindow(
+        schedule: [PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 90))],
+        routing: routing,
+        submittedAtUptimeSeconds: 20,
+        requestGeneration: 1
+    )
+    for _ in 0 ..< 200 {
+        let didReachPlaying = await MainActor.run { recorder.phases.last == .playing }
+        if didReachPlaying { break }
+        await Task.yield()
+    }
+
+    let stopCountBeforeInput = await MainActor.run { fakeService.stopCallCount }
+    await queue.invalidateUnstartedWindows(through: 2)
+    for _ in 0 ..< 50 { await Task.yield() }
+
+    #expect(await MainActor.run { recorder.phases.last } == .playing)
+    #expect(await MainActor.run { fakeService.isPlaying })
+    #expect(await MainActor.run { fakeService.stopCallCount } == stopCountBeforeInput)
+
+    await queue.stopCurrentPlaybackAndClearPending()
+    #expect(await MainActor.run { recorder.phases.last } == .idle)
+    #expect(await MainActor.run { fakeService.isPlaying } == false)
+    #expect(await MainActor.run { fakeService.stopCallCount } > stopCountBeforeInput)
+}
+
+@Test
+func duetAIPlaybackQueueRechecksStaleGenerationAfterServicePlayReturns() async {
+    let gate = PlaybackStartGate()
+    let fakeService = GatedPlayPlaybackService(gate: gate)
+    let recorder = await MainActor.run { PlaybackPhaseRecorder() }
+    let factory = await MainActor.run {
+        DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: { fakeService },
+            makeExternalMIDIPlaybackService: { _ in fakeService }
+        )
+    }
+    let queue = DuetAIPlaybackQueue(
+        nowUptimeSeconds: { 30 },
+        sleepFor: { _ in },
+        buildSequence: { schedule in
+            PracticeSequencerSequence(midiData: Data(), durationSeconds: 5, events: schedule)
+        },
+        playbackServiceFactory: { factory },
+        onPlaybackPhaseChanged: { recorder.record($0) }
+    )
+    let routing = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+
+    _ = await queue.submitWindow(
+        schedule: [PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 64, velocity: 90))],
+        routing: routing,
+        submittedAtUptimeSeconds: 30,
+        requestGeneration: 1
+    )
+    await gate.waitForStart()
+    await queue.invalidateUnstartedWindows(through: 2)
+    await gate.resume()
+
+    for _ in 0 ..< 200 {
+        let didReachIdle = await MainActor.run { recorder.phases.last == .idle }
+        if didReachIdle { break }
+        await Task.yield()
+    }
+
+    let counts = await fakeService.counts()
+    #expect(counts.play == 1)
+    #expect(counts.load == 1)
+    #expect(counts.stop >= 2)
+    #expect(await MainActor.run { recorder.phases.contains(.playing) } == false)
+    #expect(await MainActor.run { recorder.phases.last } == .idle)
+    await queue.stopAll()
+}
+
+@Test
+func duetAIPlaybackQueueSameGenerationInvalidationDoesNotCancelCurrentPreparation() async {
+    let fakeService = await MainActor.run { FakeImmediatePlaybackService() }
+    let factory = await MainActor.run {
+        DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: { fakeService },
+            makeExternalMIDIPlaybackService: { _ in fakeService }
+        )
+    }
+    let gate = SequenceBuildGate()
+    let queue = DuetAIPlaybackQueue(
+        nowUptimeSeconds: { 40 },
+        sleepFor: { _ in },
+        buildSequence: { schedule in try await gate.build(schedule) },
+        playbackServiceFactory: { factory },
+        onPlaybackPhaseChanged: { _ in }
+    )
+    let routing = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+
+    _ = await queue.submitWindow(
+        schedule: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 90)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
+        ],
+        routing: routing,
+        submittedAtUptimeSeconds: 40,
+        requestGeneration: 1
+    )
+    await gate.waitForStart()
+    await queue.invalidateUnstartedWindows(through: 1)
+    await gate.resume()
+
+    await TestAsyncWait.until("same-generation prepared window starts") {
+        await MainActor.run { fakeService.playCallCount == 1 }
+    }
+    #expect(await MainActor.run { fakeService.playCallCount } == 1)
     await queue.stopAll()
 }

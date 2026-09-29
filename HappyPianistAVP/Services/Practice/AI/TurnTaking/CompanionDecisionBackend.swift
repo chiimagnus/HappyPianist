@@ -52,6 +52,16 @@ struct CompanionDecisionInput: Equatable, Sendable {
     }
 }
 
+enum CompanionDecisionValidationError: Error, Equatable {
+    case invalidYieldPrerequisite
+}
+
+enum CompanionPlaybackPolicy: Equatable, Sendable {
+    case preserve
+    case clearUnstarted
+    case yieldCurrent
+}
+
 struct CompanionDecision: Equatable, Sendable {
     let action: CompanionAction
 
@@ -64,13 +74,24 @@ struct CompanionDecision: Equatable, Sendable {
         }
     }
 
-    var shouldClearFutureWindows: Bool {
+    var playbackPolicy: CompanionPlaybackPolicy {
         switch action {
-        case .listen, .yield:
-            true
+        case .listen:
+            .clearUnstarted
+        case .yield:
+            .yieldCurrent
         case .support, .sparse, .respond:
-            false
+            .preserve
         }
+    }
+
+    func validated(for input: CompanionDecisionInput) throws -> CompanionDecision {
+        if action == .yield,
+           (input.isAIPlaybackActive == false || input.userNoteOnSinceAIPlaybackStarted == false)
+        {
+            throw CompanionDecisionValidationError.invalidYieldPrerequisite
+        }
+        return self
     }
 }
 

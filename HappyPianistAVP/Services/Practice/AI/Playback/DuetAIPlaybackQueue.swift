@@ -3,6 +3,12 @@ import Diagnostics
 import Practice
 
 actor DuetAIPlaybackQueue {
+    enum PlaybackPhase: Equatable, Sendable {
+        case idle
+        case preparing
+        case playing
+    }
+
     struct SubmitResult: Equatable {
         let shiftedSchedule: [PracticeSequencerMIDIEvent]
         let baseDelaySeconds: TimeInterval
@@ -23,12 +29,19 @@ actor DuetAIPlaybackQueue {
     private let sleepFor: @Sendable (Duration) async -> Void
     private let buildSequence: @Sendable ([PracticeSequencerMIDIEvent]) async throws -> PracticeSequencerSequence
     private let playbackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
-    private let onPlaybackActiveChanged: @Sendable @MainActor (Bool) -> Void
+    private let onPlaybackPhaseChanged: @Sendable @MainActor (PlaybackPhase) -> Void
 
     private var pendingWindow: WindowItem?
     private var playbackLoopTask: Task<Void, Never>?
+    /// Invalidates the entire playback lifecycle. Only teardown paths increment this value.
     private var playbackGeneration = 0
+    /// Invalidates work that has not crossed the successful `service.play()` boundary yet.
+    private var preparationEpoch = 0
+    /// Rejects stale generated windows. It must never terminate a window that is already playing.
     private var minimumRequestGeneration = 0
+    /// Generation currently between dequeue and the successful `service.play()` boundary.
+    private var preparingRequestGeneration: Int?
+    private var playbackPhase: PlaybackPhase = .idle
 
     init(
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
@@ -40,14 +53,14 @@ actor DuetAIPlaybackQueue {
             }.value
         },
         playbackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
-        onPlaybackActiveChanged: @escaping @Sendable @MainActor (Bool) -> Void
+        onPlaybackPhaseChanged: @escaping @Sendable @MainActor (PlaybackPhase) -> Void
     ) {
         self.diagnosticsReporter = diagnosticsReporter
         self.nowUptimeSeconds = nowUptimeSeconds
         self.sleepFor = sleepFor
         self.buildSequence = buildSequence
         self.playbackServiceFactory = playbackServiceFactory
-        self.onPlaybackActiveChanged = onPlaybackActiveChanged
+        self.onPlaybackPhaseChanged = onPlaybackPhaseChanged
     }
 
     func stopAll() async {
@@ -59,13 +72,33 @@ actor DuetAIPlaybackQueue {
         await cancelAll(rejectingThrough: requestGeneration)
     }
 
-    func invalidatePendingWindows(through requestGeneration: Int) async {
+    /// Drops pending and currently-preparing work older than the new user-input generation.
+    /// Already-playing audio intentionally survives until a Companion decision explicitly yields it.
+    func invalidateUnstartedWindows(through requestGeneration: Int) {
         guard requestGeneration > minimumRequestGeneration else { return }
-        guard pendingWindow != nil || playbackLoopTask != nil else {
-            minimumRequestGeneration = requestGeneration
-            return
+        let shouldInvalidatePreparation = preparingRequestGeneration.map {
+            $0 < requestGeneration
+        } ?? false
+        minimumRequestGeneration = requestGeneration
+        if shouldInvalidatePreparation {
+            preparationEpoch &+= 1
+            preparingRequestGeneration = nil
         }
-        await cancelAll(rejectingThrough: requestGeneration)
+        if pendingWindow?.requestGeneration ?? .max < minimumRequestGeneration {
+            pendingWindow = nil
+        }
+    }
+
+    /// Clears future work without stopping the current playing window.
+    func clearUnstartedWindows() {
+        preparationEpoch &+= 1
+        preparingRequestGeneration = nil
+        pendingWindow = nil
+    }
+
+    /// Companion `.yield`: stop current playback and remove every unstarted window.
+    func stopCurrentPlaybackAndClearPending() async {
+        await cancelAll(rejectingThrough: nil)
     }
 
     private func cancelAll(rejectingThrough requestGeneration: Int?) async {
@@ -73,19 +106,15 @@ actor DuetAIPlaybackQueue {
             minimumRequestGeneration = max(minimumRequestGeneration, requestGeneration)
         }
         playbackGeneration &+= 1
+        preparationEpoch &+= 1
         playbackLoopTask?.cancel()
         playbackLoopTask = nil
+        preparingRequestGeneration = nil
         pendingWindow = nil
 
         let serviceFactory = await MainActor.run { playbackServiceFactory() }
         await serviceFactory.stopAll()
-        await MainActor.run {
-            onPlaybackActiveChanged(false)
-        }
-    }
-
-    func clearPendingWindow() {
-        pendingWindow = nil
+        await transition(to: .idle)
     }
 
     func submitWindow(
@@ -138,33 +167,51 @@ actor DuetAIPlaybackQueue {
     }
 
     private func playbackLoop(generation: Int) async {
-        defer {
-            if generation == playbackGeneration {
-                playbackLoopTask = nil
-                Task { @MainActor [onPlaybackActiveChanged] in
-                    onPlaybackActiveChanged(false)
-                }
-            }
-        }
-
         while Task.isCancelled == false, generation == playbackGeneration {
             guard let item = pendingWindow else { break }
             pendingWindow = nil
             guard item.requestGeneration >= minimumRequestGeneration else { continue }
 
-            await MainActor.run {
-                onPlaybackActiveChanged(true)
+            let epoch = preparationEpoch
+            preparingRequestGeneration = item.requestGeneration
+            await transition(to: .preparing)
+            await play(item, playbackGeneration: generation, preparationEpoch: epoch)
+            if preparingRequestGeneration == item.requestGeneration {
+                preparingRequestGeneration = nil
             }
-            guard Task.isCancelled == false, generation == playbackGeneration else { break }
-            await play(item, generation: generation)
+            if generation == playbackGeneration, playbackPhase == .preparing {
+                await transition(to: .idle)
+            }
+        }
+
+        if generation == playbackGeneration {
+            playbackLoopTask = nil
+            if playbackPhase != .idle {
+                await transition(to: .idle)
+            }
         }
     }
 
-    private func play(_ item: WindowItem, generation: Int) async {
+    private func play(
+        _ item: WindowItem,
+        playbackGeneration generation: Int,
+        preparationEpoch epoch: Int
+    ) async {
+        guard isUnstartedCurrent(
+            playbackGeneration: generation,
+            preparationEpoch: epoch,
+            requestGeneration: item.requestGeneration
+        ) else { return }
+
         let sequence: PracticeSequencerSequence
         do {
             sequence = try await buildSequence(item.schedule)
         } catch {
+            guard isUnstartedCurrent(
+                playbackGeneration: generation,
+                preparationEpoch: epoch,
+                requestGeneration: item.requestGeneration
+            ) else { return }
             diagnosticsReporter?.recordSystem(
                 severity: .warning,
                 category: .ai,
@@ -175,30 +222,66 @@ actor DuetAIPlaybackQueue {
             return
         }
 
-        guard isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration) else { return }
+        guard isUnstartedCurrent(
+            playbackGeneration: generation,
+            preparationEpoch: epoch,
+            requestGeneration: item.requestGeneration
+        ) else { return }
 
         let playbackTask = Task { @MainActor [weak self, diagnosticsReporter, playbackServiceFactory, sleepFor] in
             guard let self,
                   Task.isCancelled == false,
-                  await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration)
+                  await self.isUnstartedCurrent(
+                      playbackGeneration: generation,
+                      preparationEpoch: epoch,
+                      requestGeneration: item.requestGeneration
+                  )
             else { return }
+
             let service = playbackServiceFactory().playbackService(for: item.routing)
             do {
                 try await service.warmUp()
                 guard Task.isCancelled == false,
-                      await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration)
+                      await self.isUnstartedCurrent(
+                          playbackGeneration: generation,
+                          preparationEpoch: epoch,
+                          requestGeneration: item.requestGeneration
+                      )
                 else { return }
+
                 await service.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
                 guard Task.isCancelled == false,
-                      await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration)
+                      await self.isUnstartedCurrent(
+                          playbackGeneration: generation,
+                          preparationEpoch: epoch,
+                          requestGeneration: item.requestGeneration
+                      )
                 else { return }
+
                 try await service.load(sequence: sequence)
                 guard Task.isCancelled == false,
-                      await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration)
+                      await self.isUnstartedCurrent(
+                          playbackGeneration: generation,
+                          preparationEpoch: epoch,
+                          requestGeneration: item.requestGeneration
+                      )
                 else { return }
+
                 try await service.play(fromSeconds: 0)
+                guard await self.markPlayingIfUnstartedCurrent(
+                    playbackGeneration: generation,
+                    preparationEpoch: epoch,
+                    requestGeneration: item.requestGeneration
+                ) else {
+                    await service.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+                    return
+                }
             } catch {
-                guard await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration) else { return }
+                guard await self.isUnstartedCurrent(
+                    playbackGeneration: generation,
+                    preparationEpoch: epoch,
+                    requestGeneration: item.requestGeneration
+                ) else { return }
                 diagnosticsReporter?.recordSystem(
                     severity: .warning,
                     category: .ai,
@@ -211,13 +294,14 @@ actor DuetAIPlaybackQueue {
 
             let endSeconds = max(0, sequence.durationSeconds)
             while Task.isCancelled == false {
-                guard await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration) else { return }
+                guard await self.isPlaybackLifecycleCurrent(generation) else { return }
                 if await service.currentSeconds() >= endSeconds { break }
                 await sleepFor(.milliseconds(16))
                 await Task.yield()
             }
-            guard await self.isCurrent(playbackGeneration: generation, requestGeneration: item.requestGeneration) else { return }
+            guard await self.isPlaybackLifecycleCurrent(generation) else { return }
             await service.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+            await self.finishPlayingIfLifecycleIsCurrent(playbackGeneration: generation)
         }
 
         await withTaskCancellationHandler {
@@ -227,8 +311,48 @@ actor DuetAIPlaybackQueue {
         }
     }
 
-    private func isCurrent(playbackGeneration: Int, requestGeneration: Int) -> Bool {
-        playbackGeneration == self.playbackGeneration && requestGeneration >= minimumRequestGeneration
+    private func isUnstartedCurrent(
+        playbackGeneration: Int,
+        preparationEpoch: Int,
+        requestGeneration: Int
+    ) -> Bool {
+        playbackGeneration == self.playbackGeneration
+            && preparationEpoch == self.preparationEpoch
+            && requestGeneration >= minimumRequestGeneration
+    }
+
+    private func isPlaybackLifecycleCurrent(_ generation: Int) -> Bool {
+        generation == playbackGeneration
+    }
+
+    private func markPlayingIfUnstartedCurrent(
+        playbackGeneration generation: Int,
+        preparationEpoch epoch: Int,
+        requestGeneration: Int
+    ) async -> Bool {
+        guard isUnstartedCurrent(
+            playbackGeneration: generation,
+            preparationEpoch: epoch,
+            requestGeneration: requestGeneration
+        ) else { return false }
+        if preparingRequestGeneration == requestGeneration {
+            preparingRequestGeneration = nil
+        }
+        await transition(to: .playing)
+        return true
+    }
+
+    private func finishPlayingIfLifecycleIsCurrent(playbackGeneration generation: Int) async {
+        guard generation == playbackGeneration else { return }
+        await transition(to: .idle)
+    }
+
+    private func transition(to nextPhase: PlaybackPhase) async {
+        guard playbackPhase != nextPhase else { return }
+        playbackPhase = nextPhase
+        await MainActor.run {
+            onPlaybackPhaseChanged(nextPhase)
+        }
     }
 
     private func computeShiftedSchedule(
@@ -242,8 +366,6 @@ actor DuetAIPlaybackQueue {
         let firstEventSeconds = schedule.map(\.timeSeconds).min() ?? 0
         let lastEventSeconds = schedule.map(\.timeSeconds).max() ?? 0
         let leadInSeconds: TimeInterval = 0.05
-        // The playback loop already serializes windows. Only add a sequence-relative lead-in;
-        // carrying the active segment's wall-clock remainder into this sequence would wait twice.
         let delta = max(0, leadInSeconds - firstEventSeconds)
 
         let shifted = schedule.map { event in

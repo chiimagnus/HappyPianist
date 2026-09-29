@@ -35,4 +35,5 @@ platform adapter → typed PerformanceObservation → matcher / alignment
 - progress 只保存已批准的小节级聚合事实；metadata 与 session concern 独立更新，checkpoint 以 song identity、round generation 和 progress generation 阻止旧任务回写。完整 schema 与隐私规则见[存储](storage.md)。
 - take 记录可重放 observation；停止时先关闭未结束的音符，再原子写入 host 自己的 `TakeLibrary`。用户导出时才取得目的 URL，且不保存 URL、bookmark 或逐事件内容。
 - AI 后端严格遵从用户选择；响应是运行期创意内容，不是谱面真值、assessment target 或评分依据。失败后提示并结束本次请求，不自动切换后端。
+- Companion 播放状态由 Queue 单向发布 `idle → preparing → playing → idle`。用户 observation 会立即淘汰旧 generation 和未开始窗口，但不会直接停止已经发声的 AI；当前播放是否让位只由 Companion action 决定：`listen` 清 future，`yield` stop current + clear future，其余动作保留当前播放。只有用户来源、发生在真实 `playing` 之后的新 note-on 才可构成 re-entry；note-off 与 system playback 不参与。
 - 所有业务诊断通过 `DiagnosticsReporting` 进入系统日志；仅显式标记为 exportable 的低频事件进入七天诊断文件，且不得含原谱、原始输入、绝对路径、AI 正文或凭据。

@@ -1,175 +1,366 @@
 import Foundation
+import MIDI
 import Practice
-import MusicXML
-import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
 @MainActor
-private final class FakeBackendDiscoveryService: BonjourBackendDiscoveryServiceProtocol {
-    var state: BonjourBackendDiscoveryService.State = .idle
-    func start() {}
-    func stop() {}
-}
-
-@MainActor
-private final class FakeDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrating {
+private final class TakeoverDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrating {
     func start(for _: ImprovBackendKind) {}
     func stopAll() {}
 }
 
 @MainActor
-private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
-    let settingsProvider: any PracticeSessionSettingsProviderProtocol
-
-    init(settingsProvider: any PracticeSessionSettingsProviderProtocol) {
-        self.settingsProvider = settingsProvider
-    }
-
+private final class TakeoverPracticeSession: AIPerformancePracticeSessionProtocol {
+    let settingsProvider: any PracticeSessionSettingsProviderProtocol = TakeoverSettingsProvider()
     func refreshAudioRecognitionForCurrentState() {}
 }
 
-private actor CountingScheduleBackend: ImprovBackendProtocol {
-    nonisolated let kind: ImprovBackendKind
-    nonisolated let displayName: String
-
-    private let schedule: [PracticeSequencerMIDIEvent]
-    private let backendLatencyMS: Int?
-    private var generateCallCountValue = 0
-
-    init(
-        kind: ImprovBackendKind,
-        displayName: String = "Fake",
-        schedule: [PracticeSequencerMIDIEvent],
-        backendLatencyMS: Int? = nil
-    ) {
-        self.kind = kind
-        self.displayName = displayName
-        self.schedule = schedule
-        self.backendLatencyMS = backendLatencyMS
+@MainActor
+private struct TakeoverSettingsProvider: PracticeSessionSettingsProviderProtocol {
+    var manualAdvanceMode: ManualAdvanceMode { .step }
+    var practiceHandMode: PracticeHandMode { .both }
+    var soundRoutingSettings: PracticeSoundRoutingSettings {
+        .init(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     }
+}
+
+private actor TakeoverGenerationBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind = .localRule
+    nonisolated let displayName = "Takeover generation fake"
+
+    private var callCountValue = 0
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
         generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
-        generateCallCountValue += 1
+        callCountValue += 1
         return CreativeDuetResponse(
-            schedule: schedule,
+            schedule: [
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 88)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+            ],
             provider: kind,
             generation: generation,
-            provenance: .backendGenerated(latencyMS: backendLatencyMS)
+            provenance: .backendGenerated(latencyMS: nil)
         )
     }
 
-    func generateCallCount() -> Int {
-        generateCallCountValue
+    func callCount() -> Int { callCountValue }
+}
+
+private actor TakeoverCompanionBackend: CompanionDecisionBackendProtocol {
+    struct Call: Sendable {
+        let input: CompanionDecisionInput
+        let action: CompanionAction
     }
+
+    nonisolated let kind: CompanionDecisionBackendKind = .ruleBased
+    nonisolated let displayName = "Takeover companion fake"
+
+    private var action: CompanionAction = .support
+    private var calls: [Call] = []
+    private var blockPostStartDecision = false
+    private var blockedPostStartDecision = false
+    private var blockedWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision {
+        let currentAction = action
+        calls.append(Call(input: input, action: currentAction))
+        if blockPostStartDecision,
+           input.isAIPlaybackActive,
+           input.userNoteOnSinceAIPlaybackStarted
+        {
+            blockPostStartDecision = false
+            blockedPostStartDecision = true
+            blockedWaiters.forEach { $0.resume() }
+            blockedWaiters.removeAll()
+            await withCheckedContinuation { continuation in
+                releaseContinuation = continuation
+            }
+            blockedPostStartDecision = false
+        }
+        return CompanionDecision(action: currentAction)
+    }
+
+    func setAction(_ action: CompanionAction) {
+        self.action = action
+    }
+
+    func armPostStartDecisionBlock() {
+        blockPostStartDecision = true
+    }
+
+    func waitUntilPostStartDecisionIsBlocked() async {
+        guard blockedPostStartDecision == false else { return }
+        await withCheckedContinuation { continuation in
+            blockedWaiters.append(continuation)
+        }
+    }
+
+    func releasePostStartDecision() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+
+    func recordedCalls() -> [Call] { calls }
 }
 
 @MainActor
-private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class HoldingTakeoverPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    private(set) var warmUpCallCount = 0
+    private(set) var loadCallCount = 0
     private(set) var playCallCount = 0
+    private(set) var stopCallCount = 0
+    private(set) var isPlaying = false
 
-    func warmUp() throws {}
-    func stop(resetCommands _: [PerformanceTransportCommand]) {}
-    func load(sequence _: PracticeSequencerSequence) throws {}
+    func warmUp() throws { warmUpCallCount += 1 }
+
+    func stop(resetCommands _: [PerformanceTransportCommand]) {
+        stopCallCount += 1
+        isPlaying = false
+    }
+
+    func load(sequence _: PracticeSequencerSequence) throws { loadCallCount += 1 }
 
     func play(fromSeconds _: TimeInterval) throws {
         playCallCount += 1
+        isPlaying = true
     }
 
-    func currentSeconds() -> TimeInterval {
-        0
-    }
-
+    func currentSeconds() -> TimeInterval { 0 }
     func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
     func execute(commands _: [PracticePlaybackCommand]) throws {}
     func stopAllLiveNotes() {}
 }
 
+@Test
 @MainActor
-private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
-    var manualAdvanceMode: ManualAdvanceMode {
-        .step
+func companionPlaybackPolicyPreservesCurrentAudioUntilExplicitYield() async throws {
+    var nowUptime: TimeInterval = 0
+    var states: [AIPerformanceService.State] = []
+    let generationBackend = TakeoverGenerationBackend()
+    let companionBackend = TakeoverCompanionBackend()
+    let playbackService = HoldingTakeoverPlaybackService()
+    let playbackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: TakeoverDiscoveryOrchestrator(),
+        backendRegistry: .init(backends: [generationBackend]),
+        selectedBackendKind: { .localRule },
+        aiPlaybackServiceFactory: { playbackFactory },
+        companionDecisionBackendRegistry: .init(backends: [companionBackend]),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { states.append($0) }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = TakeoverPracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordUserMIDI(.noteOn(note: 60, velocity: 90), at: 0, service: service)
+    nowUptime = 0.3
+
+    await TestAsyncWait.until("AI playback starts") {
+        await MainActor.run { states.last?.isAIPlaybackActive == true && playbackService.isPlaying }
+    }
+    await TestAsyncWait.until("post-start Companion state resets reentry") {
+        let calls = await companionBackend.recordedCalls()
+        return calls.contains {
+            $0.input.isAIPlaybackActive && $0.input.userNoteOnSinceAIPlaybackStarted == false
+        }
     }
 
-    var practiceHandMode: PracticeHandMode {
-        .both
+    let callsBeforeSystemPlayback = await companionBackend.recordedCalls().count
+    service.recordPerformanceObservationForPhraseRecordingIfNeeded(
+        PerformanceObservation(
+            source: .init(
+                kind: .midi1,
+                id: "takeover-system-playback",
+                generation: 1,
+                role: .systemPlayback
+            ),
+            timing: .init(
+                host: .init(seconds: 0.31),
+                source: nil,
+                correctedHost: .init(seconds: 0.31),
+                mapping: nil,
+                provenance: .hostOnly
+            ),
+            event: .noteOn(note: 76, velocity: .init(midi1: 80))
+        )
+    )
+    await TestAsyncWait.until("Companion ticks after system playback") {
+        await companionBackend.recordedCalls().count > callsBeforeSystemPlayback
+    }
+    #expect(await companionBackend.recordedCalls().last?.input.userNoteOnSinceAIPlaybackStarted == false)
+
+    nowUptime = 0.35
+    recordUserMIDI(.noteOff(note: 60, velocity: 0), at: 0.35, service: service)
+    await TestAsyncWait.until("Companion observes note-off without reentry") {
+        let calls = await companionBackend.recordedCalls()
+        return calls.last?.input.lastUserEventTimestampSeconds == 0.35
+    }
+    #expect(await companionBackend.recordedCalls().last?.input.userNoteOnSinceAIPlaybackStarted == false)
+
+    let stopCountBeforeReentry = playbackService.stopCallCount
+    await companionBackend.armPostStartDecisionBlock()
+    nowUptime = 0.4
+    recordUserMIDI(.noteOn(note: 64, velocity: 92), at: 0.4, service: service)
+    await companionBackend.waitUntilPostStartDecisionIsBlocked()
+
+    #expect(states.last?.isAIPlaybackActive == true)
+    #expect(playbackService.isPlaying)
+    #expect(playbackService.stopCallCount == stopCountBeforeReentry)
+
+    await companionBackend.releasePostStartDecision()
+    await TestAsyncWait.until("Companion observes post-start user note-on") {
+        let calls = await companionBackend.recordedCalls()
+        return calls.contains {
+            $0.input.isAIPlaybackActive && $0.input.userNoteOnSinceAIPlaybackStarted
+        }
+    }
+    #expect(playbackService.stopCallCount == stopCountBeforeReentry)
+
+    await companionBackend.setAction(.listen)
+    await TestAsyncWait.until("listen decision is consumed") {
+        await companionBackend.recordedCalls().contains { $0.action == .listen }
+    }
+    #expect(states.last?.isAIPlaybackActive == true)
+    #expect(playbackService.isPlaying)
+    #expect(playbackService.stopCallCount == stopCountBeforeReentry)
+
+    await companionBackend.setAction(.yield)
+    await TestAsyncWait.until("yield stops current playback") {
+        await MainActor.run {
+            states.last?.isAIPlaybackActive == false && playbackService.isPlaying == false
+        }
+    }
+    #expect(playbackService.stopCallCount > stopCountBeforeReentry)
+}
+
+@MainActor
+private func recordUserMIDI(
+    _ kind: MIDI1InputEvent.Kind,
+    at timestamp: TimeInterval,
+    service: AIPerformanceService
+) {
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: kind,
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .endpointUniqueID(700), endpointName: "takeover-test"),
+            receivedAt: Date(timeIntervalSince1970: timestamp),
+            receivedAtUptimeSeconds: timestamp
+        )
+    )
+}
+
+private actor TakeoverWarmUpGate {
+    private var didStart = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func block() async {
+        didStart = true
+        startWaiters.forEach { $0.resume() }
+        startWaiters.removeAll()
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
     }
 
-    var soundRoutingSettings: PracticeSoundRoutingSettings {
-        PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
+    func waitForStart() async {
+        guard didStart == false else { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append(continuation)
+        }
     }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
+@MainActor
+private final class PreparingTakeoverPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    private let warmUpGate: TakeoverWarmUpGate
+    private(set) var playCallCount = 0
+
+    init(warmUpGate: TakeoverWarmUpGate) {
+        self.warmUpGate = warmUpGate
+    }
+
+    func warmUp() async throws {
+        await warmUpGate.block()
+    }
+
+    func stop(resetCommands _: [PerformanceTransportCommand]) {}
+    func load(sequence _: PracticeSequencerSequence) throws {}
+    func play(fromSeconds _: TimeInterval) throws { playCallCount += 1 }
+    func currentSeconds() -> TimeInterval { 0 }
+    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
+    func execute(commands _: [PracticePlaybackCommand]) throws {}
+    func stopAllLiveNotes() {}
 }
 
 @Test
 @MainActor
-func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
+func preparingPlaybackKeepsUIBusyWithoutReportingCompanionPlaybackActive() async {
     var nowUptime: TimeInterval = 0
-
-    let orchestrator = FakeDiscoveryOrchestrator()
-    let selectedKind: ImprovBackendKind = .localRule
-    let schedule = [
-        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
-        PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),
-    ]
-
-    let backend = CountingScheduleBackend(kind: selectedKind, schedule: schedule)
-
-    let aiPlaybackService = NonAdvancingPlaybackService()
-    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
-        makeLocalSamplerPlaybackService: { aiPlaybackService },
-        makeExternalMIDIPlaybackService: { _ in aiPlaybackService }
+    var states: [AIPerformanceService.State] = []
+    let generationBackend = TakeoverGenerationBackend()
+    let companionBackend = TakeoverCompanionBackend()
+    let warmUpGate = TakeoverWarmUpGate()
+    let playbackService = PreparingTakeoverPlaybackService(warmUpGate: warmUpGate)
+    let playbackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
     )
-
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
-        discoveryOrchestrator: orchestrator,
-        backendRegistry: ImprovBackendRegistry(backends: [backend]),
-        selectedBackendKind: { selectedKind },
-        aiPlaybackServiceFactory: { aiPlaybackFactory },
-        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: TakeoverDiscoveryOrchestrator(),
+        backendRegistry: .init(backends: [generationBackend]),
+        selectedBackendKind: { .localRule },
+        aiPlaybackServiceFactory: { playbackFactory },
+        companionDecisionBackendRegistry: .init(backends: [companionBackend]),
         selectedCompanionDecisionBackendKind: { .ruleBased },
-        onStateChanged: { _ in }
+        onStateChanged: { states.append($0) }
     )
+    defer { service.setEnabled(false) }
 
-    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
+    let session = TakeoverPracticeSession()
     service.updatePracticeSession(session)
     service.setEnabled(true)
-
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        observations: makeTestKeyContactObservations(
-            activeMIDINotes: [60],
-            startedMIDINotes: [60],
-            timestamp: .init(seconds: 0)
-        )
-    )
+    recordUserMIDI(.noteOn(note: 60, velocity: 90), at: 0, service: service)
     nowUptime = 0.3
 
-    for _ in 0 ..< 500 {
-        await Task.yield()
-        if await backend.generateCallCount() >= 3 { break }
+    await warmUpGate.waitForStart()
+    await TestAsyncWait.until("preparing state is externally visible") {
+        await MainActor.run {
+            states.last?.isAIPerformanceActive == true
+                && states.last?.isAIPlaybackActive == false
+        }
     }
-    #expect(await backend.generateCallCount() == 3)
+    #expect(playbackService.playCallCount == 0)
 
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        observations: makeTestKeyContactObservations(
-            activeMIDINotes: [64],
-            startedMIDINotes: [64],
-            timestamp: .init(seconds: 0.3)
-        )
-    )
-    nowUptime = 0.7
+    let callsBeforeRelease = await companionBackend.recordedCalls()
+    #expect(callsBeforeRelease.isEmpty == false)
+    #expect(callsBeforeRelease.allSatisfy { $0.input.isAIPlaybackActive == false })
 
-    for _ in 0 ..< 500 {
-        await Task.yield()
-        if await backend.generateCallCount() >= 6 { break }
+    await warmUpGate.release()
+    await TestAsyncWait.until("playback becomes active only after play succeeds") {
+        await MainActor.run {
+            states.last?.isAIPlaybackActive == true && playbackService.playCallCount == 1
+        }
     }
-    #expect(await backend.generateCallCount() == 6)
-
-    service.setEnabled(false)
 }

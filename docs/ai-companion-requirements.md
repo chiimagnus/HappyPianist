@@ -31,7 +31,9 @@ HappyPianist 的目标不是“生成一段音乐”，而是让 AI 在用户演
 
 当前决策动作只有五种：`listen / support / sparse / yield / respond`。生成窗口、请求频率、token 数和播放调度不属于决策模型，由 HappyPianist 自己控制。
 
-用户产生新输入后，未播放的旧 generation 必须失效；决策或生成失败时清理过期未来窗口，不能留下挂音，也不能改用另一个后端继续。
+播放生命周期只有 `idle / preparing / playing` 一个真源。`preparing` 期间 UI 仍显示 AI 正在处理，但 Companion 的 `is_ai_playback_active` 只有在真实 `service.play()` 成功后才为 true。每次进入 `playing` 都重置“播放开始后用户是否新按键”；只有用户来源的新 note-on 能重新置 true，note-off 和 system playback 都不能。
+
+用户产生新输入后，旧 generation、pending window 和尚未开始的 preparation 必须失效，但已经开始发声的当前短窗口不能被输入事件直接停止。`listen` 只清未开始窗口；`support / sparse / respond` 保留当前播放并可继续生成；只有 `yield` 会立即停止当前播放并清未来窗口。所有 backend 的 `yield` 都必须满足“AI 正在真实播放 + 本轮播放开始后用户出现新 note-on”。
 
 ## 当前决策后端
 
@@ -84,7 +86,7 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 
 按这个顺序继续，不再同时探索多个模型：
 
-1. **完成当前 P0 架构收敛。** Aria 伪 streaming 双轨已删除；继续删除假 timeout、隐藏 fallback 与旧 playback guard，并收紧 decision identity/single-flight。
+1. **完成当前 P0 架构收敛。** Aria 伪 streaming、假 timeout、隐藏 fallback 与旧无条件 playback-stop guard 已删除；剩余工作是收紧 decision identity、100ms deadline 与 single-flight。
 2. **继续固定 Stage A。** 只优化 Qwen 在已冻结 manifest/协议下的剩余失败，不改样本和 Gate 来“过测试”。
 3. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明当前决策协议真的进入产品生成和播放链。
 4. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
