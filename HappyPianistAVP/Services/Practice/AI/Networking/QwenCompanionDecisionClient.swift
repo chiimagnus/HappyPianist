@@ -3,7 +3,7 @@ import Foundation
 enum QwenCompanionDecisionClientError: Error, Equatable {
     case invalidURL
     case invalidResponse
-    case httpError(statusCode: Int, code: String?, message: String?)
+    case httpError(statusCode: Int, code: String, message: String?)
     case decodeFailed
     case unexpectedModel(String)
     case unexpectedOutputTokens(Int)
@@ -85,6 +85,30 @@ private struct QwenCompanionDecisionRequest: Encodable {
 private struct QwenCompanionErrorResponse: Decodable {
     let code: String
     let message: String?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case code
+        case message
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let actualKeys = Set(container.allKeys)
+        guard actualKeys.contains(.code), actualKeys.isSubset(of: Set(CodingKeys.allCases)) else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "Unexpected Qwen error fields")
+            )
+        }
+        code = try container.decode(String.self, forKey: .code)
+        message = try container.decodeIfPresent(String.self, forKey: .message)
+        guard code.isEmpty == false else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .code,
+                in: container,
+                debugDescription: "Qwen error code must be non-empty"
+            )
+        }
+    }
 }
 
 protocol QwenCompanionDecisionClientProtocol: Sendable {
@@ -110,7 +134,7 @@ struct QwenCompanionDecisionClient: QwenCompanionDecisionClientProtocol {
         host: String,
         port: Int,
         state: QwenCompanionState,
-        timeoutSeconds: TimeInterval = 1.5
+        timeoutSeconds: TimeInterval
     ) async throws -> QwenCompanionDecisionResponse {
         var components = URLComponents()
         components.scheme = "http"
@@ -135,11 +159,13 @@ struct QwenCompanionDecisionClient: QwenCompanionDecisionClientProtocol {
             throw QwenCompanionDecisionClientError.invalidResponse
         }
         guard httpResponse.statusCode == 200 else {
-            let errorResponse = try? JSONDecoder().decode(QwenCompanionErrorResponse.self, from: data)
+            guard let errorResponse = try? JSONDecoder().decode(QwenCompanionErrorResponse.self, from: data) else {
+                throw QwenCompanionDecisionClientError.decodeFailed
+            }
             throw QwenCompanionDecisionClientError.httpError(
                 statusCode: httpResponse.statusCode,
-                code: errorResponse?.code,
-                message: errorResponse?.message
+                code: errorResponse.code,
+                message: errorResponse.message
             )
         }
 

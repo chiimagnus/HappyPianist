@@ -99,5 +99,8 @@ protocol CompanionDecisionBackendProtocol: Sendable {
     var kind: CompanionDecisionBackendKind { get }
     var displayName: String { get }
 
-    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline: ContinuousClock.Instant
+    ) async throws -> CompanionDecision
 }

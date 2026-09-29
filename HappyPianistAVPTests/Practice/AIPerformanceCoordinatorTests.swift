@@ -180,7 +180,10 @@ private actor RecordingCompanionDecisionBackend: CompanionDecisionBackendProtoco
 
     private var inputs: [CompanionDecisionInput] = []
 
-    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision {
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline _: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
         inputs.append(input)
         return CompanionDecision(action: .listen)
     }

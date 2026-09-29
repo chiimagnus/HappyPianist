@@ -36,7 +36,7 @@
 3) 本机自检
 - `cd python_backend && uv run --project qwen_server python scripts/qwen_server_smoketest.py --host 127.0.0.1 --port 8767`
 
-4) 在 AVP 的“即兴对弹”设置中明确选择 `Qwen3.5-0.8B（电脑本地，实验）`。服务通过 `_lpduet._tcp` 广播 `path=/v1/companion-decision`、`protocol_version=2`、`engine=qwen-companion`、`engine_impl=Qwen/Qwen3.5-0.8B`。请求只包含固定 compact state；协议/model identity 错误或请求失败都会显式失败，不会自动回退规则后端。
+4) 在 AVP 的“即兴对弹”设置中明确选择 `Qwen3.5-0.8B（电脑本地，实验）`。服务通过 `_lpduet._tcp` 广播 `path=/v1/companion-decision`、`protocol_version=2`、`engine=qwen-companion`、`engine_impl=Qwen/Qwen3.5-0.8B`。请求只包含固定 compact state；协议/model identity 错误或请求失败都会显式失败，不会自动回退规则后端。选择 Qwen 且启用 AI 时会提前启动 Bonjour discovery；decision 到来时若 endpoint 尚未 resolved，则当前轮直接失败，不做 25ms polling。产品把一次 Companion decision 的总预算固定为 100ms，Swift client 只使用剩余预算。Qwen server 只允许一个 inference in flight；第二个并发请求立即返回 `503 busy`，不排队、不重试。
 
 ### 陪伴决策实验
 

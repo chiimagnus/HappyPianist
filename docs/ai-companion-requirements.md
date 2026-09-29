@@ -74,11 +74,12 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 
 截至 2026-09-29：
 
-- Qwen 专用 Companion API 与 Swift client/backend 定向回归：11/11 通过；
-- Swift/Python state-projection golden parity 已通过；Python Qwen/projection/manifest/corpus 定向测试：19/19 通过；
-- `make build:simulator` 已通过；
-- 完整 Simulator suite 的最近基线仍是 1010 通过、11 失败；P0 完成时必须重新跑全量并与该基线逐项对照；
-- Stage A 的 corpus/manifest 已按产品 projection 重建，正式 Qwen 模型 Gate 留给后续固定 Stage A 执行。
+- P0 架构收敛已完成：decision identity 绑定 activation / phrase generation / playback phase / post-start note-on / backend selection；stale decision 静默丢弃；
+- Companion control loop 固定 100ms hard deadline；Qwen Bonjour discovery/state fail-fast，Swift client 只消费剩余预算；Python Qwen runtime 为 single-flight，重叠请求立即 `503 busy`；
+- T7 Swift 定向回归 13/13 通过，其中 hard-deadline 用例 0.115s 完成；Python Qwen server + semantic benchmark 17/17 通过；
+- Swift/Python state-projection golden parity 已通过；Stage A corpus/manifest 已按产品 projection 重建；
+- `make build:simulator` 已通过；完整 Simulator suite 复跑为 1018 passed / 11 failed / 0 skipped，11 个失败均与 P0 前基线一致，集中在 hand motion/rig、local sampler 与 demonstration hands；Companion/AIPerformance 无新增失败；
+- 正式 Qwen 模型 Gate 留给后续固定 Stage A 执行。
 
 验证边界与完整测试证据见[测试](testing.md)。
 
@@ -86,11 +87,11 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 
 按这个顺序继续，不再同时探索多个模型：
 
-1. **完成当前 P0 架构收敛。** Aria 伪 streaming、假 timeout、隐藏 fallback 与旧无条件 playback-stop guard 已删除；剩余工作是收紧 decision identity、100ms deadline 与 single-flight。
-2. **继续固定 Stage A。** 只优化 Qwen 在已冻结 manifest/协议下的剩余失败，不改样本和 Gate 来“过测试”。
-3. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明当前决策协议真的进入产品生成和播放链。
-4. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
-5. **最后再加更高层音乐状态。** 只有现有 compact state 明确不足时，再加入节拍、和声、终止式或乐谱位置，不提前堆特征。
+1. **重建固定 Stage A baseline。** 只使用已冻结 manifest/协议，在 Windows RTX 4060 + Qwen CUDA service 上完成可重复双跑。
+2. **定位 Qwen 决策时延和 Prompt 冗余。** 先用 timing 证据拆 render/tokenize/tensor/GPU/decode/HTTP，再决定是否精简。
+3. **用同一 Stage A 收口 Qwen Gate。** 不改样本、不改 100ms Gate 来“过测试”。
+4. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明当前决策协议真的进入产品生成和播放链。
+5. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
 
 ## 什么时候才换路线
 

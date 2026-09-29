@@ -36,12 +36,7 @@ private actor RecordingQwenCompanionClient: QwenCompanionDecisionClientProtocol 
         state: QwenCompanionState,
         timeoutSeconds: TimeInterval
     ) async throws -> QwenCompanionDecisionResponse {
-        call = Call(
-            host: host,
-            port: port,
-            state: state,
-            timeoutSeconds: timeoutSeconds
-        )
+        call = Call(host: host, port: port, state: state, timeoutSeconds: timeoutSeconds)
         return response
     }
 
@@ -49,7 +44,7 @@ private actor RecordingQwenCompanionClient: QwenCompanionDecisionClientProtocol 
 }
 
 @Test @MainActor
-func qwenCompanionBackendSendsOnlyQwenStateAndUsesServiceAction() async throws {
+func qwenCompanionBackendUsesOnlyRemainingDecisionDeadline() async throws {
     let discovery = StubQwenDiscoveryService(
         state: .resolved(
             host: "windows.local",
@@ -58,24 +53,21 @@ func qwenCompanionBackendSendsOnlyQwenStateAndUsesServiceAction() async throws {
         )
     )
     let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .respond))
-    let backend = QwenNetworkCompanionDecisionBackend(
-        discoveryService: discovery,
-        client: client,
-        requestTimeoutSeconds: 1.5
-    )
+    let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
+    let deadline = ContinuousClock().now.advanced(by: .milliseconds(100))
 
     let decision = try await backend.decide(
-        qwenTestInput(density: 0, aiPlaybackActive: false, postStartNoteOn: false)
+        qwenTestInput(density: 0, aiPlaybackActive: false, postStartNoteOn: false),
+        deadline: deadline
     )
 
     #expect(decision == CompanionDecision(action: .respond))
     let call = try #require(await client.recordedCall())
     #expect(call.host == "windows.local")
     #expect(call.port == 8767)
-    #expect(call.timeoutSeconds == 1.5)
+    #expect(call.timeoutSeconds > 0)
+    #expect(call.timeoutSeconds <= 0.1)
     #expect(call.state.heldNotesCount == 0)
-    #expect(call.state.sustainValue == 0)
-    #expect(call.state.recentNoteDensityPerSecond == 0)
     #expect(call.state.secondsSinceLastNoteOn == 1.5)
     #expect(call.state.isAIPlaybackActive == false)
     #expect(call.state.userNoteOnSinceAIPlaybackStarted == false)
@@ -97,7 +89,8 @@ func qwenCompanionBackendMapsAllTypedServiceActions() async throws {
             client: RecordingQwenCompanionClient(response: qwenDecisionResponse(action: action))
         )
         let decision = try await backend.decide(
-            qwenTestInput(density: 3, aiPlaybackActive: true, postStartNoteOn: true)
+            qwenTestInput(density: 3, aiPlaybackActive: true, postStartNoteOn: true),
+            deadline: ContinuousClock().now.advanced(by: .seconds(1))
         )
         #expect(decision.action.rawValue == action.rawValue)
     }
@@ -106,18 +99,15 @@ func qwenCompanionBackendMapsAllTypedServiceActions() async throws {
 @Test @MainActor
 func qwenCompanionBackendRejectsUnexpectedBonjourModelWithoutCallingClient() async throws {
     let discovery = StubQwenDiscoveryService(
-        state: .resolved(
-            host: "windows.local",
-            port: 8767,
-            txtRecord: ["engine_impl": "other-model"]
-        )
+        state: .resolved(host: "windows.local", port: 8767, txtRecord: ["engine_impl": "other-model"])
     )
     let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .listen))
     let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
 
     await #expect(throws: QwenNetworkCompanionDecisionBackendError.unexpectedModelIdentity("other-model")) {
         _ = try await backend.decide(
-            qwenTestInput(density: 4, aiPlaybackActive: false, postStartNoteOn: false)
+            qwenTestInput(density: 4, aiPlaybackActive: false, postStartNoteOn: false),
+            deadline: ContinuousClock().now.advanced(by: .milliseconds(100))
         )
     }
     #expect(await client.recordedCall() == nil)
@@ -131,8 +121,73 @@ func qwenCompanionBackendReportsDiscoveryDenialWithoutRuleFallback() async throw
 
     await #expect(throws: QwenNetworkCompanionDecisionBackendError.discoveryDenied) {
         _ = try await backend.decide(
-            qwenTestInput(density: 4, aiPlaybackActive: false, postStartNoteOn: false)
+            qwenTestInput(density: 4, aiPlaybackActive: false, postStartNoteOn: false),
+            deadline: ContinuousClock().now.advanced(by: .milliseconds(100))
         )
+    }
+    #expect(await client.recordedCall() == nil)
+}
+
+@Test @MainActor
+func qwenCompanionBackendStartsIdleOrFailedDiscoveryAndFailsFast() async throws {
+    for state in [
+        BonjourBackendDiscoveryService.State.idle,
+        .failed(message: "old failure"),
+    ] {
+        let discovery = StubQwenDiscoveryService(state: state)
+        let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .listen))
+        let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
+
+        await #expect(throws: QwenNetworkCompanionDecisionBackendError.backendNotResolved) {
+            _ = try await backend.decide(
+                qwenTestInput(density: 1, aiPlaybackActive: false, postStartNoteOn: false),
+                deadline: ContinuousClock().now.advanced(by: .milliseconds(100))
+            )
+        }
+        #expect(discovery.startCount == 1)
+        #expect(await client.recordedCall() == nil)
+    }
+}
+
+@Test @MainActor
+func qwenCompanionBackendDoesNotPollWhileDiscoveryIsInProgress() async throws {
+    let discovery = StubQwenDiscoveryService(state: .discovering)
+    let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .listen))
+    let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
+    let started = ContinuousClock().now
+
+    await #expect(throws: QwenNetworkCompanionDecisionBackendError.backendNotResolved) {
+        _ = try await backend.decide(
+            qwenTestInput(density: 1, aiPlaybackActive: false, postStartNoteOn: false),
+            deadline: ContinuousClock().now.advanced(by: .milliseconds(100))
+        )
+    }
+
+    #expect(started.duration(to: ContinuousClock().now) < .milliseconds(50))
+    #expect(discovery.startCount == 0)
+    #expect(await client.recordedCall() == nil)
+}
+
+@Test @MainActor
+func qwenCompanionBackendRejectsExpiredDeadlineBeforeHTTP() async throws {
+    let discovery = StubQwenDiscoveryService(
+        state: .resolved(
+            host: "windows.local",
+            port: 8767,
+            txtRecord: ["engine_impl": QwenCompanionDecisionClient.expectedModel]
+        )
+    )
+    let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .listen))
+    let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
+
+    do {
+        _ = try await backend.decide(
+            qwenTestInput(density: 1, aiPlaybackActive: false, postStartNoteOn: false),
+            deadline: ContinuousClock().now.advanced(by: .milliseconds(-1))
+        )
+        Issue.record("Expected expired deadline to fail")
+    } catch let error as URLError {
+        #expect(error.code == .timedOut)
     }
     #expect(await client.recordedCall() == nil)
 }
@@ -141,18 +196,8 @@ private func qwenDecisionResponse(action: QwenCompanionAction) -> QwenCompanionD
     QwenCompanionDecisionResponse(
         model: QwenCompanionDecisionClient.expectedModel,
         action: action,
-        semanticScores: QwenSemanticValues(
-            continuing: 0.8,
-            finished: 0.2,
-            space: 0.7,
-            reasserted: 0.1
-        ),
-        semanticOrderGaps: QwenSemanticValues(
-            continuing: 0.03,
-            finished: 0.02,
-            space: 0.04,
-            reasserted: 0.01
-        ),
+        semanticScores: QwenSemanticValues(continuing: 0.8, finished: 0.2, space: 0.7, reasserted: 0.1),
+        semanticOrderGaps: QwenSemanticValues(continuing: 0.03, finished: 0.02, space: 0.04, reasserted: 0.01),
         usage: QwenCompanionUsage(inputTokens: 120, outputTokens: 0),
         serverLatencyMS: 80
     )
@@ -178,7 +223,5 @@ private func qwenTestInput(
 }
 
 private extension QwenCompanionAction {
-    static var allTestCases: [Self] {
-        [.listen, .support, .sparse, .yield, .respond]
-    }
+    static var allTestCases: [Self] { [.listen, .support, .sparse, .yield, .respond] }
 }

@@ -52,6 +52,8 @@ func qwenCompanionClientSendsOnlyFixedStateAndDecodesDecision() async throws {
     QwenCompanionStubURLProtocol.setHandler { request in
         #expect(request.httpMethod == "POST")
         #expect(request.url?.path == "/v1/companion-decision")
+        #expect(request.timeoutInterval > 0)
+        #expect(request.timeoutInterval <= 0.1)
 
         let data = try #require(qwenCompanionHTTPBodyData(from: request))
         let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -81,7 +83,7 @@ func qwenCompanionClientSendsOnlyFixedStateAndDecodesDecision() async throws {
         host: "example.com",
         port: 8767,
         state: qwenClientState(),
-        timeoutSeconds: 1.5
+        timeoutSeconds: 0.1
     )
 
     #expect(response.model == QwenCompanionDecisionClient.expectedModel)
@@ -105,8 +107,25 @@ func qwenCompanionClientFailsExplicitlyForHTTPDecodeModelAndOutputContract() asy
             host: "example.com",
             port: 8767,
             state: qwenClientState(),
-            timeoutSeconds: 1.5
+            timeoutSeconds: 0.1
         )
+    }
+
+    QwenCompanionStubURLProtocol.setHandler { request in
+        try qwenCompanionHTTPResponse(
+            request: request,
+            statusCode: 503,
+            body: ["code": "busy", "message": "Qwen companion inference is already running"]
+        )
+    }
+    await #expect(
+        throws: QwenCompanionDecisionClientError.httpError(
+            statusCode: 503,
+            code: "busy",
+            message: "Qwen companion inference is already running"
+        )
+    ) {
+        _ = try await decide()
     }
 
     QwenCompanionStubURLProtocol.setHandler { request in

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from typing import Any
 
 import pytest
@@ -143,6 +145,76 @@ def test_companion_endpoint_rejects_generic_classifier_payload() -> None:
             assert response.status == 400
             assert payload["code"] == "invalid_request"
         finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+
+def test_companion_busy_is_fail_fast_while_first_inference_is_running() -> None:
+    class BlockingRuntime(server.TransformersQwenRuntime):
+        def __init__(self) -> None:
+            super().__init__()
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def _decide_admitted(
+            self,
+            request: CompanionDecisionRequest,
+            *,
+            server_started: float,
+        ) -> CompanionDecisionResponse:
+            assert request.state.held_notes_count == 1
+            assert server_started > 0
+            self.started.set()
+            if not self.release.wait(timeout=2):
+                raise RuntimeError("test inference was not released")
+            return CompanionDecisionResponse(
+                action="support",
+                semantic_scores=SemanticValues(
+                    continuing=0.8,
+                    finished=0.2,
+                    space=0.9,
+                    reasserted=0.1,
+                ),
+                semantic_order_gaps=SemanticValues(
+                    continuing=0.04,
+                    finished=0.03,
+                    space=0.02,
+                    reasserted=0.01,
+                ),
+                usage=CompanionUsage(input_tokens=123, output_tokens=0),
+                server_latency_ms=17,
+            )
+
+    async def scenario() -> None:
+        runtime = BlockingRuntime()
+        client = TestClient(TestServer(_test_app(runtime)))
+        await client.start_server()
+        first_task: asyncio.Task[Any] | None = None
+        try:
+            first_task = asyncio.create_task(
+                client.post(COMPANION_DECISION_PATH, json=_payload())
+            )
+            assert await asyncio.to_thread(runtime.started.wait, 1)
+
+            started = time.perf_counter()
+            second = await client.post(COMPANION_DECISION_PATH, json=_payload())
+            elapsed = time.perf_counter() - started
+            second_payload = await second.json()
+
+            assert second.status == 503
+            assert second_payload["code"] == "busy"
+            assert "action" not in second_payload
+            assert elapsed < 0.2
+            assert first_task.done() is False
+
+            runtime.release.set()
+            first = await first_task
+            assert first.status == 200
+        finally:
+            runtime.release.set()
+            if first_task is not None and first_task.done() is False:
+                await first_task
             await client.close()
 
     asyncio.run(scenario())

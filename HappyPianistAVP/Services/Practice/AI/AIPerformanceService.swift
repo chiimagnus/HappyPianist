@@ -16,6 +16,84 @@ protocol ImprovBackendDiscoveryOrchestrating: AnyObject, Sendable {
     func stopAll()
 }
 
+enum CompanionDecisionDeadlineError: Error, Equatable {
+    case timeout
+}
+
+private actor CompanionDecisionDeadlineRace {
+    private var continuation: CheckedContinuation<CompanionDecision, any Error>?
+    private var backendTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
+    private var isFinished = false
+
+    init(continuation: CheckedContinuation<CompanionDecision, any Error>) {
+        self.continuation = continuation
+    }
+
+    func install(
+        backendTask: Task<Void, Never>,
+        timeoutTask: Task<Void, Never>
+    ) {
+        guard isFinished == false else {
+            backendTask.cancel()
+            timeoutTask.cancel()
+            return
+        }
+        self.backendTask = backendTask
+        self.timeoutTask = timeoutTask
+    }
+
+    func finish(_ result: Result<CompanionDecision, any Error>) {
+        guard isFinished == false, let continuation else { return }
+        isFinished = true
+        self.continuation = nil
+        let backendTask = self.backendTask
+        let timeoutTask = self.timeoutTask
+        self.backendTask = nil
+        self.timeoutTask = nil
+        backendTask?.cancel()
+        timeoutTask?.cancel()
+        continuation.resume(with: result)
+    }
+}
+
+enum CompanionDecisionDeadlineRunner {
+    static func decide(
+        using backend: any CompanionDecisionBackendProtocol,
+        input: CompanionDecisionInput,
+        deadline: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
+        try await withCheckedThrowingContinuation { continuation in
+            let race = CompanionDecisionDeadlineRace(continuation: continuation)
+            let backendTask = Task {
+                let result: Result<CompanionDecision, any Error>
+                do {
+                    result = .success(try await backend.decide(input, deadline: deadline))
+                } catch {
+                    result = .failure(error)
+                }
+                await race.finish(result)
+            }
+            let timeoutTask = Task {
+                do {
+                    try await Task.sleep(until: deadline, clock: ContinuousClock())
+                    await race.finish(.failure(CompanionDecisionDeadlineError.timeout))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    await race.finish(.failure(error))
+                }
+            }
+            Task {
+                await race.install(
+                    backendTask: backendTask,
+                    timeoutTask: timeoutTask
+                )
+            }
+        }
+    }
+}
+
 @MainActor
 final class AIPerformanceService {
     struct State: Equatable {
@@ -81,6 +159,34 @@ final class AIPerformanceService {
         case stalePlayback = "stale_playback"
     }
 
+    private enum CompanionDecisionFailureCategory: String {
+        case unavailable
+        case timeout
+        case busy
+        case invalidResponse = "invalid_response"
+        case failed
+    }
+
+    private enum CompanionDecisionRequestError: Error {
+        case stale
+    }
+
+    private struct CompanionDecisionIdentity: Equatable {
+        let activationID: Int
+        let phraseGeneration: Int
+        let playbackPhase: DuetAIPlaybackQueue.PlaybackPhase
+        let userNoteOnSinceAIPlaybackStarted: Bool
+        let backendKind: CompanionDecisionBackendKind
+    }
+
+    private static let controlLoopPeriodMilliseconds: Int64 = 100
+    private static var controlLoopPeriod: Duration {
+        .milliseconds(controlLoopPeriodMilliseconds)
+    }
+    private static var controlLoopPeriodSeconds: TimeInterval {
+        TimeInterval(controlLoopPeriodMilliseconds) / 1_000
+    }
+
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let nowUptimeSeconds: () -> TimeInterval
     private let sleepFor: @Sendable (Duration) async -> Void
@@ -123,13 +229,14 @@ final class AIPerformanceService {
     private var lastImprovStatusText: String?
     private var generationFailureStatusText: String?
     private var latestCandidateDiagnostics: CandidateDiagnostics?
+    private var lastCompanionDecisionFailureCategory: CompanionDecisionFailureCategory?
 
     @MainActor
     private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = .init(
         diagnosticsReporter: diagnosticsReporter,
         playbackServiceFactory: aiPlaybackServiceFactory,
         onPlaybackPhaseChanged: { [weak self] phase in
-            guard let self else { return }
+            guard let self, isEnabled else { return }
             playbackPhase = phase
             if phase == .playing {
                 userNoteOnSinceAIPlaybackStarted = false
@@ -370,6 +477,13 @@ final class AIPerformanceService {
             throw CompanionDecisionBackendRegistryError.invalidSelection
         }
         let backend = try companionDecisionBackendRegistry.backend(for: kind)
+        let identity = CompanionDecisionIdentity(
+            activationID: activationID,
+            phraseGeneration: phraseGeneration,
+            playbackPhase: playbackPhase,
+            userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted,
+            backendKind: kind
+        )
         let input = CompanionDecisionInput(
             nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
             heldNotesCount: noteSnapshot.heldNotes.count,
@@ -382,11 +496,37 @@ final class AIPerformanceService {
             isAIPlaybackActive: isAIPlaybackActive,
             userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted
         )
-        let decision = try await backend.decide(input).validated(for: input)
-        guard selectedCompanionDecisionBackendKind() == kind else {
-            throw CompanionDecisionBackendRegistryError.selectionChanged
+        let deadline = ContinuousClock().now.advanced(by: Self.controlLoopPeriod)
+        let rawDecision: CompanionDecision
+        do {
+            rawDecision = try await CompanionDecisionDeadlineRunner.decide(
+                using: backend,
+                input: input,
+                deadline: deadline
+            )
+        } catch {
+            guard currentCompanionDecisionIdentity() == identity else {
+                throw CompanionDecisionRequestError.stale
+            }
+            throw error
         }
+        guard currentCompanionDecisionIdentity() == identity else {
+            throw CompanionDecisionRequestError.stale
+        }
+        let decision = try rawDecision.validated(for: input)
+        lastCompanionDecisionFailureCategory = nil
         return decision
+    }
+
+    private func currentCompanionDecisionIdentity() -> CompanionDecisionIdentity? {
+        guard let kind = selectedCompanionDecisionBackendKind() else { return nil }
+        return CompanionDecisionIdentity(
+            activationID: activationID,
+            phraseGeneration: phraseGeneration,
+            playbackPhase: playbackPhase,
+            userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted,
+            backendKind: kind
+        )
     }
 
     private func startControlLoop() {
@@ -400,7 +540,10 @@ final class AIPerformanceService {
             let tickStartedAt = self.nowUptimeSeconds()
             await self.runContinuousControlTick()
             let elapsedSeconds = max(0, self.nowUptimeSeconds() - tickStartedAt)
-            let remainingMilliseconds = Int64(max(0, ((0.1 - elapsedSeconds) * 1_000).rounded(.up)))
+            let remainingMilliseconds = Int64(max(
+                0,
+                ((Self.controlLoopPeriodSeconds - elapsedSeconds) * 1_000).rounded(.up)
+            ))
             if remainingMilliseconds > 0 {
                 await self.sleepFor(.milliseconds(remainingMilliseconds))
             }
@@ -416,6 +559,8 @@ final class AIPerformanceService {
         guard practiceSession != nil else { return }
 
         guard syncBackendDiscoveryIfNeeded() else { return }
+        guard playbackPhase != .preparing else { return }
+        guard inFlightGenerateTasks.isEmpty || playbackPhase == .playing else { return }
 
         let now = nowUptimeSeconds()
         let bootstrapPolicy = DuetPhrasePolicy.RequestPolicy(
@@ -438,10 +583,10 @@ final class AIPerformanceService {
         let decision: CompanionDecision
         do {
             decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
-        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+        } catch CompanionDecisionRequestError.stale {
             return
         } catch {
-            reportCompanionDecisionFailure()
+            reportCompanionDecisionFailure(error)
             await aiPlaybackQueue.clearUnstartedWindows()
             if playbackPhase != .playing {
                 latestSchedule = []
@@ -526,7 +671,13 @@ final class AIPerformanceService {
         lastWindowRequestTimestampSeconds = nowTimestampSeconds
 
         let task = Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self,
+                  isEnabled,
+                  Task.isCancelled == false,
+                  activationAtRequest == activationID,
+                  phraseGenerationAtRequest == phraseGeneration,
+                  selectedBackendKind() == kind
+            else { return }
             isGenerating = true
             notifyStateChanged()
             defer {
@@ -622,10 +773,10 @@ final class AIPerformanceService {
         let decision: CompanionDecision
         do {
             decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
-        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+        } catch CompanionDecisionRequestError.stale {
             return
         } catch {
-            reportCompanionDecisionFailure()
+            reportCompanionDecisionFailure(error)
             return
         }
         guard decision.shouldRequestGeneration else { return }
@@ -889,18 +1040,56 @@ final class AIPerformanceService {
         return true
     }
 
-    private func reportCompanionDecisionFailure() {
-        let statusText = "AI 即兴：陪伴决策后端失败"
-        guard lastImprovStatusText != statusText else { return }
+    private func reportCompanionDecisionFailure(_ error: any Error) {
+        let category = companionDecisionFailureCategory(for: error)
+        guard lastCompanionDecisionFailureCategory != category else { return }
+        lastCompanionDecisionFailureCategory = category
         diagnosticsReporter?.recordSystem(
             severity: .warning,
             category: .ai,
             stage: "continuousDuet.decision",
             summary: "AI 陪伴决策失败",
-            reason: "failure=decision_backend"
+            reason: "failure=\(category.rawValue)"
         )
-        lastImprovStatusText = statusText
+        lastImprovStatusText = "AI 即兴：陪伴决策失败"
         notifyStateChanged()
+    }
+
+    private func companionDecisionFailureCategory(
+        for error: any Error
+    ) -> CompanionDecisionFailureCategory {
+        if error is CompanionDecisionBackendRegistryError {
+            return .unavailable
+        }
+        if let error = error as? QwenNetworkCompanionDecisionBackendError {
+            switch error {
+            case .backendNotResolved, .discoveryDenied:
+                return .unavailable
+            case .missingModelIdentity, .unexpectedModelIdentity:
+                return .invalidResponse
+            }
+        }
+        if let error = error as? QwenCompanionDecisionClientError {
+            switch error {
+            case let .httpError(_, code, _):
+                if code == "busy" { return .busy }
+                if code == "invalid_json" || code == "invalid_request" { return .invalidResponse }
+                return .failed
+            case .invalidURL, .invalidResponse, .decodeFailed, .unexpectedModel,
+                 .unexpectedOutputTokens, .invalidSemanticValues, .invalidUsage:
+                return .invalidResponse
+            }
+        }
+        if error is CompanionDecisionValidationError {
+            return .invalidResponse
+        }
+        if error is CompanionDecisionDeadlineError {
+            return .timeout
+        }
+        if let error = error as? URLError, error.code == .timedOut {
+            return .timeout
+        }
+        return .failed
     }
 
     private func failureCategory(for error: any Error) -> GenerationFailureCategory {

@@ -154,7 +154,11 @@ final class ARGuideAIPerformanceViewModel {
         isVirtualPerformerEnabled = isEnabled
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
         aiPerformanceService.setEnabled(isEnabled)
-        if isEnabled == false {
+        if isEnabled,
+           companionDecisionBackendSelection.selectedKind() == .networkBonjourQwen
+        {
+            qwenDecisionDiscoveryService.start()
+        } else if isEnabled == false {
             qwenDecisionDiscoveryService.stop()
         }
     }

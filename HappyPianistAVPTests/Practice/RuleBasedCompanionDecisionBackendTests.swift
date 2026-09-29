@@ -5,7 +5,7 @@ import Testing
 @Test
 func ruleBasedCompanionDecisionBackendDenseInputListensWhenAIIsNotPlaying() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
-    let decision = try await backend.decide(
+    let decision = try await ruleBasedDecision(backend, input:
         .init(
             nowTimestampSeconds: 10,
             heldNotesCount: 2,
@@ -27,7 +27,7 @@ func ruleBasedCompanionDecisionBackendDenseInputListensWhenAIIsNotPlaying() asyn
 @Test
 func ruleBasedCompanionDecisionBackendDoesNotYieldWithoutPostStartNoteOn() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
-    let decision = try await backend.decide(
+    let decision = try await ruleBasedDecision(backend, input:
         .init(
             nowTimestampSeconds: 10,
             heldNotesCount: 1,
@@ -49,7 +49,7 @@ func ruleBasedCompanionDecisionBackendDoesNotYieldWithoutPostStartNoteOn() async
 @Test
 func ruleBasedCompanionDecisionBackendYieldsOnlyAfterUserReentersActivePlayback() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
-    let decision = try await backend.decide(
+    let decision = try await ruleBasedDecision(backend, input:
         .init(
             nowTimestampSeconds: 10,
             heldNotesCount: 1,
@@ -72,7 +72,7 @@ func ruleBasedCompanionDecisionBackendYieldsOnlyAfterUserReentersActivePlayback(
 @Test
 func ruleBasedCompanionDecisionBackendUsesSparseActionForSustainLedHeldTexture() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
-    let decision = try await backend.decide(
+    let decision = try await ruleBasedDecision(backend, input:
         .init(
             nowTimestampSeconds: 5,
             heldNotesCount: 1,
@@ -95,7 +95,7 @@ func ruleBasedCompanionDecisionBackendUsesSparseActionForSustainLedHeldTexture()
 @Test
 func ruleBasedCompanionDecisionBackendSupportsRecentHeldLine() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
-    let decision = try await backend.decide(
+    let decision = try await ruleBasedDecision(backend, input:
         .init(
             nowTimestampSeconds: 20,
             heldNotesCount: 1,
@@ -118,7 +118,7 @@ func ruleBasedCompanionDecisionBackendSupportsRecentHeldLine() async throws {
 @Test
 func ruleBasedCompanionDecisionBackendListensForStaleInput() async throws {
     let backend = RuleBasedCompanionDecisionBackend()
-    let decision = try await backend.decide(
+    let decision = try await ruleBasedDecision(backend, input:
         .init(
             nowTimestampSeconds: 100,
             heldNotesCount: 0,
@@ -187,4 +187,14 @@ func companionDecisionBackendRegistryDoesNotFallbackWhenSelectedBackendIsUnavail
     #expect(throws: CompanionDecisionBackendRegistryError.unavailable(.networkBonjourQwen)) {
         _ = try registry.backend(for: .networkBonjourQwen)
     }
+}
+
+private func ruleBasedDecision(
+    _ backend: RuleBasedCompanionDecisionBackend,
+    input: CompanionDecisionInput
+) async throws -> CompanionDecision {
+    try await backend.decide(
+        input,
+        deadline: ContinuousClock().now.advanced(by: .seconds(1))
+    )
 }

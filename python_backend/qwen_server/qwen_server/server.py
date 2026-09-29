@@ -52,6 +52,10 @@ class CompiledQuestion:
     candidate_ids: list[int]
 
 
+class QwenBusyError(RuntimeError):
+    pass
+
+
 class TransformersQwenRuntime:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -170,60 +174,65 @@ class TransformersQwenRuntime:
         *,
         server_started: float,
     ) -> CompanionDecisionResponse:
-        with self._lock:
-            if self._model is None or self._tokenizer is None:
-                raise RuntimeError("Qwen runtime is not loaded")
+        if not self._lock.acquire(blocking=False):
+            raise QwenBusyError("Qwen companion inference is already running")
+        try:
+            return self._decide_admitted(request, server_started=server_started)
+        finally:
+            self._lock.release()
 
-            import torch
+    def _decide_admitted(
+        self,
+        request: CompanionDecisionRequest,
+        *,
+        server_started: float,
+    ) -> CompanionDecisionResponse:
+        if self._model is None or self._tokenizer is None:
+            raise RuntimeError("Qwen runtime is not loaded")
 
-            state = request.state.model_dump()
-            compiled = [
-                self._compile_question(state, question_id)
-                for question_id in semantic_question_ids()
-            ]
-            pad_token_id = self._tokenizer.pad_token_id
-            if pad_token_id is None:
-                pad_token_id = self._tokenizer.eos_token_id
-            if pad_token_id is None:
-                raise RuntimeError("tokenizer has no pad or eos token")
+        import torch
 
-            with torch.inference_mode():
-                last_logits = self._forward_full(
-                    compiled,
-                    torch,
-                    int(pad_token_id),
-                )
+        state = request.state.model_dump()
+        compiled = [
+            self._compile_question(state, question_id)
+            for question_id in semantic_question_ids()
+        ]
+        pad_token_id = self._tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = self._tokenizer.eos_token_id
+        if pad_token_id is None:
+            raise RuntimeError("tokenizer has no pad or eos token")
 
-            question_probabilities: dict[str, dict[str, float]] = {}
-            for item, logits in zip(compiled, last_logits):
-                selected_ids = torch.tensor(item.candidate_ids, device=logits.device)
-                values = (
-                    torch.softmax(
-                        logits.index_select(0, selected_ids).float(),
-                        dim=0,
-                    )
-                    .detach()
-                    .cpu()
-                    .tolist()
-                )
-                question_probabilities[item.question_id] = {
-                    "A": float(values[0]),
-                    "B": float(values[1]),
-                }
+        with torch.inference_mode():
+            last_logits = self._forward_full(compiled, torch, int(pad_token_id))
 
-            scores, order_gaps = aggregate_semantics(question_probabilities)
-            action = action_from_semantics(state, scores)
-            server_latency_ms = int(round((time.perf_counter() - server_started) * 1000))
-            return CompanionDecisionResponse(
-                action=action,
-                semantic_scores=SemanticValues(**scores),
-                semantic_order_gaps=SemanticValues(**order_gaps),
-                usage=CompanionUsage(
-                    input_tokens=sum(len(item.token_ids) for item in compiled),
-                    output_tokens=0,
-                ),
-                server_latency_ms=server_latency_ms,
+        question_probabilities: dict[str, dict[str, float]] = {}
+        for item, logits in zip(compiled, last_logits):
+            selected_ids = torch.tensor(item.candidate_ids, device=logits.device)
+            values = (
+                torch.softmax(logits.index_select(0, selected_ids).float(), dim=0)
+                .detach()
+                .cpu()
+                .tolist()
             )
+            question_probabilities[item.question_id] = {
+                "A": float(values[0]),
+                "B": float(values[1]),
+            }
+
+        scores, order_gaps = aggregate_semantics(question_probabilities)
+        action = action_from_semantics(state, scores)
+        server_latency_ms = int(round((time.perf_counter() - server_started) * 1000))
+        return CompanionDecisionResponse(
+            action=action,
+            semantic_scores=SemanticValues(**scores),
+            semantic_order_gaps=SemanticValues(**order_gaps),
+            usage=CompanionUsage(
+                input_tokens=sum(len(item.token_ids) for item in compiled),
+                output_tokens=0,
+            ),
+            server_latency_ms=server_latency_ms,
+        )
 
     def warm_up(self) -> int:
         started = time.perf_counter()
@@ -290,6 +299,12 @@ async def handle_companion_decision(request: web.Request) -> web.Response:
             runtime.decide,
             request_model,
             server_started=server_started,
+        )
+    except QwenBusyError:
+        return _error(
+            "busy",
+            status=503,
+            message="Qwen companion inference is already running",
         )
     except Exception:
         logger.exception("Qwen companion decision failed")

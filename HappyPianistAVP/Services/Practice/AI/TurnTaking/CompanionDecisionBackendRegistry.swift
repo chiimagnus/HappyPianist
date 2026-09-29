@@ -3,7 +3,6 @@ import Foundation
 enum CompanionDecisionBackendRegistryError: Error, Equatable {
     case invalidSelection
     case unavailable(CompanionDecisionBackendKind)
-    case selectionChanged
 }
 
 struct CompanionDecisionBackendRegistry {
