@@ -1,5 +1,5 @@
 version = 1
-current_task_id = ""
+current_task_id = "P1-T1"
 
 [[tasks]]
 id = "P0-T1"
@@ -52,10 +52,10 @@ note = "Queue 收敛 idle/preparing/playing；用户输入仅淘汰未开始窗�
 [[tasks]]
 id = "P0-T7"
 title = "绑定 decision identity、100ms deadline 与 single-flight"
-status = "pending"
+status = "completed"
 plan = "plan-p0.md#p0-t7"
-commit = ""
-note = "绑定 activation/phrase/playback/post-start-note/selection identity；删除 Bonjour 25ms polling 与 1s+1.5s 多层 timeout；Qwen discovery/state fail-fast、runtime single-flight，timeout/busy/unavailable/invalid-response 分类别诊断。"
+commit = "3f512a1f"
+note = "绑定 activation/phrase/playback/post-start-note/backend identity；100ms hard deadline 可立即取消慢 decision；Qwen Bonjour fail-fast、剩余预算 HTTP、Python single-flight 503 busy；Swift T7 13/13、Python 17/17、Simulator build PASS；全量 1018 passed / 11 baseline failed / 0 skipped。"
 
 [[tasks]]
 id = "P1-T1"
