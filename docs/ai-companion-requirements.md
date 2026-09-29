@@ -60,22 +60,23 @@ Qwen 网络请求只包含决策真正使用的 compact state：按住音符数�
 
 ## 统一验证
 
-模型比较只使用 `python_backend/scripts/companion_semantic_benchmark.py`：
+模型比较只使用 `python_backend/scripts/companion_semantic_benchmark.py`。Stage A 由版本化 manifest 固定：
 
-- 同一 compact state；
-- 同一四个二元语义；
-- 同一 A/B 交换与概率聚合；
-- 同一 action mapping；
-- 同一固定 seed、case IDs、MAESTRO/POP909 corpus 与 Gate。
+- Qwen state projection 与产品一致：4s rolling history、2.4s IOI、1.2s density，并按原始 MIDI 事件顺序重放 CC64/held-note 生命周期；
+- MAESTRO / POP909 × 6 states，每个 source/state 固定 10 个不同文件，共 120 cases；
+- 固定 Qwen Companion protocol、四个二元语义、A/B 消偏、`semantic-v1` mapping 与 0.55 threshold；
+- 每个 source 单独检查 observable semantic boundary，不拿 MAESTRO/POP909 的 median 互相当真值；
+- decision RTT P95 hard Gate 固定为 100ms，与产品 100ms control-loop target 对齐；runner 没有 `--no-gate` 或可临时改 seed/state/case 数的入口。
 
 MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-taking 标签，因此自然静默、踏板停顿等只能验证可观察边界和模型行为，不能包装成准确率。
 
-截至 2026-09-26：
+截至 2026-09-29：
 
-- Qwen 产品接入、client、backend selection 与失败不回退的定向测试：8/8 通过；
-- `make build:simulator` 通过；
-- 完整 Simulator suite：1010 通过、11 失败；失败集中在手部骨架、hand motion 与 local sampler，与 Qwen/Companion 无关；
-- Qwen 固定 Stage A 仍不是全绿，密集演奏的语义分离和决策延迟仍需继续优化。
+- Qwen 专用 Companion API 与 Swift client/backend 定向回归：11/11 通过；
+- Swift/Python state-projection golden parity 已通过；Python Qwen/projection/manifest/corpus 定向测试：19/19 通过；
+- `make build:simulator` 已通过；
+- 完整 Simulator suite 的最近基线仍是 1010 通过、11 失败；P0 完成时必须重新跑全量并与该基线逐项对照；
+- Stage A 的 corpus/manifest 已按产品 projection 重建，正式 Qwen 模型 Gate 留给后续固定 Stage A 执行。
 
 验证边界与完整测试证据见[测试](testing.md)。
 
@@ -83,12 +84,11 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 
 按这个顺序继续，不再同时探索多个模型：
 
-1. **固定 Qwen 路线。** RuleBased 保留基线，Qwen 是唯一实验型网络决策后端。
-2. **消除产品/benchmark 契约漂移风险。** 让 Swift 与 Python 的四个语义、A/B 顺序、阈值和 mapping 有一个可自动核对的真源或 fixture。
-3. **继续同一 Stage A。** 只优化 Qwen 在现有统一协议下的剩余失败，不改样本和 Gate 来“过测试”。
-4. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明现在这套二元语义协议真的进入产品生成和播放链。
-5. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
-6. **最后再加更高层音乐状态。** 只有现有 compact state 明确不足时，再加入节拍、和声、终止式或乐谱位置，不提前堆特征。
+1. **完成当前 P0 架构收敛。** 删除伪 Aria streaming、假 timeout、隐藏 fallback 与旧 playback guard，并收紧 decision identity/single-flight。
+2. **继续固定 Stage A。** 只优化 Qwen 在已冻结 manifest/协议下的剩余失败，不改样本和 Gate 来“过测试”。
+3. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明当前决策协议真的进入产品生成和播放链。
+4. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
+5. **最后再加更高层音乐状态。** 只有现有 compact state 明确不足时，再加入节拍、和声、终止式或乐谱位置，不提前堆特征。
 
 ## 什么时候才换路线
 

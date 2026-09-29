@@ -5,12 +5,9 @@ import argparse
 from collections import Counter
 import hashlib
 import json
-import random
-import statistics
 import sys
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -20,6 +17,16 @@ if str(PYTHON_BACKEND_ROOT) not in sys.path:
 
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo, second2tick
 
+from shared.companion_scenarios import (
+    ParsedMIDI,
+    Scenario,
+    load_midi,
+    notes_before,
+    project_qwen_state,
+    resolve_under_python_backend,
+    sample_scenarios,
+    scenario_path,
+)
 from shared.qwen_companion_protocol import MODEL_ID, companion_state_payload
 from shared.protocol_v2 import (
     ControlChangeEvent,
@@ -32,42 +39,6 @@ from shared.protocol_v2 import (
 
 
 GENERATING_ACTIONS = {"support", "sparse", "respond"}
-
-
-@dataclass(frozen=True)
-class ParsedNote:
-    note: int
-    velocity: int
-    start: float
-    duration: float
-
-
-@dataclass(frozen=True)
-class ParsedCC:
-    controller: int
-    value: int
-    time: float
-
-
-@dataclass(frozen=True)
-class ParsedMIDI:
-    notes: list[ParsedNote]
-    ccs: list[ParsedCC]
-    duration: float
-
-
-@dataclass(frozen=True)
-class Scenario:
-    source: str
-    file: str
-    name: str
-    cutoff: float
-    provenance: str
-    ai_playback_active: bool
-
-    @property
-    def case_id(self) -> str:
-        return f"{self.source}|{self.name}|{self.file}|{self.cutoff:.6f}"
 
 
 def parse_args() -> argparse.Namespace:
@@ -111,219 +82,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt-window", type=float, default=3.0)
     parser.add_argument("--max-tokens", type=int, default=64)
     return parser.parse_args()
-
-
-def load_midi(path: Path) -> ParsedMIDI:
-    midi = MidiFile(path)
-    current_time = 0.0
-    active: dict[tuple[int, int], list[tuple[float, int]]] = {}
-    notes: list[ParsedNote] = []
-    ccs: list[ParsedCC] = []
-
-    for message in midi:
-        current_time += float(message.time)
-        channel = int(getattr(message, "channel", 0))
-        if message.type == "note_on" and message.velocity > 0:
-            active.setdefault((channel, int(message.note)), []).append(
-                (current_time, int(message.velocity))
-            )
-        elif message.type in {"note_off", "note_on"}:
-            key = (channel, int(message.note))
-            stack = active.get(key)
-            if stack:
-                started_at, velocity = stack.pop(0)
-                notes.append(
-                    ParsedNote(
-                        note=int(message.note),
-                        velocity=velocity,
-                        start=started_at,
-                        duration=max(0.01, current_time - started_at),
-                    )
-                )
-                if not stack:
-                    active.pop(key, None)
-        elif message.type == "control_change" and int(message.control) in {7, 11, 64}:
-            ccs.append(
-                ParsedCC(
-                    controller=int(message.control),
-                    value=int(message.value),
-                    time=current_time,
-                )
-            )
-
-    for (_, note), stack in active.items():
-        for started_at, velocity in stack:
-            notes.append(
-                ParsedNote(
-                    note=note,
-                    velocity=velocity,
-                    start=started_at,
-                    duration=max(0.01, current_time - started_at),
-                )
-            )
-
-    notes.sort(key=lambda n: (n.start, n.note))
-    ccs.sort(key=lambda e: e.time)
-    return ParsedMIDI(notes=notes, ccs=ccs, duration=current_time)
-
-
-def resolve_under_python_backend(path: Path) -> Path:
-    if path.is_absolute():
-        return path
-    return Path(__file__).resolve().parents[1] / path
-
-
-def sample_scenarios(
-    corpus_index: dict[str, Any],
-    *,
-    states: set[str],
-    cases_per_state_per_source: int,
-    seed: int,
-) -> list[Scenario]:
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for candidate in corpus_index.get("candidates", []):
-        state = str(candidate["state"])
-        if state not in states:
-            continue
-        source = str(candidate["source"])
-        grouped.setdefault((source, state), []).append(candidate)
-
-    if cases_per_state_per_source <= 0:
-        raise ValueError("cases_per_state_per_source must be positive")
-
-    sources = sorted(
-        str(source)
-        for source, count in corpus_index.get("files", {}).items()
-        if int(count) > 0
-    )
-    if not sources:
-        sources = sorted({source for source, _ in grouped})
-
-    rng = random.Random(seed)
-    sampled: list[Scenario] = []
-    for source in sources:
-        for state in sorted(states):
-            candidates = grouped.get((source, state), [])
-            if len(candidates) < cases_per_state_per_source:
-                raise RuntimeError(
-                    f"insufficient candidates for {source}/{state}: "
-                    f"need {cases_per_state_per_source}, have {len(candidates)}"
-                )
-            for candidate in rng.sample(candidates, cases_per_state_per_source):
-                sampled.append(
-                    Scenario(
-                        source=source,
-                        file=str(candidate["file"]),
-                        name=state,
-                        cutoff=float(candidate["timestamp"]),
-                        provenance=str(candidate["provenance"]),
-                        ai_playback_active=state == "takeover_overlay",
-                    )
-                )
-    return sampled
-
-
-def scenario_path(
-    scenario: Scenario,
-    *,
-    maestro_root: Path,
-    pop909_root: Path,
-) -> Path:
-    if scenario.source == "maestro":
-        return maestro_root / scenario.file
-    if scenario.source == "pop909":
-        return pop909_root / scenario.file
-    raise ValueError(f"unsupported corpus source: {scenario.source}")
-
-
-def notes_before(parsed: ParsedMIDI, cutoff: float, window: float) -> list[ParsedNote]:
-    start = cutoff - window
-    return [
-        note
-        for note in parsed.notes
-        if note.start <= cutoff and (note.start + note.duration) >= start
-    ]
-
-
-def latest_sustain_value(parsed: ParsedMIDI, cutoff: float) -> int:
-    value = 0
-    for event in parsed.ccs:
-        if event.time > cutoff:
-            break
-        if event.controller == 64:
-            value = event.value
-    return value
-
-
-def velocity_trend(notes: list[ParsedNote]) -> float:
-    if len(notes) < 2:
-        return 0.0
-    velocities = [n.velocity for n in notes]
-    midpoint = len(velocities) // 2
-    first = velocities[:midpoint]
-    second = velocities[midpoint:]
-    if not first or not second:
-        return 0.0
-    return statistics.mean(second) - statistics.mean(first)
-
-
-def median_ioi(notes: list[ParsedNote]) -> float | None:
-    onsets = sorted({n.start for n in notes})
-    if len(onsets) < 2:
-        return None
-    return statistics.median(b - a for a, b in zip(onsets, onsets[1:]))
-
-
-def decision_payload(
-    parsed: ParsedMIDI,
-    scenario: Scenario,
-    prompt_window: float,
-) -> dict[str, Any]:
-    context = notes_before(parsed, scenario.cutoff, prompt_window)
-    now = scenario.cutoff
-    recent_for_density = [n for n in context if n.start >= scenario.cutoff - 1.0]
-    active_notes = [
-        n for n in context if n.start <= now < (n.start + n.duration)
-    ]
-    last_note_on = max((n.start for n in context), default=None)
-    last_event = max(
-        [
-            *(n.start for n in context if n.start <= now),
-            *(n.start + n.duration for n in context if n.start + n.duration <= now),
-            *(cc.time for cc in parsed.ccs if cc.time <= now),
-        ],
-        default=None,
-    )
-    pitch_center = statistics.mean(n.note for n in context) if context else None
-    tail = context[-16:]
-
-    return {
-        "held_notes_count": len(active_notes),
-        "sustain_value": latest_sustain_value(parsed, scenario.cutoff),
-        "recent_ioi_median_seconds": median_ioi(context),
-        "recent_velocity_trend": velocity_trend(context),
-        "recent_note_density_per_second": float(len(recent_for_density)),
-        "seconds_since_last_user_event": (
-            None if last_event is None else max(0.0, now - last_event)
-        ),
-        "seconds_since_last_note_on": (
-            None if last_note_on is None else max(0.0, now - last_note_on)
-        ),
-        "active_pitch_center": pitch_center,
-        "is_ai_playback_active": scenario.ai_playback_active,
-        "user_note_on_since_ai_playback_started": (
-            scenario.ai_playback_active and scenario.name == "takeover_overlay"
-        ),
-        "recent_notes": [
-            {
-                "midi": note.note,
-                "velocity": note.velocity,
-                "onset_seconds_ago": max(0.0, now - note.start),
-                "duration_seconds": note.duration,
-            }
-            for note in tail
-        ],
-    }
 
 
 def generation_horizon_seconds(action: str, held_notes_count: int) -> float:
@@ -555,7 +313,14 @@ def main() -> int:
             parsed = load_midi(midi_path)
             midi_cache[midi_path] = parsed
 
-        decision_state = decision_payload(parsed, scenario, args.prompt_window)
+        decision_state = project_qwen_state(
+            parsed,
+            scenario.cutoff,
+            is_ai_playback_active=scenario.ai_playback_active,
+            user_note_on_since_ai_playback_started=(
+                scenario.ai_playback_active and scenario.name == "takeover_overlay"
+            ),
+        )
         decision = post_json(
             qwen_url,
             {"state": companion_state_payload(decision_state)},

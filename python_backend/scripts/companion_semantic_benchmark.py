@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import hashlib
-import itertools
 import json
 import math
 from pathlib import Path
@@ -12,85 +11,58 @@ import statistics
 import sys
 import time
 from typing import Any
+import urllib.error
+import urllib.request
 
 PYTHON_BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(PYTHON_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(PYTHON_BACKEND_ROOT))
 
-from scripts.companion_e2e_acceptance import (
-    decision_payload,
+from shared.companion_scenarios import (
+    DENSITY_WINDOW_SECONDS,
+    IOI_WINDOW_SECONDS,
+    LOOKBACK_SECONDS,
+    PROJECTION_VERSION,
     load_midi,
-    post_json,
+    project_qwen_state,
     resolve_under_python_backend,
     sample_scenarios,
     scenario_path,
 )
-from shared.companion_semantics import (
-    SEMANTIC_KEYS,
-    SEMANTIC_THRESHOLD,
-    action_mapping_metadata,
+from shared.companion_semantics import SEMANTIC_KEYS, SEMANTIC_THRESHOLD, action_mapping_metadata
+from shared.qwen_companion_protocol import (
+    ENGINE_ID,
+    MODEL_ID,
+    PROTOCOL_VERSION,
+    companion_state_payload,
 )
-from shared.qwen_companion_protocol import MODEL_ID, companion_state_payload
 
 
-DEFAULT_STATES = (
-    "active_dense",
-    "active_sparse",
-    "natural_silence",
-    "settled_end",
-    "sustain_pause",
-    "takeover_overlay",
-)
+MANIFEST_PATH = PYTHON_BACKEND_ROOT / "tests/fixtures/companion_stage_a_manifest.json"
 ACTION_COLLAPSE_SHARE = 0.90
-CROSS_SOURCE_DIRECTION_GAP = 0.15
-LATENCY_HARD_LIMIT_MS = 1000.0
+REQUIRED_ACTIONS = {"listen", "support", "sparse", "yield", "respond"}
+REQUEST_TIMEOUT_SECONDS = 2.0
+PRODUCT_DECISION_RTT_P95_LIMIT_MS = 100.0
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--corpus-index",
-        type=Path,
-        default=Path(".outputs/companion-corpus/index.json"),
-    )
-    parser.add_argument(
-        "--maestro-root",
-        type=Path,
-        default=Path(".datasets/maestro-v3/extracted/maestro-v3.0.0"),
-    )
-    parser.add_argument(
-        "--pop909-root",
-        type=Path,
-        default=Path(".datasets/pop909/extracted/POP909"),
-    )
+    parser.add_argument("--corpus-index", type=Path, default=Path(".outputs/companion-corpus/index.json"))
+    parser.add_argument("--maestro-root", type=Path, default=Path(".datasets/maestro-v3/extracted/maestro-v3.0.0"))
+    parser.add_argument("--pop909-root", type=Path, default=Path(".datasets/pop909/extracted/POP909"))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8767)
-    parser.add_argument("--timeout", type=float, default=2.0)
-    parser.add_argument("--seed", type=int, default=20260920)
-    parser.add_argument("--cases-per-state-per-source", type=int, default=10)
-    parser.add_argument("--prompt-window", type=float, default=3.0)
-    parser.add_argument("--states", default=",".join(DEFAULT_STATES))
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path(".outputs/companion-semantic-benchmark/results.json"),
-    )
-    parser.add_argument(
-        "--no-gate",
-        action="store_true",
-        help="Record evidence without failing the process when Stage A invariants fail.",
-    )
+    parser.add_argument("--output", type=Path, default=Path(".outputs/companion-semantic-benchmark/results.json"))
     return parser.parse_args()
 
 
 def canonical_json_sha256(payload: Any) -> str:
-    canonical = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
+
+def case_ids_sha256(case_ids: list[str]) -> str:
+    return hashlib.sha256("\n".join(case_ids).encode("utf-8")).hexdigest()
 
 
 def percentile(values: list[float], percentile_value: float) -> float:
@@ -105,9 +77,7 @@ def median_semantics(rows: list[dict[str, Any]]) -> dict[str, float]:
     if not rows:
         raise ValueError("semantic median requires rows")
     return {
-        semantic: statistics.median(
-            float(row["semantic_scores"][semantic]) for row in rows
-        )
+        semantic: statistics.median(float(row["semantic_scores"][semantic]) for row in rows)
         for semantic in SEMANTIC_KEYS
     }
 
@@ -116,9 +86,7 @@ def median_order_gaps(rows: list[dict[str, Any]]) -> dict[str, float]:
     if not rows:
         raise ValueError("order-gap median requires rows")
     return {
-        semantic: statistics.median(
-            float(row["semantic_order_gaps"][semantic]) for row in rows
-        )
+        semantic: statistics.median(float(row["semantic_order_gaps"][semantic]) for row in rows)
         for semantic in SEMANTIC_KEYS
     }
 
@@ -143,12 +111,12 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
     semantics_by_source_state: dict[str, dict[str, dict[str, float]]] = {}
     for source in sources:
-        semantics_by_source_state[source] = {}
         source_rows = [row for row in rows if row["source"] == source]
-        for state in states:
-            state_rows = [row for row in source_rows if row["state"] == state]
-            if state_rows:
-                semantics_by_source_state[source][state] = median_semantics(state_rows)
+        semantics_by_source_state[source] = {
+            state: median_semantics([row for row in source_rows if row["state"] == state])
+            for state in states
+            if any(row["state"] == state for row in source_rows)
+        }
 
     server_latencies = [float(row["server_latency_ms"]) for row in rows]
     round_trip_latencies = [float(row["round_trip_latency_ms"]) for row in rows]
@@ -180,146 +148,163 @@ def action_rate(summary: dict[str, Any], state: str, action: str) -> float:
     return float(counts.get(action, 0)) / total if total else 0.0
 
 
-def cross_source_direction_conflicts(summary: dict[str, Any]) -> list[dict[str, Any]]:
-    by_source = summary["semantic_medians_by_source_state"]
-    conflicts: list[dict[str, Any]] = []
-    for left, right in itertools.combinations(summary["sources"], 2):
-        for state in summary["states"]:
-            if state not in by_source[left] or state not in by_source[right]:
-                continue
-            for semantic in SEMANTIC_KEYS:
-                left_value = float(by_source[left][state][semantic])
-                right_value = float(by_source[right][state][semantic])
-                crosses = (left_value - 0.5) * (right_value - 0.5) < 0
-                if crosses and abs(left_value - right_value) >= CROSS_SOURCE_DIRECTION_GAP:
-                    conflicts.append(
-                        {
-                            "sources": [left, right],
-                            "state": state,
-                            "semantic": semantic,
-                            "values": {left: left_value, right: right_value},
-                        }
-                    )
-    return conflicts
+PER_SOURCE_BOUNDARIES = {
+    ("active_dense", "continuing"): True,
+    ("active_dense", "finished"): False,
+    ("active_dense", "space"): False,
+    ("active_sparse", "continuing"): True,
+    ("active_sparse", "finished"): False,
+    ("active_sparse", "space"): True,
+    ("settled_end", "continuing"): False,
+    ("settled_end", "finished"): True,
+    ("sustain_pause", "continuing"): True,
+    ("sustain_pause", "finished"): False,
+    ("takeover_overlay", "reasserted"): True,
+}
 
 
-def screening_diagnostics(summary: dict[str, Any]) -> dict[str, Any]:
-    medians = summary["semantic_medians_by_state"]
+def screening_diagnostics(
+    summary: dict[str, Any], *, latency_hard_limit_ms: float = 100.0
+) -> dict[str, Any]:
     reasons: list[str] = []
-
     action_total = sum(int(value) for value in summary["actions"].values())
-    dominant_action, dominant_count = max(
-        summary["actions"].items(), key=lambda item: int(item[1])
-    )
+    dominant_action, dominant_count = max(summary["actions"].items(), key=lambda item: int(item[1]))
     dominant_share = int(dominant_count) / action_total
     if dominant_share >= ACTION_COLLAPSE_SHARE:
         reasons.append(f"action_collapse:{dominant_action}:{dominant_share:.3f}")
 
-    expected = {
-        ("active_dense", "continuing"): True,
-        ("active_dense", "finished"): False,
-        ("active_dense", "space"): False,
-        ("active_dense", "reasserted"): False,
-        ("active_sparse", "continuing"): True,
-        ("active_sparse", "finished"): False,
-        ("active_sparse", "space"): True,
-        ("settled_end", "continuing"): False,
-        ("settled_end", "finished"): True,
-        ("sustain_pause", "continuing"): True,
-        ("sustain_pause", "finished"): False,
-        ("takeover_overlay", "reasserted"): True,
-    }
-    for (state, semantic), should_be_true in expected.items():
-        value = float(medians[state][semantic])
-        observed_true = value >= SEMANTIC_THRESHOLD
-        if observed_true != should_be_true:
-            reasons.append(
-                f"semantic_boundary:{state}:{semantic}:{value:.3f}:expected_"
-                f"{'true' if should_be_true else 'false'}"
-            )
+    missing_actions = sorted(REQUIRED_ACTIONS - set(summary["actions"]))
+    if missing_actions:
+        reasons.append("missing_actions:" + ",".join(missing_actions))
+
+    by_source = summary["semantic_medians_by_source_state"]
+    for source in summary["sources"]:
+        for (state, semantic), should_be_true in PER_SOURCE_BOUNDARIES.items():
+            value = float(by_source[source][state][semantic])
+            observed_true = value >= SEMANTIC_THRESHOLD
+            if observed_true != should_be_true:
+                reasons.append(
+                    f"semantic_boundary:{source}:{state}:{semantic}:{value:.3f}:expected_"
+                    f"{'true' if should_be_true else 'false'}"
+                )
 
     if action_rate(summary, "active_dense", "respond") >= 0.25:
         reasons.append("active_dense_respond_rate_too_high")
-    if action_rate(summary, "settled_end", "respond") <= action_rate(
-        summary, "active_dense", "respond"
-    ):
+    if action_rate(summary, "settled_end", "respond") <= action_rate(summary, "active_dense", "respond"):
         reasons.append("settled_end_not_above_active_dense_on_respond")
-    if action_rate(summary, "takeover_overlay", "yield") <= action_rate(
-        summary, "active_dense", "yield"
-    ):
+    if action_rate(summary, "takeover_overlay", "yield") <= action_rate(summary, "active_dense", "yield"):
         reasons.append("takeover_overlay_not_above_active_dense_on_yield")
-    if float(summary["round_trip_latency_ms"]["p95"]) >= LATENCY_HARD_LIMIT_MS:
-        reasons.append(
-            f"latency_p95:{float(summary['round_trip_latency_ms']['p95']):.1f}ms"
-        )
-
-    source_conflicts = cross_source_direction_conflicts(summary)
-    if source_conflicts:
-        reasons.append(f"cross_source_direction_conflicts:{len(source_conflicts)}")
+    if float(summary["round_trip_latency_ms"]["p95"]) >= latency_hard_limit_ms:
+        reasons.append(f"latency_p95:{float(summary['round_trip_latency_ms']['p95']):.1f}ms")
 
     return {
-        "dominant_action": {
-            "action": dominant_action,
-            "share": dominant_share,
-        },
+        "dominant_action": {"action": dominant_action, "share": dominant_share},
         "semantic_threshold": SEMANTIC_THRESHOLD,
-        "cross_source_direction_conflicts": source_conflicts,
+        "latency_hard_limit_ms": latency_hard_limit_ms,
         "automatic_stop_reasons": reasons,
         "passed": not reasons,
     }
 
 
+def post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {error.code}: {body}") from error
+
+
+def load_manifest() -> dict[str, Any]:
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def validate_manifest(corpus_index: dict[str, Any], scenarios: list[Any], manifest: dict[str, Any]) -> None:
+    if manifest["projection_version"] != PROJECTION_VERSION:
+        raise RuntimeError("Stage A projection version does not match product projection")
+    expected_projection_parameters = {
+        "lookback_seconds": LOOKBACK_SECONDS,
+        "ioi_window_seconds": IOI_WINDOW_SECONDS,
+        "density_window_seconds": DENSITY_WINDOW_SECONDS,
+    }
+    if manifest.get("projection_parameters") != expected_projection_parameters:
+        raise RuntimeError("Stage A projection parameters do not match product projection")
+    if manifest.get("model") != MODEL_ID:
+        raise RuntimeError("Stage A model identity does not match Qwen Companion service")
+    if manifest.get("engine") != ENGINE_ID:
+        raise RuntimeError("Stage A engine identity does not match Qwen Companion service")
+    if str(manifest.get("protocol_version")) != PROTOCOL_VERSION:
+        raise RuntimeError("Stage A protocol version does not match Qwen Companion service")
+    if corpus_index.get("projection_version") != PROJECTION_VERSION:
+        raise RuntimeError("corpus index projection version does not match product projection")
+    if corpus_index.get("errors"):
+        raise RuntimeError("corpus index contains parse errors")
+    canonical_sha = canonical_json_sha256(corpus_index)
+    if canonical_sha != manifest["corpus_index_sha256_canonical"]:
+        raise RuntimeError("corpus index identity does not match Stage A manifest")
+    case_ids = [scenario.case_id for scenario in scenarios]
+    if case_ids != manifest["case_ids"]:
+        raise RuntimeError("ordered Stage A case IDs do not match manifest")
+    if case_ids_sha256(case_ids) != manifest["case_ids_sha256"]:
+        raise RuntimeError("Stage A case ID digest does not match manifest")
+    if float(manifest["semantic_threshold"]) != SEMANTIC_THRESHOLD:
+        raise RuntimeError("Stage A semantic threshold does not match runtime contract")
+    if float(manifest["latency_hard_limit_ms"]) != PRODUCT_DECISION_RTT_P95_LIMIT_MS:
+        raise RuntimeError("Stage A latency budget does not match the 100ms product control target")
+
+
 def main() -> int:
     args = parse_args()
+    manifest = load_manifest()
     index_path = resolve_under_python_backend(args.corpus_index)
     maestro_root = resolve_under_python_backend(args.maestro_root)
     pop909_root = resolve_under_python_backend(args.pop909_root)
     output = resolve_under_python_backend(args.output)
-
-    raw_index = index_path.read_bytes()
-    corpus_index = json.loads(raw_index)
-    states = {state.strip() for state in args.states.split(",") if state.strip()}
+    corpus_index = json.loads(index_path.read_text(encoding="utf-8"))
+    states = set(manifest["states"])
     scenarios = sample_scenarios(
         corpus_index,
         states=states,
-        cases_per_state_per_source=args.cases_per_state_per_source,
-        seed=args.seed,
+        cases_per_state_per_source=int(manifest["cases_per_state_per_source"]),
+        seed=int(manifest["seed"]),
     )
+    validate_manifest(corpus_index, scenarios, manifest)
 
     url = f"http://{args.host}:{args.port}/v1/companion-decision"
     midi_cache: dict[Path, Any] = {}
     rows: list[dict[str, Any]] = []
     for scenario in scenarios:
-        path = scenario_path(
-            scenario,
-            maestro_root=maestro_root,
-            pop909_root=pop909_root,
-        )
+        path = scenario_path(scenario, maestro_root=maestro_root, pop909_root=pop909_root)
         parsed = midi_cache.get(path)
         if parsed is None:
             parsed = load_midi(path)
             midi_cache[path] = parsed
-        state = decision_payload(parsed, scenario, args.prompt_window)
-        started = time.perf_counter()
-        response = post_json(
-            url,
-            {"state": companion_state_payload(state)},
-            args.timeout,
+        state = project_qwen_state(
+            parsed,
+            scenario.cutoff,
+            is_ai_playback_active=scenario.ai_playback_active,
+            user_note_on_since_ai_playback_started=(scenario.name == "takeover_overlay"),
         )
+        started = time.perf_counter()
+        response = post_json(url, {"state": companion_state_payload(state)})
         round_trip_latency_ms = (time.perf_counter() - started) * 1000
         if response.get("model") != MODEL_ID:
             raise RuntimeError("Qwen companion service returned an unexpected model identity")
         if response.get("usage", {}).get("output_tokens") != 0:
             raise RuntimeError("Qwen companion service returned non-zero output_tokens")
-        scores = response["semantic_scores"]
-        order_gaps = response["semantic_order_gaps"]
         rows.append(
             {
                 "case_id": scenario.case_id,
                 "source": scenario.source,
                 "state": scenario.name,
-                "semantic_scores": scores,
-                "semantic_order_gaps": order_gaps,
+                "semantic_scores": response["semantic_scores"],
+                "semantic_order_gaps": response["semantic_order_gaps"],
                 "action": str(response["action"]),
                 "server_latency_ms": float(response["server_latency_ms"]),
                 "round_trip_latency_ms": round_trip_latency_ms,
@@ -327,19 +312,20 @@ def main() -> int:
         )
 
     summary = summarize(rows)
-    screening = screening_diagnostics(summary)
+    screening = screening_diagnostics(
+        summary,
+        latency_hard_limit_ms=float(manifest["latency_hard_limit_ms"]),
+    )
     payload = {
-        "methodology_note": (
-            "Qwen companion semantic-v1 benchmark: the fixed companion service owns the four "
-            "binary questions, A/B order balancing, probability aggregation, and deterministic "
-            "action mapping; this runner consumes the service result without reimplementing it."
-        ),
+        "methodology_note": "Fixed Qwen Companion Stage A; service owns semantic questions/A-B aggregation/action mapping and each corpus source is checked against the same observable boundaries.",
         "model": MODEL_ID,
-        "seed": args.seed,
-        "cases_per_state_per_source": args.cases_per_state_per_source,
-        "states": sorted(states),
-        "corpus_index_sha256_raw": hashlib.sha256(raw_index).hexdigest(),
-        "corpus_index_sha256_canonical": canonical_json_sha256(corpus_index),
+        "manifest_version": manifest["version"],
+        "projection_version": manifest["projection_version"],
+        "seed": manifest["seed"],
+        "cases_per_state_per_source": manifest["cases_per_state_per_source"],
+        "states": manifest["states"],
+        "corpus_index_sha256_canonical": manifest["corpus_index_sha256_canonical"],
+        "case_ids_sha256": manifest["case_ids_sha256"],
         "case_ids": [row["case_id"] for row in rows],
         "action_mapping": action_mapping_metadata(),
         "summary": summary,
@@ -347,21 +333,9 @@ def main() -> int:
         "cases": rows,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-        newline="\n",
-    )
-    print(
-        json.dumps(
-            {"summary": summary, "screening": screening},
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
-    if not screening["passed"] and not args.no_gate:
-        return 2
-    return 0
+    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+    print(json.dumps({"summary": summary, "screening": screening}, ensure_ascii=False, indent=2))
+    return 0 if screening["passed"] else 2
 
 
 if __name__ == "__main__":

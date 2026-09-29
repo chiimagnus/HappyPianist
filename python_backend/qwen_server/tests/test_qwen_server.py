@@ -92,7 +92,7 @@ def test_companion_request_is_strict_and_has_no_model_or_questions() -> None:
         CompanionDecisionRequest.model_validate({**_payload(), "questions": {}})
     with pytest.raises(ValidationError):
         CompanionDecisionRequest.model_validate(
-            {"state": {**_state(), "recent_notes": []}}
+            {"state": {**_state(), "unexpected_legacy_field": []}}
         )
 
 

@@ -1,18 +1,18 @@
 version = 1
-current_task_id = "P0-T1"
+current_task_id = "P0-T2"
 
 [[tasks]]
 id = "P0-T1"
 title = "收敛 Qwen 为单一 Companion Decision 服务"
-status = "in_progress"
+status = "completed"
 plan = "plan-p0.md#p0-t1"
-commit = ""
-note = "删除 Swift/Python 双份 semantic runtime owner、generic /v1/classifier、动态 model/device；固定 Qwen3.5-0.8B CUDA 专用 Companion API，并先修 space 与 sparse mapping 自相矛盾。"
+commit = "d274df54d3ee4887ae2df06dca32904f2dcfa174"
+note = "专用 /v1/companion-decision；Python 唯一拥有四语义/A-B 消偏/mapping；固定 Qwen3.5-0.8B CUDA；Python 14/14、Swift targeted 11/11、build:simulator PASS。"
 
 [[tasks]]
 id = "P0-T2"
 title = "对齐产品 state projection 并冻结 Stage A 真源"
-status = "pending"
+status = "in_progress"
 plan = "plan-p0.md#p0-t2"
 commit = ""
 note = "先用共享 golden fixture 对齐 Swift/Python：4s history、2.4s IOI、1.2s density、sustain-held、真实 last-note-on；旧 1s-density corpus/case IDs 作废，重建 corpus/manifest 后才冻结 Stage A。"

@@ -39,7 +39,7 @@
 
 ### 陪伴决策实验
 
-统一 benchmark 位于 `scripts/companion_semantic_benchmark.py`。后续 Qwen 调整必须保持同一 compact state、4 个二元问题、A/B 顺序消偏、阈值、mapping 和固定 120-case Stage A；不能为了通过 Gate 改评测口径。
+统一 benchmark 位于 `scripts/companion_semantic_benchmark.py`，固定真源在 `tests/fixtures/companion_stage_a_manifest.json`。当前 projection 参数是 4s rolling history、2.4s IOI、1.2s density；MAESTRO / POP909 每个 state 各取 10 个不同文件，共 120 cases。runner 只允许改 host/port、dataset path 和 output，不允许临时改 seed/state/case 数或跳过 Gate。decision RTT P95 hard limit 固定 100ms。
 
 ## 故障排查
 

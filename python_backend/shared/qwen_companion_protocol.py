@@ -24,19 +24,7 @@ class CompanionState(BaseModel):
 
 
 def companion_state_payload(state: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "held_notes_count",
-        "sustain_value",
-        "recent_ioi_median_seconds",
-        "recent_note_density_per_second",
-        "seconds_since_last_note_on",
-        "is_ai_playback_active",
-        "user_note_on_since_ai_playback_started",
-    )
-    missing = [key for key in keys if key not in state]
-    if missing:
-        raise ValueError(f"missing Qwen companion state keys: {missing}")
-    return CompanionState.model_validate({key: state[key] for key in keys}).model_dump()
+    return CompanionState.model_validate(state).model_dump()
 
 
 class CompanionDecisionRequest(BaseModel):

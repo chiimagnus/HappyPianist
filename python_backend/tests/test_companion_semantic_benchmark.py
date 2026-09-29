@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import json
 
+import pytest
+from pydantic import ValidationError
+
 from python_backend.scripts.companion_semantic_benchmark import (
+    MANIFEST_PATH,
     canonical_json_sha256,
+    case_ids_sha256,
+    load_manifest,
     screening_diagnostics,
     summarize,
 )
@@ -56,18 +62,10 @@ def test_semantic_scores_align_labels_before_averaging_orders() -> None:
         assert abs(value - 0.4) < 1e-12
 
 
-def test_qwen_state_payload_keeps_only_companion_semantic_fields() -> None:
-    state = {
-        **_qwen_state(),
-        "recent_velocity_trend": -1.5,
-        "seconds_since_last_user_event": 0.2,
-        "active_pitch_center": 60.0,
-        "recent_notes": [{"midi": 60}],
-    }
-
-    payload = companion_state_payload(state)
-
-    assert payload == _qwen_state()
+def test_qwen_state_payload_rejects_unknown_legacy_fields() -> None:
+    assert companion_state_payload(_qwen_state()) == _qwen_state()
+    with pytest.raises(ValidationError):
+        companion_state_payload({**_qwen_state(), "unexpected_legacy_field": True})
 
 
 def test_action_mapping_matches_semantic_v1_priority_and_reassertion_guard() -> None:
@@ -128,7 +126,6 @@ def test_screening_accepts_expected_semantic_boundaries() -> None:
     }
     actions = {
         "active_dense": "listen",
-        "active_sparse": "support",
         "natural_silence": "listen",
         "settled_end": "respond",
         "sustain_pause": "listen",
@@ -137,8 +134,13 @@ def test_screening_accepts_expected_semantic_boundaries() -> None:
     rows = []
     for source in ("maestro", "pop909"):
         for state, semantics in state_semantics.items():
-            for _ in range(10):
-                rows.append(_row(state, source, actions[state], semantics))
+            for index in range(10):
+                action = (
+                    ("support" if index < 5 else "sparse")
+                    if state == "active_sparse"
+                    else actions[state]
+                )
+                rows.append(_row(state, source, action, semantics))
 
     diagnostics = screening_diagnostics(summarize(rows))
 
@@ -166,6 +168,55 @@ def test_screening_rejects_semantic_collapse() -> None:
     assert diagnostics["passed"] is False
     assert any(reason.startswith("action_collapse") for reason in diagnostics["automatic_stop_reasons"])
     assert any("settled_end:finished" in reason for reason in diagnostics["automatic_stop_reasons"])
+
+
+def test_screening_checks_observable_boundaries_per_source() -> None:
+    good = {
+        "active_dense": {"continuing": 0.8, "finished": 0.2, "space": 0.2, "reasserted": 0.2},
+        "active_sparse": {"continuing": 0.8, "finished": 0.2, "space": 0.8, "reasserted": 0.2},
+        "natural_silence": {"continuing": 0.4, "finished": 0.4, "space": 0.2, "reasserted": 0.2},
+        "settled_end": {"continuing": 0.2, "finished": 0.8, "space": 0.2, "reasserted": 0.2},
+        "sustain_pause": {"continuing": 0.8, "finished": 0.2, "space": 0.5, "reasserted": 0.2},
+        "takeover_overlay": {"continuing": 0.8, "finished": 0.2, "space": 0.2, "reasserted": 0.8},
+    }
+    rows = []
+    for source in ("maestro", "pop909"):
+        for state, semantics in good.items():
+            current = dict(semantics)
+            if source == "pop909" and state == "active_sparse":
+                current["space"] = 0.2
+            for index in range(10):
+                action = (
+                    ("support" if index < 5 else "sparse")
+                    if state == "active_sparse"
+                    else {"active_dense": "listen", "natural_silence": "listen", "settled_end": "respond", "sustain_pause": "listen", "takeover_overlay": "yield"}[state]
+                )
+                rows.append(_row(state, source, action, current))
+
+    diagnostics = screening_diagnostics(summarize(rows))
+    assert diagnostics["passed"] is False
+    assert any(
+        reason.startswith("semantic_boundary:pop909:active_sparse:space")
+        for reason in diagnostics["automatic_stop_reasons"]
+    )
+
+
+def test_stage_a_manifest_has_fixed_120_case_identity() -> None:
+    manifest = load_manifest()
+    assert MANIFEST_PATH.exists()
+    assert manifest["version"] == "companion-stage-a-v3-product-event-projection"
+    assert manifest["projection_version"] == "duet-phrase-buffer-v1"
+    assert manifest["projection_parameters"] == {
+        "lookback_seconds": 4.0,
+        "ioi_window_seconds": 2.4,
+        "density_window_seconds": 1.2,
+    }
+    assert manifest["seed"] == 20260920
+    assert manifest["cases_per_state_per_source"] == 10
+    assert len(manifest["states"]) == 6
+    assert len(manifest["case_ids"]) == 120
+    assert case_ids_sha256(manifest["case_ids"]) == manifest["case_ids_sha256"]
+    assert manifest["latency_hard_limit_ms"] == 100.0
 
 
 def test_canonical_json_sha_is_format_independent() -> None:
