@@ -158,14 +158,26 @@ class TransformersQwenRuntime:
             )
             attention_mask[row, :length] = 1
 
+        end_positions = [len(item.token_ids) - 1 for item in compiled]
+        selected_positions = sorted(set(end_positions))
+        selected_tensor = torch.tensor(
+            selected_positions,
+            dtype=torch.long,
+            device="cuda",
+        )
         output = self._model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             use_cache=False,
+            logits_to_keep=selected_tensor,
         ).logits
+        column_by_position = {
+            position: index
+            for index, position in enumerate(selected_positions)
+        }
         return [
-            output[row, len(item.token_ids) - 1]
-            for row, item in enumerate(compiled)
+            output[row, column_by_position[position]]
+            for row, position in enumerate(end_positions)
         ]
 
     def decide(

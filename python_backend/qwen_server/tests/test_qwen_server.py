@@ -5,6 +5,8 @@ import threading
 import time
 from typing import Any
 
+import torch
+
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from pydantic import ValidationError
@@ -234,6 +236,55 @@ def test_companion_failure_does_not_invent_an_action() -> None:
             await client.close()
 
     asyncio.run(scenario())
+
+
+def test_forward_full_projects_only_real_sequence_end_positions() -> None:
+    class CpuTorch:
+        long = torch.long
+
+        @staticmethod
+        def full(*args: Any, **kwargs: Any) -> torch.Tensor:
+            kwargs["device"] = "cpu"
+            return torch.full(*args, **kwargs)
+
+        @staticmethod
+        def zeros(*args: Any, **kwargs: Any) -> torch.Tensor:
+            kwargs["device"] = "cpu"
+            return torch.zeros(*args, **kwargs)
+
+        @staticmethod
+        def tensor(*args: Any, **kwargs: Any) -> torch.Tensor:
+            kwargs["device"] = "cpu"
+            return torch.tensor(*args, **kwargs)
+
+    class FixedModel:
+        def __call__(self, **kwargs: Any) -> Any:
+            assert kwargs["use_cache"] is False
+            positions = kwargs["logits_to_keep"].tolist()
+            assert positions == [1, 2]
+            logits = torch.zeros((3, len(positions), 4))
+            for row in range(3):
+                for column, position in enumerate(positions):
+                    logits[row, column, 0] = (row * 100) + position
+
+            class Output:
+                pass
+
+            output = Output()
+            output.logits = logits
+            return output
+
+    runtime = server.TransformersQwenRuntime()
+    runtime._model = FixedModel()
+    compiled = [
+        server.CompiledQuestion("q0", [1, 2], [0, 1]),
+        server.CompiledQuestion("q1", [1, 2, 3], [0, 1]),
+        server.CompiledQuestion("q2", [1, 2], [0, 1]),
+    ]
+
+    logits = runtime._forward_full(compiled, CpuTorch(), pad_token_id=0)
+
+    assert [float(row[0]) for row in logits] == [1.0, 102.0, 201.0]
 
 
 def test_candidate_boundary_rejects_non_single_token_ab_labels() -> None:
