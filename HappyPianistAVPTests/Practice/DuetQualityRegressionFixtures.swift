@@ -305,21 +305,6 @@ enum DuetQualityRegressionFixtures {
         ]),
         expectedBand: .acceptable
     )
-
-    static let networkWebSocketFakeQualityCorpus = BackendQualityCorpus(
-        provider: .networkBonjourWebSocketAriaV2,
-        seed: 100,
-        promptNotes: [
-            ImprovDialogueNote(note: 64, velocity: 86, time: 0, duration: 0.2),
-        ],
-        parameters: .init(topP: 0.9, maxTokens: 64, strategy: "network-stream", seed: 100),
-        response: .networkFakeEvents([
-            .cc(controller: 64, value: 127, time: 0),
-            .note(note: 67, velocity: 88, time: 0, duration: 0.2),
-            .note(note: 71, velocity: 84, time: 0.24, duration: 0.2),
-        ]),
-        expectedBand: .acceptable
-    )
 }
 
 extension DuetQualityRegressionFixtures.BackendQualityCorpus {

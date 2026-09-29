@@ -84,7 +84,7 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 
 按这个顺序继续，不再同时探索多个模型：
 
-1. **完成当前 P0 架构收敛。** 删除伪 Aria streaming、假 timeout、隐藏 fallback 与旧 playback guard，并收紧 decision identity/single-flight。
+1. **完成当前 P0 架构收敛。** Aria 伪 streaming 双轨已删除；继续删除假 timeout、隐藏 fallback 与旧 playback guard，并收紧 decision identity/single-flight。
 2. **继续固定 Stage A。** 只优化 Qwen 在已冻结 manifest/协议下的剩余失败，不改样本和 Gate 来“过测试”。
 3. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明当前决策协议真的进入产品生成和播放链。
 4. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。

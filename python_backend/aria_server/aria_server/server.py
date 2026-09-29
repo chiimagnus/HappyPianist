@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from aiohttp import WSMsgType, web
+from aiohttp import web
 
 from shared.cc_policy import DefaultCCPolicy, inject_defaults
 from shared.protocol_v2 import (
@@ -22,10 +22,8 @@ from shared.protocol_v2 import (
     ResultResponseV2,
     legalize_events,
 )
-from shared.streaming_protocol_v2 import StreamChunkV2, StreamStartRequestV2, StreamTimeRange
 
 logger = logging.getLogger(__name__)
-STREAM_START_TIMEOUT_SECONDS = 10.0
 
 
 @dataclass(frozen=True)
@@ -36,7 +34,6 @@ class ServerConfig:
     engine: str
     default_cc7: int | None
     default_cc11: int | None
-    stream_window_s: float
 
 
 def _default_checkpoint_path() -> Path:
@@ -63,7 +60,6 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
     parser.add_argument("--engine", choices=("mlx", "cuda"), default="mlx")
     parser.add_argument("--default_cc7", default="100")
     parser.add_argument("--default_cc11", default="100")
-    parser.add_argument("--stream_window", type=float, default=0.5)
     args = parser.parse_args(argv)
 
     return ServerConfig(
@@ -73,7 +69,6 @@ def parse_args(argv: list[str] | None = None) -> ServerConfig:
         engine=args.engine,
         default_cc7=_parse_optional_cc_arg(args.default_cc7),
         default_cc11=_parse_optional_cc_arg(args.default_cc11),
-        stream_window_s=max(0.05, float(args.stream_window)),
     )
 
 
@@ -232,42 +227,7 @@ class AriaPipeline:
 CONFIG_KEY = web.AppKey("config", ServerConfig)
 ARIA_PIPELINE_KEY = web.AppKey("aria_pipeline", AriaPipeline)
 CC_POLICY_KEY = web.AppKey("cc_policy", DefaultCCPolicy)
-STREAM_WINDOW_KEY = web.AppKey("stream_window_s", float)
-STREAM_START_TIMEOUT_KEY = web.AppKey("stream_start_timeout_s", float)
 BONJOUR_BROADCASTER_KEY = web.AppKey("bonjour_broadcaster", object)
-
-
-def _chunk_events(events: list[Any], *, window_s: float) -> list[tuple[float, float, list[Any]]]:
-    if not events:
-        return [(0.0, 0.0, [])]
-
-    def event_end_time(event: Any) -> float:
-        if isinstance(event, ControlChangeEvent):
-            return float(event.time)
-        duration = getattr(event, "duration", None)
-        if duration is None:
-            return float(getattr(event, "time", 0.0))
-        return float(getattr(event, "time", 0.0)) + max(0.0, float(duration))
-
-    max_end = max(event_end_time(event) for event in events)
-    window_s = max(0.05, float(window_s))
-    chunks: list[tuple[float, float, list[Any]]] = []
-
-    start = 0.0
-    while start <= max_end + 1e-9:
-        end = start + window_s
-        slice_events = [
-            event
-            for event in events
-            if start <= float(getattr(event, "time", 0.0)) < end
-        ]
-        chunks.append((start, min(end, max_end), slice_events))
-        start = end
-
-    if chunks and chunks[-1][1] < max_end:
-        chunks.append((chunks[-1][1], max_end, []))
-
-    return chunks
 
 
 async def _generate_reply_events(
@@ -304,9 +264,7 @@ def _generation_error() -> ErrorResponseV2:
 
 
 async def handle_root(_: web.Request) -> web.Response:
-    return web.Response(
-        text="aria_server running. POST /generate or WS /stream (protocol_version=2).\n"
-    )
+    return web.Response(text="aria_server running. POST /generate (protocol_version=2).\n")
 
 
 async def handle_generate(request: web.Request) -> web.Response:
@@ -336,76 +294,12 @@ async def handle_generate(request: web.Request) -> web.Response:
     return web.json_response(response.model_dump(), status=200)
 
 
-async def handle_stream(request: web.Request) -> web.StreamResponse:
-    ws = web.WebSocketResponse(heartbeat=30.0)
-    await ws.prepare(request)
-
-    try:
-        async with asyncio.timeout(request.app[STREAM_START_TIMEOUT_KEY]):
-            message = await ws.receive()
-    except TimeoutError:
-        await ws.send_json(ErrorResponseV2(message="start_timeout").model_dump())
-        await ws.close(message=b"start timeout")
-        return ws
-
-    if message.type != WSMsgType.TEXT:
-        await ws.send_json(ErrorResponseV2(message="expected_text_start").model_dump())
-        await ws.close(message=b"expected text start message")
-        return ws
-
-    try:
-        start_payload = StreamStartRequestV2.model_validate_json(message.data)
-    except Exception as exc:
-        await ws.send_json(
-            ErrorResponseV2(message=f"invalid_start: {exc}").model_dump()
-        )
-        await ws.close()
-        return ws
-
-    try:
-        events, latency_ms = await _generate_reply_events(
-            request.app,
-            start_payload.request,
-        )
-    except Exception:
-        logger.exception("Aria WebSocket generation failed")
-        await ws.send_json(_generation_error().model_dump())
-        await ws.close(message=b"generation failed")
-        return ws
-
-    window_s: float = request.app[STREAM_WINDOW_KEY]
-    chunks = _chunk_events(events, window_s=window_s)
-
-    for sequence, (start_s, end_s, slice_events) in enumerate(chunks):
-        chunk = StreamChunkV2(
-            seq=sequence,
-            is_final=False,
-            time_range=StreamTimeRange(start=start_s, end=end_s),
-            events=slice_events,
-            latency_ms=latency_ms if sequence == 0 else None,
-        ).legalized()
-        await ws.send_json(chunk.model_dump())
-
-    final_time = chunks[-1][1]
-    final_chunk = StreamChunkV2(
-        seq=len(chunks),
-        is_final=True,
-        time_range=StreamTimeRange(start=final_time, end=final_time),
-        events=[],
-        latency_ms=None,
-    )
-    await ws.send_json(final_chunk.model_dump())
-    await ws.close()
-    return ws
-
-
 async def _bonjour_start(app: web.Application) -> None:
     from shared.bonjour import BonjourServiceBroadcaster
 
     config: ServerConfig = app[CONFIG_KEY]
     txt = {
         "path": "/generate",
-        "ws_path": "/stream",
         "protocol_version": "2",
         "engine": "aria",
         "engine_impl": f"aria-{config.engine}",
@@ -427,11 +321,7 @@ async def _bonjour_stop(app: web.Application) -> None:
         await broadcaster.stop()
 
 
-def create_app(
-    config: ServerConfig,
-    *,
-    stream_start_timeout_s: float = STREAM_START_TIMEOUT_SECONDS,
-) -> web.Application:
+def create_app(config: ServerConfig) -> web.Application:
     app = web.Application()
     app[CONFIG_KEY] = config
     app[ARIA_PIPELINE_KEY] = AriaPipeline(checkpoint=config.checkpoint, engine=config.engine)
@@ -439,12 +329,9 @@ def create_app(
         default_cc7=config.default_cc7,
         default_cc11=config.default_cc11,
     )
-    app[STREAM_WINDOW_KEY] = config.stream_window_s
-    app[STREAM_START_TIMEOUT_KEY] = stream_start_timeout_s
 
     app.router.add_get("/", handle_root)
     app.router.add_post("/generate", handle_generate)
-    app.router.add_get("/stream", handle_stream)
 
     app.on_startup.append(_bonjour_start)
     app.on_cleanup.append(_bonjour_stop)
@@ -457,7 +344,6 @@ def main(argv: list[str] | None = None) -> None:
     print(f"[aria_server] engine={config.engine}", flush=True)
     print(f"[aria_server] listening=http://{config.host}:{config.port}", flush=True)
     print(f"[aria_server] allowed_cc={sorted(ALLOWED_CC_CONTROLLERS)}", flush=True)
-    print(f"[aria_server] stream_window_s={config.stream_window_s}", flush=True)
 
     app = create_app(config)
     web.run_app(app, host=config.host, port=config.port, print=None)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import types
 from pathlib import Path
@@ -9,7 +8,6 @@ from tempfile import TemporaryDirectory
 from typing import Any
 from unittest.mock import patch
 
-from aiohttp import WSMsgType
 from aiohttp.test_utils import TestClient, TestServer
 
 from aria_server import server
@@ -35,7 +33,6 @@ def _config() -> server.ServerConfig:
         engine="mlx",
         default_cc7=None,
         default_cc11=None,
-        stream_window_s=0.5,
     )
 
 
@@ -61,8 +58,8 @@ def _request_payload() -> dict[str, Any]:
     }
 
 
-def _test_app(*, timeout: float = 0.05):
-    app = server.create_app(_config(), stream_start_timeout_s=timeout)
+def _test_app():
+    app = server.create_app(_config())
     app.on_startup.clear()
     app.on_cleanup.clear()
     app[server.ARIA_PIPELINE_KEY] = FailingPipeline()
@@ -84,60 +81,6 @@ def test_generate_failure_returns_typed_error_without_echoing_prompt() -> None:
                 "message": "generation_failed",
             }
             assert "events" not in payload
-        finally:
-            await client.close()
-
-    asyncio.run(scenario())
-
-
-def test_stream_closes_when_start_message_never_arrives() -> None:
-    async def scenario() -> None:
-        client = TestClient(TestServer(_test_app(timeout=0.01)))
-        await client.start_server()
-        try:
-            websocket = await client.ws_connect("/stream")
-            message = await websocket.receive(timeout=1)
-
-            assert message.type == WSMsgType.TEXT
-            assert json.loads(message.data) == {
-                "type": "error",
-                "protocol_version": 2,
-                "message": "start_timeout",
-            }
-
-            close_message = await websocket.receive(timeout=1)
-            assert close_message.type in {
-                WSMsgType.CLOSE,
-                WSMsgType.CLOSED,
-                WSMsgType.CLOSING,
-            }
-        finally:
-            await client.close()
-
-    asyncio.run(scenario())
-
-
-def test_stream_generation_failure_sends_error_instead_of_chunk() -> None:
-    async def scenario() -> None:
-        client = TestClient(TestServer(_test_app()))
-        await client.start_server()
-        try:
-            websocket = await client.ws_connect("/stream")
-            await websocket.send_json(
-                {
-                    "type": "start",
-                    "protocol_version": 2,
-                    "request": _request_payload(),
-                }
-            )
-            message = await websocket.receive(timeout=1)
-
-            assert message.type == WSMsgType.TEXT
-            assert json.loads(message.data) == {
-                "type": "error",
-                "protocol_version": 2,
-                "message": "generation_failed",
-            }
         finally:
             await client.close()
 

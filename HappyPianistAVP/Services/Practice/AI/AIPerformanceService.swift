@@ -731,7 +731,7 @@ final class AIPerformanceService {
         switch kind {
         case .localRule:
             3
-        case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet:
+        case .networkBonjourHTTPAriaV2, .localCoreMLDuet:
             1
         }
     }
@@ -921,17 +921,6 @@ final class AIPerformanceService {
             case .emptyReply:
                 return .invalidResponse
             }
-        }
-        if let error = error as? AriaNetworkBonjourWebSocketImprovBackendError {
-            switch error {
-            case .backendNotResolved, .discoveryDenied, .discoveryFailed:
-                return .unavailable
-            case .missingWebSocketPath, .invalidWebSocketURL, .emptyReply:
-                return .invalidResponse
-            }
-        }
-        if let error = error as? ImprovStreamingClientError {
-            return error == .timeout ? .timeout : .invalidResponse
         }
         if error is ImprovBackendClientError {
             return .invalidResponse

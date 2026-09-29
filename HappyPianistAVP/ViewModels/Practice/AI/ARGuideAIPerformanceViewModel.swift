@@ -9,7 +9,6 @@ import Practice
 final class ARGuideAIPerformanceViewModel {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     let ariaDiscoveryService: BonjourBackendDiscoveryService
-    let ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService
     let qwenDecisionDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let companionDecisionBackendSelection = CompanionDecisionBackendSelection()
@@ -31,7 +30,6 @@ final class ARGuideAIPerformanceViewModel {
         discoveryOrchestrator: ImprovBackendDiscoveryOrchestrator(
             servicesByKind: [
                 .networkBonjourHTTPAriaV2: ariaDiscoveryService,
-                .networkBonjourWebSocketAriaV2: ariaWebSocketDiscoveryService,
             ]
         ),
         backendRegistry: makeBackendRegistry(),
@@ -57,7 +55,6 @@ final class ARGuideAIPerformanceViewModel {
 
     init(
         ariaDiscoveryService: BonjourBackendDiscoveryService? = nil,
-        ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService? = nil,
         qwenDecisionDiscoveryService: BonjourBackendDiscoveryService? = nil,
         aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
@@ -67,14 +64,6 @@ final class ARGuideAIPerformanceViewModel {
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
                 "path": "/generate",
-                "protocol_version": "2",
-                "engine": "aria",
-            ]
-        )
-        self.ariaWebSocketDiscoveryService = ariaWebSocketDiscoveryService ?? BonjourBackendDiscoveryService(
-            serviceType: "_lpduet._tcp",
-            requiredTXTRecord: [
-                "ws_path": "/stream",
                 "protocol_version": "2",
                 "engine": "aria",
             ]
@@ -131,12 +120,6 @@ final class ARGuideAIPerformanceViewModel {
                 backendName: "Aria v2",
                 state: ariaDiscoveryService.state,
                 notFoundHint: "请先在电脑端启动 Aria v2 Python 服务。"
-            )
-        case .networkBonjourWebSocketAriaV2:
-            return backendDiscoveryStatusText(
-                backendName: "Aria v2 Streaming",
-                state: ariaWebSocketDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 Aria v2 Python 服务（需支持 ws_path=/stream）。"
             )
         case .localCoreMLDuet:
             startLocalCoreMLDuetProbeIfNeeded()
@@ -265,7 +248,6 @@ final class ARGuideAIPerformanceViewModel {
         ImprovBackendRegistry(
             backends: [
                 AriaNetworkBonjourHTTPImprovBackend(discoveryService: ariaDiscoveryService),
-                AriaNetworkBonjourWebSocketImprovBackend(discoveryService: ariaWebSocketDiscoveryService),
                 LocalCoreMLDuetImprovBackend(modelLoader: localCoreMLModelLoader),
                 LocalRuleImprovBackend(),
             ]

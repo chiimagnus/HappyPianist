@@ -1,6 +1,6 @@
 # Python 后端工作区
 
-本目录是可选的本地服务/工具工作区，不是 AVP App 的运行依赖。音乐生成可使用 Aria v2（Bonjour + HTTP/WS）；陪伴决策使用 Qwen3.5-0.8B zero-token typed classifier。AVP 的音乐生成与陪伴决策后端分别按用户选择运行，不自动回退。服务工程在 `aria_server/` 与 `qwen_server/`，入口和自检在 `scripts/`，共享协议在 `shared/`。
+本目录是可选的本地服务/工具工作区，不是 AVP App 的运行依赖。音乐生成当前只使用 Aria v2（Bonjour + HTTP `/generate`）；陪伴决策使用固定 Qwen3.5-0.8B Companion service。AVP 的音乐生成与陪伴决策后端分别按用户选择运行，不自动回退。服务工程在 `aria_server/` 与 `qwen_server/`，入口和自检在 `scripts/`，共享协议在 `shared/`。
 
 ## 快速开始：运行 Aria v2 服务
 
@@ -16,10 +16,9 @@
 - NVIDIA CUDA：`cd python_backend && uv run --project aria_server python scripts/aria_server.py --engine cuda --host 0.0.0.0 --port 8766`
 
 3) 本机自检（不依赖 AVP）
-- HTTP：`cd python_backend && uv run --project aria_server python scripts/aria_server_smoketest.py --host 127.0.0.1 --port 8766`
-- WebSocket：`cd python_backend && uv run --project aria_server python scripts/ws_client_smoketest.py ws://127.0.0.1:8766/stream`
+- `cd python_backend && uv run --project aria_server python scripts/aria_server_smoketest.py --host 127.0.0.1 --port 8766`
 
-4) 在 AVP 练习设置选择 `网络本地连接（Aria v2）`（HTTP `/generate`）或 streaming（WS `/stream`），并允许 Local Network 权限以发现 `_lpduet._tcp`。
+4) 在 AVP 练习设置选择 `网络本地连接（Aria v2）`，并允许 Local Network 权限以发现 `_lpduet._tcp`。当前产品网络生成只有 HTTP `/generate`；旧 WebSocket 分块路径已删除，因为它在完整生成后才分块，不降低 first-playable latency。
 
 ## 快速开始：运行 Qwen3.5-0.8B 陪伴决策服务
 
