@@ -28,12 +28,9 @@ from scripts.companion_e2e_acceptance import (
 from shared.companion_semantics import (
     SEMANTIC_KEYS,
     SEMANTIC_THRESHOLD,
-    action_from_semantics,
     action_mapping_metadata,
-    classifier_payload,
-    semantic_order_gaps,
-    semantic_scores,
 )
+from shared.qwen_companion_protocol import MODEL_ID, companion_state_payload
 
 
 DEFAULT_STATES = (
@@ -68,7 +65,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8767)
-    parser.add_argument("--model", required=True)
     parser.add_argument("--timeout", type=float, default=2.0)
     parser.add_argument("--seed", type=int, default=20260920)
     parser.add_argument("--cases-per-state-per-source", type=int, default=10)
@@ -290,7 +286,7 @@ def main() -> int:
         seed=args.seed,
     )
 
-    url = f"http://{args.host}:{args.port}/v1/classifier"
+    url = f"http://{args.host}:{args.port}/v1/companion-decision"
     midi_cache: dict[Path, Any] = {}
     rows: list[dict[str, Any]] = []
     for scenario in scenarios:
@@ -304,12 +300,19 @@ def main() -> int:
             parsed = load_midi(path)
             midi_cache[path] = parsed
         state = decision_payload(parsed, scenario, args.prompt_window)
-        request = classifier_payload(model=args.model, state=state)
         started = time.perf_counter()
-        response = post_json(url, request, args.timeout)
+        response = post_json(
+            url,
+            {"state": companion_state_payload(state)},
+            args.timeout,
+        )
         round_trip_latency_ms = (time.perf_counter() - started) * 1000
-        scores = semantic_scores(response)
-        order_gaps = semantic_order_gaps(response)
+        if response.get("model") != MODEL_ID:
+            raise RuntimeError("Qwen companion service returned an unexpected model identity")
+        if response.get("usage", {}).get("output_tokens") != 0:
+            raise RuntimeError("Qwen companion service returned non-zero output_tokens")
+        scores = response["semantic_scores"]
+        order_gaps = response["semantic_order_gaps"]
         rows.append(
             {
                 "case_id": scenario.case_id,
@@ -317,8 +320,8 @@ def main() -> int:
                 "state": scenario.name,
                 "semantic_scores": scores,
                 "semantic_order_gaps": order_gaps,
-                "action": action_from_semantics(state, scores),
-                "server_latency_ms": float(response["latency_ms"]),
+                "action": str(response["action"]),
+                "server_latency_ms": float(response["server_latency_ms"]),
                 "round_trip_latency_ms": round_trip_latency_ms,
             }
         )
@@ -327,11 +330,11 @@ def main() -> int:
     screening = screening_diagnostics(summary)
     payload = {
         "methodology_note": (
-            "Model-agnostic semantic-v1 benchmark: the backend answers the same four binary "
-            "questions in both option orders; true probabilities are aligned and averaged before "
-            "the same deterministic action mapping is applied."
+            "Qwen companion semantic-v1 benchmark: the fixed companion service owns the four "
+            "binary questions, A/B order balancing, probability aggregation, and deterministic "
+            "action mapping; this runner consumes the service result without reimplementing it."
         ),
-        "model": args.model,
+        "model": MODEL_ID,
         "seed": args.seed,
         "cases_per_state_per_source": args.cases_per_state_per_source,
         "states": sorted(states),

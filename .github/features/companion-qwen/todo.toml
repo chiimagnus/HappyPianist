@@ -1,10 +1,10 @@
 version = 1
-current_task_id = ""
+current_task_id = "P0-T1"
 
 [[tasks]]
 id = "P0-T1"
 title = "收敛 Qwen 为单一 Companion Decision 服务"
-status = "pending"
+status = "in_progress"
 plan = "plan-p0.md#p0-t1"
 commit = ""
 note = "删除 Swift/Python 双份 semantic runtime owner、generic /v1/classifier、动态 model/device；固定 Qwen3.5-0.8B CUDA 专用 Companion API，并先修 space 与 sparse mapping 自相矛盾。"

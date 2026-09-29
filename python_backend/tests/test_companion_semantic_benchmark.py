@@ -10,79 +10,82 @@ from python_backend.scripts.companion_semantic_benchmark import (
 from python_backend.shared.companion_semantics import (
     SEMANTIC_KEYS,
     action_from_semantics,
-    classifier_payload,
-    order_balanced_questions,
-    semantic_order_gaps,
-    semantic_scores,
+    aggregate_semantics,
+    build_semantic_prompt,
+    semantic_question_ids,
 )
+from python_backend.shared.qwen_companion_protocol import companion_state_payload
 
 
-def test_binary_questions_are_order_balanced_with_identical_semantics() -> None:
-    questions = order_balanced_questions()
-    assert set(questions) == {
+def _qwen_state() -> dict:
+    return {
+        "held_notes_count": 1,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": 0.42,
+        "recent_note_density_per_second": 1.0,
+        "seconds_since_last_note_on": 0.1,
+        "is_ai_playback_active": False,
+        "user_note_on_since_ai_playback_started": False,
+    }
+
+
+def test_binary_questions_are_fixed_ab_and_order_balanced() -> None:
+    assert set(semantic_question_ids()) == {
         f"{semantic}__{variant}"
         for semantic in SEMANTIC_KEYS
         for variant in ("true_a", "true_b")
     }
     for semantic in SEMANTIC_KEYS:
-        true_a = questions[f"{semantic}__true_a"]
-        true_b = questions[f"{semantic}__true_b"]
-        assert list(true_a["criteria"]) == ["A", "B"]
-        assert list(true_b["criteria"]) == ["A", "B"]
-        assert true_a["criteria"]["A"] == true_b["criteria"]["B"]
-        assert true_a["criteria"]["B"] == true_b["criteria"]["A"]
-        assert true_a["instructions"] == true_b["instructions"]
+        true_a = build_semantic_prompt(_qwen_state(), f"{semantic}__true_a")
+        true_b = build_semantic_prompt(_qwen_state(), f"{semantic}__true_b")
+        assert true_a.labels == ["A", "B"]
+        assert true_b.labels == ["A", "B"]
+        assert true_a.messages[1]["content"] != true_b.messages[1]["content"]
 
 
 def test_semantic_scores_align_labels_before_averaging_orders() -> None:
-    answers = {}
+    probabilities = {}
     for semantic in SEMANTIC_KEYS:
-        answers[f"{semantic}__true_a"] = {
-            "type": "choice",
-            "choice": "A",
-            "probabilities": {"A": 0.8, "B": 0.2},
-        }
-        answers[f"{semantic}__true_b"] = {
-            "type": "choice",
-            "choice": "A",
-            "probabilities": {"A": 0.6, "B": 0.4},
-        }
-    response = {
-        "answers": answers,
-        "usage": {"input_tokens": 10, "output_tokens": 0},
-    }
+        probabilities[f"{semantic}__true_a"] = {"A": 0.8, "B": 0.2}
+        probabilities[f"{semantic}__true_b"] = {"A": 0.6, "B": 0.4}
 
-    scores = semantic_scores(response)
+    scores, gaps = aggregate_semantics(probabilities)
     for value in scores.values():
         assert abs(value - 0.6) < 1e-12
-    gaps = semantic_order_gaps(response)
     for value in gaps.values():
         assert abs(value - 0.4) < 1e-12
 
 
-def test_classifier_payload_removes_recent_notes_and_keeps_same_state_for_all_backends() -> None:
-    payload = classifier_payload(
-        model="backend-model",
-        state={
-            "held_notes_count": 1,
-            "sustain_value": 0,
-            "recent_notes": [{"midi": 60}],
-        },
-    )
+def test_qwen_state_payload_keeps_only_companion_semantic_fields() -> None:
+    state = {
+        **_qwen_state(),
+        "recent_velocity_trend": -1.5,
+        "seconds_since_last_user_event": 0.2,
+        "active_pitch_center": 60.0,
+        "recent_notes": [{"midi": 60}],
+    }
 
-    assert payload["model"] == "backend-model"
-    assert payload["state"] == {"held_notes_count": 1, "sustain_value": 0}
-    assert len(payload["questions"]) == 8
+    payload = companion_state_payload(state)
+
+    assert payload == _qwen_state()
 
 
-def test_action_mapping_matches_original_semantic_v1_priority() -> None:
-    base = {"is_ai_playback_active": False, "recent_note_density_per_second": 1.0}
+def test_action_mapping_matches_semantic_v1_priority_and_reassertion_guard() -> None:
+    base = _qwen_state()
     neutral = {semantic: 0.5 for semantic in SEMANTIC_KEYS}
 
     assert action_from_semantics(
-        {**base, "is_ai_playback_active": True},
+        {
+            **base,
+            "is_ai_playback_active": True,
+            "user_note_on_since_ai_playback_started": True,
+        },
         {**neutral, "reasserted": 0.55},
     ) == "yield"
+    assert action_from_semantics(
+        {**base, "is_ai_playback_active": True},
+        {**neutral, "reasserted": 0.9},
+    ) != "yield"
     assert action_from_semantics(
         base,
         {**neutral, "continuing": 0.4, "finished": 0.55},

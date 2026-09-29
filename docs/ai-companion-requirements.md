@@ -43,7 +43,7 @@ HappyPianist 的目标不是“生成一段音乐”，而是让 AI 在用户演
 
 后续实验先固定使用 `Qwen/Qwen3.5-0.8B`，不再维护并行实验后端。
 
-Qwen 在电脑端本地运行，通过 Bonjour + `POST /v1/classifier` 被 visionOS 调用。服务使用 zero-token candidate logits，不生成解释文本。
+Qwen 在 Windows + NVIDIA CUDA 电脑端本地运行，通过 Bonjour + `POST /v1/companion-decision` 被 visionOS 调用。服务固定加载 `Qwen/Qwen3.5-0.8B`，使用 zero-token A/B candidate logits，不生成解释文本。
 
 产品不直接让 Qwen 做五分类，而是先判断四个二元语义：
 
@@ -54,9 +54,9 @@ Qwen 在电脑端本地运行，通过 Bonjour + `POST /v1/classifier` 被 visio
 
 每个语义都做两次相同判断，只交换 `A/B` 中 true/false 的位置；对齐 true probability 后取平均，再通过固定 `semantic-v1` mapping 得到最终 `CompanionAction`。这样可以降低候选位置偏置。
 
-输入只包含 compact structured state：按住音符数、踏板、IOI、力度趋势、近期音符密度、距最近用户事件/按键时间、音高中心和 AI 是否正在播放。逐音符 `recent_notes` 已删除，不应重新引入。
+Qwen 网络请求只包含决策真正使用的 compact state：按住音符数、踏板、IOI、近期音符密度、距最近一次 note-on 的时间、AI 是否正在播放，以及 AI 开始播放后用户是否出现新的 note-on。RuleBased 或后续生成 policy 专用字段不发送给 Qwen。逐音符 `recent_notes` 不应进入 Qwen 网络协议。
 
-> **维护不变量：** Swift 产品后端与 Python benchmark 必须使用相同的四个语义、A/B 交换方式、阈值和 action mapping。修改其中一侧时，另一侧和对应测试必须在同一改动中更新。精确 wording、阈值和 mapping 以源码为真源，不在本文复制。
+> **维护不变量：** 四个语义、A/B 交换、阈值和 `semantic-v1` mapping 只有 Python Qwen Companion service 一个 runtime owner。Swift 产品、benchmark 和 E2E 都消费该服务返回的 action/scores，不再各自复制 semantic contract。
 
 ## 统一验证
 

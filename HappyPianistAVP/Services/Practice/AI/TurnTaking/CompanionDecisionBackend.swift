@@ -24,8 +24,8 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
     let recentNoteDensityPerSecond: Double
     let lastUserEventTimestampSeconds: TimeInterval?
     let lastNoteOnTimestampSeconds: TimeInterval?
-    let activePitchCenter: Double?
     let isAIPlaybackActive: Bool
+    let userNoteOnSinceAIPlaybackStarted: Bool
 
     init(
         nowTimestampSeconds: TimeInterval,
@@ -36,8 +36,8 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
         recentNoteDensityPerSecond: Double,
         lastUserEventTimestampSeconds: TimeInterval?,
         lastNoteOnTimestampSeconds: TimeInterval?,
-        activePitchCenter: Double?,
-        isAIPlaybackActive: Bool
+        isAIPlaybackActive: Bool,
+        userNoteOnSinceAIPlaybackStarted: Bool
     ) {
         self.nowTimestampSeconds = nowTimestampSeconds
         self.heldNotesCount = heldNotesCount
@@ -47,8 +47,8 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
         self.recentNoteDensityPerSecond = recentNoteDensityPerSecond
         self.lastUserEventTimestampSeconds = lastUserEventTimestampSeconds
         self.lastNoteOnTimestampSeconds = lastNoteOnTimestampSeconds
-        self.activePitchCenter = activePitchCenter
         self.isAIPlaybackActive = isAIPlaybackActive
+        self.userNoteOnSinceAIPlaybackStarted = userNoteOnSinceAIPlaybackStarted
     }
 }
 

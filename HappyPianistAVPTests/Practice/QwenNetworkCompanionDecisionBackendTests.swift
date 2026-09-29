@@ -15,39 +15,31 @@ private final class StubQwenDiscoveryService: BonjourBackendDiscoveryServiceProt
     func stop() {}
 }
 
-private actor RecordingQwenClassifierClient: QwenClassifierClientProtocol {
+private actor RecordingQwenCompanionClient: QwenCompanionDecisionClientProtocol {
     struct Call: Sendable {
         let host: String
         let port: Int
-        let model: String
-        let stateData: Data
-        let questions: [String: QwenQuestion]
+        let state: QwenCompanionState
         let timeoutSeconds: TimeInterval
     }
 
-    private let response: QwenClassifierResponse
+    private let response: QwenCompanionDecisionResponse
     private var call: Call?
 
-    init(response: QwenClassifierResponse) {
+    init(response: QwenCompanionDecisionResponse) {
         self.response = response
     }
 
-    func classify<State: Encodable & Sendable>(
+    func decide(
         host: String,
         port: Int,
-        model: String,
-        state: State,
-        questions: [String: QwenQuestion],
+        state: QwenCompanionState,
         timeoutSeconds: TimeInterval
-    ) async throws -> QwenClassifierResponse {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
+    ) async throws -> QwenCompanionDecisionResponse {
         call = Call(
             host: host,
             port: port,
-            model: model,
-            stateData: try encoder.encode(state),
-            questions: questions,
+            state: state,
             timeoutSeconds: timeoutSeconds
         )
         return response
@@ -57,200 +49,119 @@ private actor RecordingQwenClassifierClient: QwenClassifierClientProtocol {
 }
 
 @Test @MainActor
-func qwenCompanionBackendUsesUnifiedSemanticProtocolAndMapsRespond() async throws {
-    let model = "Qwen/Qwen3.5-0.8B"
+func qwenCompanionBackendSendsOnlyQwenStateAndUsesServiceAction() async throws {
     let discovery = StubQwenDiscoveryService(
         state: .resolved(
             host: "windows.local",
             port: 8767,
-            txtRecord: [
-                "engine": "qwen-classifier",
-                "engine_impl": model,
-            ]
+            txtRecord: ["engine_impl": QwenCompanionDecisionClient.expectedModel]
         )
     )
-    let client = RecordingQwenClassifierClient(
-        response: qwenSemanticResponse(
-            model: model,
-            scores: [
-                "continuing": 0.30,
-                "finished": 0.80,
-                "space": 0.20,
-                "reasserted": 0.20,
-            ]
-        )
-    )
+    let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .respond))
     let backend = QwenNetworkCompanionDecisionBackend(
         discoveryService: discovery,
         client: client,
         requestTimeoutSeconds: 1.5
     )
 
-    let decision = try await backend.decide(qwenTestInput(density: 0, aiPlaybackActive: false))
+    let decision = try await backend.decide(
+        qwenTestInput(density: 0, aiPlaybackActive: false, postStartNoteOn: false)
+    )
 
     #expect(decision == CompanionDecision(action: .respond))
     let call = try #require(await client.recordedCall())
     #expect(call.host == "windows.local")
     #expect(call.port == 8767)
-    #expect(call.model == model)
     #expect(call.timeoutSeconds == 1.5)
-    #expect(call.questions.count == 8)
-
-    let state = try #require(JSONSerialization.jsonObject(with: call.stateData) as? [String: Any])
-    #expect(state["held_notes_count"] as? Int == 0)
-    #expect(state["sustain_value"] as? Int == 0)
-    #expect(state["recent_note_density_per_second"] as? Double == 0)
-    #expect(state["is_ai_playback_active"] as? Bool == false)
-    #expect(state["recent_notes"] == nil)
-
-    let trueA = try #require(call.questions["finished__true_a"])
-    let trueB = try #require(call.questions["finished__true_b"])
-    #expect(trueA.criteria["A"]?.contains("held_notes_count == 0") == true)
-    #expect(trueA.criteria["B"]?.contains("held_notes_count > 0") == true)
-    #expect(trueA.criteria["A"] == trueB.criteria["B"])
-    #expect(trueA.criteria["B"] == trueB.criteria["A"])
+    #expect(call.state.heldNotesCount == 0)
+    #expect(call.state.sustainValue == 0)
+    #expect(call.state.recentNoteDensityPerSecond == 0)
+    #expect(call.state.secondsSinceLastNoteOn == 1.5)
+    #expect(call.state.isAIPlaybackActive == false)
+    #expect(call.state.userNoteOnSinceAIPlaybackStarted == false)
 }
 
 @Test @MainActor
-func qwenCompanionBackendAppliesSemanticV1ActionPriority() async throws {
-    let model = "Qwen/Qwen3.5-0.8B"
+func qwenCompanionBackendMapsAllTypedServiceActions() async throws {
     let discovery = StubQwenDiscoveryService(
-        state: .resolved(host: "windows.local", port: 8767, txtRecord: ["engine_impl": model])
-    )
-
-    let yieldBackend = QwenNetworkCompanionDecisionBackend(
-        discoveryService: discovery,
-        client: RecordingQwenClassifierClient(
-            response: qwenSemanticResponse(
-                model: model,
-                scores: ["continuing": 0.9, "finished": 0.1, "space": 0.1, "reasserted": 0.8]
-            )
+        state: .resolved(
+            host: "windows.local",
+            port: 8767,
+            txtRecord: ["engine_impl": QwenCompanionDecisionClient.expectedModel]
         )
     )
-    #expect(
-        try await yieldBackend.decide(qwenTestInput(density: 4, aiPlaybackActive: true))
-            == CompanionDecision(action: .yield)
-    )
 
-    let listenBackend = QwenNetworkCompanionDecisionBackend(
-        discoveryService: discovery,
-        client: RecordingQwenClassifierClient(
-            response: qwenSemanticResponse(
-                model: model,
-                scores: ["continuing": 0.9, "finished": 0.1, "space": 0.4, "reasserted": 0.1]
-            )
+    for action in QwenCompanionAction.allTestCases {
+        let backend = QwenNetworkCompanionDecisionBackend(
+            discoveryService: discovery,
+            client: RecordingQwenCompanionClient(response: qwenDecisionResponse(action: action))
         )
-    )
-    #expect(
-        try await listenBackend.decide(qwenTestInput(density: 4, aiPlaybackActive: false))
-            == CompanionDecision(action: .listen)
-    )
-
-    let supportBackend = QwenNetworkCompanionDecisionBackend(
-        discoveryService: discovery,
-        client: RecordingQwenClassifierClient(
-            response: qwenSemanticResponse(
-                model: model,
-                scores: ["continuing": 0.9, "finished": 0.1, "space": 0.9, "reasserted": 0.1]
-            )
+        let decision = try await backend.decide(
+            qwenTestInput(density: 3, aiPlaybackActive: true, postStartNoteOn: true)
         )
-    )
-    #expect(
-        try await supportBackend.decide(qwenTestInput(density: 1, aiPlaybackActive: false))
-            == CompanionDecision(action: .support)
-    )
-
-    let sparseBackend = QwenNetworkCompanionDecisionBackend(
-        discoveryService: discovery,
-        client: RecordingQwenClassifierClient(
-            response: qwenSemanticResponse(
-                model: model,
-                scores: ["continuing": 0.9, "finished": 0.1, "space": 0.9, "reasserted": 0.1]
-            )
-        )
-    )
-    #expect(
-        try await sparseBackend.decide(qwenTestInput(density: 2, aiPlaybackActive: false))
-            == CompanionDecision(action: .sparse)
-    )
-}
-
-@Test @MainActor
-func qwenCompanionBackendRejectsIncompleteSemanticResponseWithoutFallback() async throws {
-    let model = "Qwen/Qwen3.5-0.8B"
-    let discovery = StubQwenDiscoveryService(
-        state: .resolved(host: "windows.local", port: 8767, txtRecord: ["engine_impl": model])
-    )
-    var response = qwenSemanticResponse(
-        model: model,
-        scores: ["continuing": 0.8, "finished": 0.2, "space": 0.2, "reasserted": 0.2]
-    )
-    response = QwenClassifierResponse(
-        model: response.model,
-        answers: response.answers.filter { $0.key != "finished__true_b" },
-        usage: response.usage,
-        latencyMS: response.latencyMS
-    )
-    let backend = QwenNetworkCompanionDecisionBackend(
-        discoveryService: discovery,
-        client: RecordingQwenClassifierClient(response: response)
-    )
-
-    await #expect(throws: QwenNetworkCompanionDecisionBackendError.missingSemanticAnswer("finished__true_b")) {
-        _ = try await backend.decide(qwenTestInput(density: 4, aiPlaybackActive: false))
+        #expect(decision.action.rawValue == action.rawValue)
     }
+}
+
+@Test @MainActor
+func qwenCompanionBackendRejectsUnexpectedBonjourModelWithoutCallingClient() async throws {
+    let discovery = StubQwenDiscoveryService(
+        state: .resolved(
+            host: "windows.local",
+            port: 8767,
+            txtRecord: ["engine_impl": "other-model"]
+        )
+    )
+    let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .listen))
+    let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
+
+    await #expect(throws: QwenNetworkCompanionDecisionBackendError.unexpectedModelIdentity("other-model")) {
+        _ = try await backend.decide(
+            qwenTestInput(density: 4, aiPlaybackActive: false, postStartNoteOn: false)
+        )
+    }
+    #expect(await client.recordedCall() == nil)
 }
 
 @Test @MainActor
 func qwenCompanionBackendReportsDiscoveryDenialWithoutRuleFallback() async throws {
     let discovery = StubQwenDiscoveryService(state: .denied)
-    let client = RecordingQwenClassifierClient(
-        response: qwenSemanticResponse(
-            model: "Qwen/Qwen3.5-0.8B",
-            scores: ["continuing": 0.8, "finished": 0.2, "space": 0.2, "reasserted": 0.2]
-        )
-    )
+    let client = RecordingQwenCompanionClient(response: qwenDecisionResponse(action: .listen))
     let backend = QwenNetworkCompanionDecisionBackend(discoveryService: discovery, client: client)
 
     await #expect(throws: QwenNetworkCompanionDecisionBackendError.discoveryDenied) {
-        _ = try await backend.decide(qwenTestInput(density: 4, aiPlaybackActive: false))
+        _ = try await backend.decide(
+            qwenTestInput(density: 4, aiPlaybackActive: false, postStartNoteOn: false)
+        )
     }
     #expect(await client.recordedCall() == nil)
 }
 
-private func qwenSemanticResponse(
-    model: String,
-    scores: [String: Double]
-) -> QwenClassifierResponse {
-    var answers: [String: QwenAnswer] = [:]
-    for semantic in ["continuing", "finished", "space", "reasserted"] {
-        let score = scores[semantic] ?? 0.5
-        answers["\(semantic)__true_a"] = .choice(
-            QwenChoiceAnswer(
-                choice: score >= 0.5 ? "A" : "B",
-                confidence: max(score, 1 - score),
-                probabilities: ["A": score, "B": 1 - score]
-            )
-        )
-        answers["\(semantic)__true_b"] = .choice(
-            QwenChoiceAnswer(
-                choice: score >= 0.5 ? "B" : "A",
-                confidence: max(score, 1 - score),
-                probabilities: ["A": 1 - score, "B": score]
-            )
-        )
-    }
-    return QwenClassifierResponse(
-        model: model,
-        answers: answers,
-        usage: QwenClassifierUsage(inputTokens: 120, outputTokens: 0),
-        latencyMS: 1100
+private func qwenDecisionResponse(action: QwenCompanionAction) -> QwenCompanionDecisionResponse {
+    QwenCompanionDecisionResponse(
+        model: QwenCompanionDecisionClient.expectedModel,
+        action: action,
+        semanticScores: QwenSemanticValues(
+            continuing: 0.8,
+            finished: 0.2,
+            space: 0.7,
+            reasserted: 0.1
+        ),
+        semanticOrderGaps: QwenSemanticValues(
+            continuing: 0.03,
+            finished: 0.02,
+            space: 0.04,
+            reasserted: 0.01
+        ),
+        usage: QwenCompanionUsage(inputTokens: 120, outputTokens: 0),
+        serverLatencyMS: 80
     )
 }
 
 private func qwenTestInput(
     density: Double,
-    aiPlaybackActive: Bool
+    aiPlaybackActive: Bool,
+    postStartNoteOn: Bool
 ) -> CompanionDecisionInput {
     CompanionDecisionInput(
         nowTimestampSeconds: 100,
@@ -261,7 +172,13 @@ private func qwenTestInput(
         recentNoteDensityPerSecond: density,
         lastUserEventTimestampSeconds: 98.8,
         lastNoteOnTimestampSeconds: 98.5,
-        activePitchCenter: nil,
-        isAIPlaybackActive: aiPlaybackActive
+        isAIPlaybackActive: aiPlaybackActive,
+        userNoteOnSinceAIPlaybackStarted: postStartNoteOn
     )
+}
+
+private extension QwenCompanionAction {
+    static var allTestCases: [Self] {
+        [.listen, .support, .sparse, .yield, .respond]
+    }
 }

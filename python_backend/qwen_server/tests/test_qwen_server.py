@@ -8,66 +8,70 @@ from aiohttp.test_utils import TestClient, TestServer
 from pydantic import ValidationError
 
 from qwen_server import server
-from shared.qwen_protocol import (
-    ChoiceAnswer,
-    ChoiceQuestion,
-    ClassifierRequest,
-    ClassifierResponse,
-    ClassifierUsage,
-    build_choice_prompt,
+from shared.companion_semantics import build_semantic_prompt, semantic_question_ids
+from shared.qwen_companion_protocol import (
+    COMPANION_DECISION_PATH,
+    ENGINE_ID,
+    MODEL_ID,
+    PROTOCOL_VERSION,
+    CompanionDecisionRequest,
+    CompanionDecisionResponse,
+    CompanionUsage,
+    SemanticValues,
 )
 
 
 class FixedRuntime:
-    def classify(self, request: ClassifierRequest) -> ClassifierResponse:
-        question = request.questions["route"]
-        assert question.type == "choice"
-        return ClassifierResponse(
-            model=request.model,
-            answers={
-                "route": ChoiceAnswer(
-                    choice="billing",
-                    confidence=0.8,
-                    probabilities={"billing": 0.8, "technical": 0.2},
-                )
-            },
-            usage=ClassifierUsage(input_tokens=42, output_tokens=0),
-            latency_ms=11,
+    def decide(
+        self,
+        request: CompanionDecisionRequest,
+        *,
+        server_started: float,
+    ) -> CompanionDecisionResponse:
+        assert request.state.held_notes_count == 1
+        assert server_started > 0
+        return CompanionDecisionResponse(
+            action="support",
+            semantic_scores=SemanticValues(
+                continuing=0.8,
+                finished=0.2,
+                space=0.9,
+                reasserted=0.1,
+            ),
+            semantic_order_gaps=SemanticValues(
+                continuing=0.04,
+                finished=0.03,
+                space=0.02,
+                reasserted=0.01,
+            ),
+            usage=CompanionUsage(input_tokens=123, output_tokens=0),
+            server_latency_ms=17,
         )
 
 
 class FailingRuntime:
-    def classify(self, _: ClassifierRequest) -> Any:
+    def decide(self, *_: Any, **__: Any) -> Any:
         raise RuntimeError("model failed")
 
 
 def _config() -> server.ServerConfig:
-    return server.ServerConfig(
-        host="127.0.0.1",
-        port=0,
-        model="Qwen/Qwen3.5-0.8B",
-        device="cuda",
-    )
+    return server.ServerConfig(host="127.0.0.1", port=0)
+
+
+def _state() -> dict[str, Any]:
+    return {
+        "held_notes_count": 1,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": 0.42,
+        "recent_note_density_per_second": 1.5,
+        "seconds_since_last_note_on": 0.1,
+        "is_ai_playback_active": False,
+        "user_note_on_since_ai_playback_started": False,
+    }
 
 
 def _payload() -> dict[str, Any]:
-    return {
-        "model": "Qwen/Qwen3.5-0.8B",
-        "state": {
-            "message": "I was charged twice.",
-            "customer_tier": "pro",
-        },
-        "questions": {
-            "route": {
-                "type": "choice",
-                "instructions": "Which team should handle this request?",
-                "criteria": {
-                    "billing": "Payments, invoices, and refunds.",
-                    "technical": "Product errors and technical failures.",
-                },
-            }
-        },
-    }
+    return {"state": _state()}
 
 
 def _test_app(runtime: Any):
@@ -78,110 +82,89 @@ def _test_app(runtime: Any):
     return app
 
 
-def test_choice_prompt_is_domain_agnostic_and_deterministic() -> None:
-    request = ClassifierRequest.model_validate(_payload())
-    question = request.questions["route"]
+def test_companion_request_is_strict_and_has_no_model_or_questions() -> None:
+    request = CompanionDecisionRequest.model_validate(_payload())
+    assert request.state.recent_note_density_per_second == 1.5
 
-    plan = build_choice_prompt(request.state, request.questions, "route")
-
-    assert plan.labels == ["A", "B"]
-    assert plan.choices == ["billing", "technical"]
-    assert "customer_tier" in plan.messages[1]["content"]
-    assert "billing" in plan.messages[1]["content"]
-    assert plan.answer_prefix == '{"answer": "'
-    assert "piano" not in plan.messages[0]["content"].lower()
-
-    reversed_question = ChoiceQuestion(
-        instructions=question.instructions,
-        criteria={
-            "technical": question.criteria["technical"],
-            "billing": question.criteria["billing"],
-        },
-    )
-    reversed_plan = build_choice_prompt(
-        request.state,
-        {"route": reversed_question},
-        "route",
-    )
-    assert reversed_plan.choices == plan.choices
-    assert reversed_plan.messages[1]["content"] == plan.messages[1]["content"]
-
-
-def test_shared_system_question_order_is_deterministic() -> None:
-    route = ChoiceQuestion(
-        instructions="Choose a route.",
-        criteria={"billing": None, "technical": None},
-    )
-    urgency = ChoiceQuestion(
-        instructions="Choose urgency.",
-        criteria={"high": None, "low": None},
-    )
-    state = {"message": "hello"}
-
-    first = build_choice_prompt(state, {"route": route, "urgency": urgency}, "route")
-    reversed_order = build_choice_prompt(
-        state,
-        {"urgency": urgency, "route": route},
-        "route",
-    )
-
-    assert first.messages == reversed_order.messages
-
-
-def test_choice_question_requires_at_least_two_candidates_without_arbitrary_maximum() -> None:
     with pytest.raises(ValidationError):
-        ChoiceQuestion(instructions="Choose.", criteria={"only": None})
-
-    question = ChoiceQuestion(
-        instructions="Choose.",
-        criteria={f"candidate-{index}": None for index in range(30)},
-    )
-    assert len(question.criteria) == 30
-
-
-def test_classifier_request_requires_at_least_one_question() -> None:
+        CompanionDecisionRequest.model_validate({**_payload(), "model": MODEL_ID})
     with pytest.raises(ValidationError):
-        ClassifierRequest(model="test", state={}, questions={})
+        CompanionDecisionRequest.model_validate({**_payload(), "questions": {}})
+    with pytest.raises(ValidationError):
+        CompanionDecisionRequest.model_validate(
+            {"state": {**_state(), "recent_notes": []}}
+        )
 
 
-def test_classifier_endpoint_returns_typed_choice_without_output_tokens() -> None:
+def test_semantic_prompt_is_fixed_binary_and_order_swapped() -> None:
+    true_a = build_semantic_prompt(_state(), "finished__true_a")
+    true_b = build_semantic_prompt(_state(), "finished__true_b")
+
+    assert true_a.labels == ["A", "B"]
+    assert true_b.labels == ["A", "B"]
+    assert true_a.answer_prefix == '{"answer": "'
+    assert "held_notes_count == 0" in true_a.messages[1]["content"]
+    assert "held_notes_count > 0" in true_a.messages[1]["content"]
+    assert true_a.messages[1]["content"] != true_b.messages[1]["content"]
+    assert len(semantic_question_ids()) == 8
+
+
+def test_companion_endpoint_returns_typed_zero_output_decision() -> None:
     async def scenario() -> None:
         client = TestClient(TestServer(_test_app(FixedRuntime())))
         await client.start_server()
         try:
-            response = await client.post("/v1/classifier", json=_payload())
+            response = await client.post(COMPANION_DECISION_PATH, json=_payload())
             payload = await response.json()
 
             assert response.status == 200
-            assert payload["model"] == "Qwen/Qwen3.5-0.8B"
-            assert payload["answers"]["route"]["type"] == "choice"
-            assert payload["answers"]["route"]["choice"] == "billing"
-            assert payload["answers"]["route"]["probabilities"]["billing"] == 0.8
+            assert payload["model"] == MODEL_ID
+            assert payload["action"] == "support"
+            assert payload["semantic_scores"]["space"] == 0.9
+            assert payload["semantic_order_gaps"]["space"] == 0.02
             assert payload["usage"]["output_tokens"] == 0
-            assert payload["latency_ms"] == 11
+            assert payload["server_latency_ms"] == 17
         finally:
             await client.close()
 
     asyncio.run(scenario())
 
 
-def test_classifier_failure_does_not_invent_an_answer() -> None:
+def test_companion_endpoint_rejects_generic_classifier_payload() -> None:
+    async def scenario() -> None:
+        client = TestClient(TestServer(_test_app(FixedRuntime())))
+        await client.start_server()
+        try:
+            response = await client.post(
+                COMPANION_DECISION_PATH,
+                json={**_payload(), "model": MODEL_ID, "questions": {}},
+            )
+            payload = await response.json()
+            assert response.status == 400
+            assert payload["code"] == "invalid_request"
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+
+def test_companion_failure_does_not_invent_an_action() -> None:
     async def scenario() -> None:
         client = TestClient(TestServer(_test_app(FailingRuntime())))
         await client.start_server()
         try:
-            response = await client.post("/v1/classifier", json=_payload())
+            response = await client.post(COMPANION_DECISION_PATH, json=_payload())
             payload = await response.json()
             assert response.status == 500
-            assert payload == {"message": "classification_failed"}
-            assert "answers" not in payload
+            assert payload["code"] == "decision_failed"
+            assert "action" not in payload
         finally:
             await client.close()
 
     asyncio.run(scenario())
 
 
-def test_candidate_boundary_rejects_non_single_token_labels() -> None:
+def test_candidate_boundary_rejects_non_single_token_ab_labels() -> None:
     class UnstableTokenizer:
         pad_token_id = 0
         eos_token_id = 0
@@ -195,23 +178,22 @@ def test_candidate_boundary_rejects_non_single_token_labels() -> None:
                 return [1, 2, 99, 100]
             return [1, 2, 3]
 
-    runtime = server.TransformersQwenRuntime("test-model", "cpu")
+    runtime = server.TransformersQwenRuntime()
     runtime._tokenizer = UnstableTokenizer()
-    request = ClassifierRequest(
-        model="test-model",
-        state={"value": 1},
-        questions={
-            "route": ChoiceQuestion(
-                instructions="Choose a route.",
-                criteria={"a": None, "b": None},
-            )
-        },
-    )
 
     with pytest.raises(RuntimeError, match="not single-token stable"):
-        runtime._compile_question(request, "route")
+        runtime._compile_question(_state(), "continuing__true_a")
 
 
-def test_device_selection_is_explicit() -> None:
-    assert server.parse_args(["--device", "cuda"]).device == "cuda"
-    assert server.parse_args(["--device", "cpu"]).device == "cpu"
+def test_server_identity_is_fixed_to_qwen_cuda_companion() -> None:
+    config = server.parse_args(["--host", "0.0.0.0", "--port", "9000"])
+    assert config.host == "0.0.0.0"
+    assert config.port == 9000
+    assert MODEL_ID == "Qwen/Qwen3.5-0.8B"
+    assert ENGINE_ID == "qwen-companion"
+    assert PROTOCOL_VERSION == "2"
+
+    with pytest.raises(SystemExit):
+        server.parse_args(["--model", "other-model"])
+    with pytest.raises(SystemExit):
+        server.parse_args(["--device", "cpu"])

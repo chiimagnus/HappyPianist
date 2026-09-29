@@ -20,12 +20,7 @@ if str(PYTHON_BACKEND_ROOT) not in sys.path:
 
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo, second2tick
 
-from shared.companion_semantics import (
-    action_from_semantics,
-    classifier_payload,
-    semantic_order_gaps,
-    semantic_scores,
-)
+from shared.qwen_companion_protocol import MODEL_ID, companion_state_payload
 from shared.protocol_v2 import (
     ControlChangeEvent,
     GenerateParams,
@@ -110,7 +105,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--qwen-host", default="127.0.0.1")
     parser.add_argument("--qwen-port", type=int, default=8767)
-    parser.add_argument("--qwen-model", default="Qwen/Qwen3.5-0.8B")
     parser.add_argument("--aria-host", default="127.0.0.1")
     parser.add_argument("--aria-port", type=int, default=8766)
     parser.add_argument("--timeout", type=float, default=45.0)
@@ -317,6 +311,9 @@ def decision_payload(
         ),
         "active_pitch_center": pitch_center,
         "is_ai_playback_active": scenario.ai_playback_active,
+        "user_note_on_since_ai_playback_started": (
+            scenario.ai_playback_active and scenario.name == "takeover_overlay"
+        ),
         "recent_notes": [
             {
                 "midi": note.note,
@@ -540,7 +537,7 @@ def main() -> int:
     if not scenarios:
         raise RuntimeError("corpus index produced no scenarios for the selected states")
 
-    qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/v1/classifier"
+    qwen_url = f"http://{args.qwen_host}:{args.qwen_port}/v1/companion-decision"
     aria_url = f"http://{args.aria_host}:{args.aria_port}/generate"
 
     results: list[dict[str, Any]] = []
@@ -559,14 +556,18 @@ def main() -> int:
             midi_cache[midi_path] = parsed
 
         decision_state = decision_payload(parsed, scenario, args.prompt_window)
-        decision_request = classifier_payload(
-            model=args.qwen_model,
-            state=decision_state,
+        decision = post_json(
+            qwen_url,
+            {"state": companion_state_payload(decision_state)},
+            args.timeout,
         )
-        decision = post_json(qwen_url, decision_request, args.timeout)
-        scores = semantic_scores(decision)
-        order_gaps = semantic_order_gaps(decision)
-        action = action_from_semantics(decision_state, scores)
+        if decision.get("model") != MODEL_ID:
+            raise RuntimeError("Qwen companion service returned an unexpected model identity")
+        if decision.get("usage", {}).get("output_tokens") != 0:
+            raise RuntimeError("Qwen companion service returned non-zero output_tokens")
+        scores = decision["semantic_scores"]
+        order_gaps = decision["semantic_order_gaps"]
+        action = str(decision["action"])
         row: dict[str, Any] = {
             "case_id": scenario.case_id,
             "source": scenario.source,
@@ -577,7 +578,7 @@ def main() -> int:
             "action": action,
             "semantic_scores": scores,
             "semantic_order_gaps": order_gaps,
-            "decision_latency_ms": int(decision["latency_ms"]),
+            "decision_latency_ms": int(decision["server_latency_ms"]),
             "generation_attempted": False,
             "generated": False,
         }
@@ -678,7 +679,7 @@ def main() -> int:
     summary: dict[str, Any] = {
         "decision_cases": len(results),
         "decision_only": bool(args.decision_only),
-        "qwen_model": args.qwen_model,
+        "qwen_model": MODEL_ID,
         "corpus_index_sha256": corpus_index_sha256,
         "case_ids": [row["case_id"] for row in results],
         "sample_seed": args.seed,

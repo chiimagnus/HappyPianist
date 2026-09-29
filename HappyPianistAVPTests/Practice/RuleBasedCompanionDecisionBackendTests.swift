@@ -18,8 +18,8 @@ func ruleBasedCompanionDecisionBackendYieldsForDenseHeldTexture() async throws {
             recentNoteDensityPerSecond: 3.0,
             lastUserEventTimestampSeconds: 9.8,
             lastNoteOnTimestampSeconds: 9.9,
-            activePitchCenter: 64,
-            isAIPlaybackActive: false
+            isAIPlaybackActive: false,
+            userNoteOnSinceAIPlaybackStarted: false
         )
     )
 
@@ -41,8 +41,8 @@ func ruleBasedCompanionDecisionBackendYieldsForDenseStaccatoTexture() async thro
             recentNoteDensityPerSecond: 3,
             lastUserEventTimestampSeconds: 9.9,
             lastNoteOnTimestampSeconds: 9.8,
-            activePitchCenter: 64,
-            isAIPlaybackActive: false
+            isAIPlaybackActive: false,
+            userNoteOnSinceAIPlaybackStarted: false
         )
     )
 
@@ -63,8 +63,8 @@ func ruleBasedCompanionDecisionBackendUsesSparseActionForSustainLedHeldTexture()
             recentNoteDensityPerSecond: 1.0,
             lastUserEventTimestampSeconds: 4.9,
             lastNoteOnTimestampSeconds: 4.85,
-            activePitchCenter: 60,
-            isAIPlaybackActive: false
+            isAIPlaybackActive: false,
+            userNoteOnSinceAIPlaybackStarted: false
         )
     )
 
@@ -86,8 +86,8 @@ func ruleBasedCompanionDecisionBackendSupportsRecentHeldLine() async throws {
             recentNoteDensityPerSecond: 1.4,
             lastUserEventTimestampSeconds: 19.7,
             lastNoteOnTimestampSeconds: 19.8,
-            activePitchCenter: 67,
-            isAIPlaybackActive: false
+            isAIPlaybackActive: false,
+            userNoteOnSinceAIPlaybackStarted: false
         )
     )
 
@@ -109,8 +109,8 @@ func ruleBasedCompanionDecisionBackendListensForStaleInput() async throws {
             recentNoteDensityPerSecond: 0,
             lastUserEventTimestampSeconds: 98.0,
             lastNoteOnTimestampSeconds: 98.0,
-            activePitchCenter: nil,
-            isAIPlaybackActive: false
+            isAIPlaybackActive: false,
+            userNoteOnSinceAIPlaybackStarted: false
         )
     )
 

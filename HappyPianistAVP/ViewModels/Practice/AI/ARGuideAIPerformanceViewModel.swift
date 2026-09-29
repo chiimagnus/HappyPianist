@@ -82,9 +82,10 @@ final class ARGuideAIPerformanceViewModel {
         self.qwenDecisionDiscoveryService = qwenDecisionDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
-                "path": "/v1/classifier",
-                "protocol_version": "1",
-                "engine": "qwen-classifier",
+                "path": QwenCompanionDecisionClient.path,
+                "protocol_version": "2",
+                "engine": "qwen-companion",
+                "engine_impl": QwenCompanionDecisionClient.expectedModel,
             ]
         )
         if let aiPlaybackServiceFactory {
@@ -157,7 +158,7 @@ final class ARGuideAIPerformanceViewModel {
             return backendDiscoveryStatusText(
                 backendName: "Qwen3.5-0.8B（电脑本地，实验）",
                 state: qwenDecisionDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 Qwen3.5-0.8B 分类服务。"
+                notFoundHint: "请先在电脑端启动 Qwen3.5-0.8B 陪伴决策服务。"
             ).replacingOccurrences(of: "后端：", with: "陪伴决策：")
         }
     }

@@ -113,6 +113,7 @@ final class AIPerformanceService {
 
     private var isGenerating = false
     private var isAIPlaybackActive = false
+    private var userNoteOnSinceAIPlaybackStarted = false
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var lastImprovStatusText: String?
     private var generationFailureStatusText: String?
@@ -125,6 +126,9 @@ final class AIPerformanceService {
         onPlaybackActiveChanged: { [weak self] isActive in
             guard let self else { return }
             isAIPlaybackActive = isActive
+            if isActive {
+                userNoteOnSinceAIPlaybackStarted = false
+            }
             notifyStateChanged()
         }
     )
@@ -306,6 +310,9 @@ final class AIPerformanceService {
         guard observation.source.role == .userPerformance,
               let event = phraseObservationAdapter.phraseEvent(from: observation)
         else { return }
+        if case .noteOn = event.kind, isAIPlaybackActive {
+            userNoteOnSinceAIPlaybackStarted = true
+        }
         let invalidatedPhraseGeneration = invalidatePhraseGeneration()
         Task { [aiPlaybackQueue] in
             await aiPlaybackQueue.invalidatePendingWindows(through: invalidatedPhraseGeneration)
@@ -338,6 +345,7 @@ final class AIPerformanceService {
         noteContext.reset()
         ccContext.reset()
         activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
+        userNoteOnSinceAIPlaybackStarted = false
     }
 
     private func notifyStateChanged() {
@@ -374,8 +382,8 @@ final class AIPerformanceService {
                 recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
                 lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
                 lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
-                activePitchCenter: noteSnapshot.activePitchCenter,
-                isAIPlaybackActive: isAIPlaybackActive
+                isAIPlaybackActive: isAIPlaybackActive,
+                userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted
             )
         )
         guard selectedCompanionDecisionBackendKind() == kind else {
