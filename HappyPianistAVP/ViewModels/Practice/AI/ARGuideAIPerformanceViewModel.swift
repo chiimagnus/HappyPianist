@@ -29,7 +29,7 @@ final class ARGuideAIPerformanceViewModel {
         diagnosticsReporter: diagnosticsReporter,
         discoveryOrchestrator: ImprovBackendDiscoveryOrchestrator(
             servicesByKind: [
-                .networkBonjourHTTPAriaV2: ariaDiscoveryService,
+                .networkBonjourHTTPAria: ariaDiscoveryService,
             ]
         ),
         backendRegistry: makeBackendRegistry(),
@@ -63,8 +63,8 @@ final class ARGuideAIPerformanceViewModel {
         self.ariaDiscoveryService = ariaDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
-                "path": "/generate",
-                "protocol_version": "2",
+                "path": AriaNetworkProtocol.path,
+                "protocol_version": String(AriaNetworkProtocol.version),
                 "engine": "aria",
             ]
         )
@@ -115,11 +115,11 @@ final class ARGuideAIPerformanceViewModel {
         }
 
         switch selectedKind {
-        case .networkBonjourHTTPAriaV2:
+        case .networkBonjourHTTPAria:
             return backendDiscoveryStatusText(
-                backendName: "Aria v2",
+                backendName: "Aria",
                 state: ariaDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 Aria v2 Python 服务。"
+                notFoundHint: "请先在电脑端启动 Aria Python 服务。"
             )
         case .localCoreMLDuet:
             startLocalCoreMLDuetProbeIfNeeded()

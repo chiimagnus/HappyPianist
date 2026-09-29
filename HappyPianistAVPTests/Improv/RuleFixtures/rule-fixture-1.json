@@ -1,4 +1,57 @@
 {
+  "notes": [
+    {
+      "duration": 0.22,
+      "note": 60,
+      "time": 0.0,
+      "velocity": 92
+    },
+    {
+      "duration": 0.18,
+      "note": 62,
+      "time": 0.25,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 64,
+      "time": 0.5,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 65,
+      "time": 0.75,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 67,
+      "time": 1.0,
+      "velocity": 92
+    },
+    {
+      "duration": 0.22,
+      "note": 69,
+      "time": 1.25,
+      "velocity": 92
+    },
+    {
+      "duration": 0.18,
+      "note": 71,
+      "time": 1.5,
+      "velocity": 92
+    },
+    {
+      "duration": 0.25,
+      "note": 72,
+      "time": 1.75,
+      "velocity": 92
+    }
+  ],
+  "top_p": 0.95,
+  "max_tokens": 256,
+  "seed": 1234,
   "expected_notes": [
     {
       "duration": 0.22,
@@ -96,62 +149,5 @@
       "time": 3.742,
       "velocity": 95
     }
-  ],
-  "notes": [
-    {
-      "duration": 0.22,
-      "note": 60,
-      "time": 0.0,
-      "velocity": 92
-    },
-    {
-      "duration": 0.18,
-      "note": 62,
-      "time": 0.25,
-      "velocity": 92
-    },
-    {
-      "duration": 0.2,
-      "note": 64,
-      "time": 0.5,
-      "velocity": 92
-    },
-    {
-      "duration": 0.2,
-      "note": 65,
-      "time": 0.75,
-      "velocity": 92
-    },
-    {
-      "duration": 0.2,
-      "note": 67,
-      "time": 1.0,
-      "velocity": 92
-    },
-    {
-      "duration": 0.22,
-      "note": 69,
-      "time": 1.25,
-      "velocity": 92
-    },
-    {
-      "duration": 0.18,
-      "note": 71,
-      "time": 1.5,
-      "velocity": 92
-    },
-    {
-      "duration": 0.25,
-      "note": 72,
-      "time": 1.75,
-      "velocity": 92
-    }
-  ],
-  "params": {
-    "max_tokens": 256,
-    "seed": 1234,
-    "strategy": "deterministic",
-    "top_p": 0.95
-  },
-  "session_id": "fixture-1"
+  ]
 }

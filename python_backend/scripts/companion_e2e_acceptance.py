@@ -28,13 +28,13 @@ from shared.companion_scenarios import (
     scenario_path,
 )
 from shared.qwen_companion_protocol import MODEL_ID, companion_state_payload
-from shared.protocol_v2 import (
+from shared.aria_protocol import (
     ControlChangeEvent,
     GenerateParams,
-    GenerateRequestV2,
+    GenerateRequest,
     NoteEvent,
-    ResultResponseV2,
-    legalize_events,
+    ResultResponse,
+    ordered_events,
 )
 
 
@@ -99,7 +99,7 @@ def aria_request(
     scenario: Scenario,
     prompt_window: float,
     max_tokens: int,
-) -> GenerateRequestV2:
+) -> GenerateRequest:
     context = notes_before(parsed, scenario.cutoff, prompt_window)
     if not context:
         raise RuntimeError("no prompt notes available")
@@ -115,7 +115,7 @@ def aria_request(
         for note in context
     ]
     for cc in parsed.ccs:
-        if window_start <= cc.time <= scenario.cutoff:
+        if cc.controller == 64 and window_start <= cc.time <= scenario.cutoff:
             events.append(
                 ControlChangeEvent(
                     controller=cc.controller,
@@ -123,8 +123,8 @@ def aria_request(
                     time=max(0.0, cc.time - window_start),
                 )
             )
-    return GenerateRequestV2(
-        events=legalize_events(events),
+    return GenerateRequest(
+        events=ordered_events(events),
         params=GenerateParams(max_tokens=max_tokens),
     )
 
@@ -155,7 +155,7 @@ def output_note_signature(events: Iterable[Any], limit: int = 8) -> list[tuple[i
     return result
 
 
-def prompt_note_signature(request: GenerateRequestV2, limit: int = 8) -> list[tuple[int, int]]:
+def prompt_note_signature(request: GenerateRequest, limit: int = 8) -> list[tuple[int, int]]:
     result: list[tuple[int, int]] = []
     for event in request.events:
         if isinstance(event, NoteEvent):
@@ -164,7 +164,7 @@ def prompt_note_signature(request: GenerateRequestV2, limit: int = 8) -> list[tu
 
 
 def validate_generated_events(
-    request: GenerateRequestV2,
+    request: GenerateRequest,
     events: list[Any],
 ) -> dict[str, Any]:
     notes = [event for event in events if isinstance(event, NoteEvent)]
@@ -362,9 +362,9 @@ def main() -> int:
                     request.model_dump(),
                     args.timeout,
                 )
-                response = ResultResponseV2.model_validate(response_payload)
+                response = ResultResponse.model_validate(response_payload)
                 row["generation_latency_ms"] = response.latency_ms
-                events = legalize_events(response.events)
+                events = ordered_events(response.events)
                 validation = validate_generated_events(request, events)
                 held_notes_count = int(decision_state["held_notes_count"])
                 horizon_seconds = generation_horizon_seconds(action, held_notes_count)

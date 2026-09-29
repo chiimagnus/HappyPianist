@@ -19,11 +19,9 @@ enum PerformanceRNNImprovGeneratorError: Error, LocalizedError, Equatable {
 
 struct PerformanceRNNImprovGenerator {
     private let codec: PerformanceRNNEventCodec
-    private let seedResolver: ImprovSeedResolver
 
-    init(codec: PerformanceRNNEventCodec = PerformanceRNNEventCodec(), seedResolver: ImprovSeedResolver = ImprovSeedResolver()) {
+    init(codec: PerformanceRNNEventCodec = PerformanceRNNEventCodec()) {
         self.codec = codec
-        self.seedResolver = seedResolver
     }
 
     func temperatureFromTopP(_ topP: Double) -> Float {
@@ -47,7 +45,6 @@ struct PerformanceRNNImprovGenerator {
     func generateReplyNotes(
         promptNotes: [ImprovDialogueNote],
         params: ImprovGenerateParams,
-        sessionID: String?,
         stepModel: some PerformanceRNNStepModeling
     ) async throws -> [ImprovDialogueNote] {
         guard promptNotes.isEmpty == false else {
@@ -61,8 +58,7 @@ struct PerformanceRNNImprovGenerator {
         let replyLenSec = replyLenSecondsFromMaxTokens(params.maxTokens)
         let targetEndStep = promptEndStep + Int(replyLenSec * 100.0 + 0.5)
 
-        let seed = seedResolver.resolveSeed(explicitSeed: params.seed, sessionID: sessionID)
-        var rng = PythonRandom(seed: seed)
+        var rng = PythonRandom(seed: params.seed)
 
         var eventStream = codec.encode(notes: promptNotes)
         var state = PerformanceRNNState.zeros()

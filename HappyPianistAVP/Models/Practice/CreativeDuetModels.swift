@@ -65,8 +65,6 @@ struct CreativeDuetPhraseProvenance: Equatable {
 struct CreativeDuetGeneration: Equatable {
     let requestID: Int
     let activationID: Int
-    let seed: UInt64
-    let sessionID: String
     let parameters: ImprovGenerateParams
 }
 

@@ -20,7 +20,7 @@ MusicXML 和 MXL 的 imported type 已在 visionOS host 声明。仓库根的 `R
 
 练习范围、左右手、速度、循环、音量、输入/输出端点、round defaults 与 AI backend 都由各自的 settings provider 保存；key、默认值和迁移逻辑以代码为准，新增设置不得绕过 provider 直接散落读写 `UserDefaults`。
 
-Aria v2 与 Qwen3.5-0.8B 都是可选电脑端服务，不是 App 启动前提。Aria 当前只通过 Bonjour + HTTP `/generate` 负责音乐生成；旧 WebSocket backend identity 不再受支持，历史保存值会按无效选择处理而不会自动迁移。Qwen 是当前唯一实验型网络陪伴决策后端，RuleBased 仍是默认决策基线。Qwen discovery 必须匹配专用 Companion path/protocol/engine 和精确 `Qwen/Qwen3.5-0.8B` model identity，不能连接任意自称 Qwen 的服务。安装、启动、smoketest 和网络排查见[Python 后端说明](../python_backend/README.md)。只有用户选择对应网络后端时才发现和连接；失败不自动回退。
+Aria 与 Qwen3.5-0.8B 都是可选电脑端服务，不是 App 启动前提。Aria 只通过 Bonjour + HTTP `/generate` 负责音乐生成，并要求当前 `protocol_version=3`；旧 WebSocket/backend/protocol identity 不再受支持，历史保存值按无效选择处理而不会自动迁移。Qwen 是当前唯一实验型网络陪伴决策后端，RuleBased 仍是默认决策基线。Qwen discovery 必须匹配专用 Companion path/protocol/engine 和精确 `Qwen/Qwen3.5-0.8B` model identity，不能连接任意自称 Qwen 的服务。安装、启动、smoketest 和网络排查见[Python 后端说明](../python_backend/README.md)。只有用户选择对应网络后端时才发现和连接；失败或 busy 都不自动回退。
 
 ## 常见问题
 

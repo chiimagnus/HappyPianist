@@ -1,8 +1,8 @@
 # Python 后端工作区
 
-本目录是可选的本地服务/工具工作区，不是 AVP App 的运行依赖。音乐生成当前只使用 Aria v2（Bonjour + HTTP `/generate`）；陪伴决策使用固定 Qwen3.5-0.8B Companion service。AVP 的音乐生成与陪伴决策后端分别按用户选择运行，不自动回退。服务工程在 `aria_server/` 与 `qwen_server/`，入口和自检在 `scripts/`，共享协议在 `shared/`。
+本目录是可选的本地服务/工具工作区，不是 AVP App 的运行依赖。音乐生成当前只使用 Aria（Bonjour + HTTP `/generate`）；陪伴决策使用固定 Qwen3.5-0.8B Companion service。AVP 的音乐生成与陪伴决策后端分别按用户选择运行，不自动回退。服务工程在 `aria_server/` 与 `qwen_server/`，入口和自检在 `scripts/`，共享协议在 `shared/`。
 
-## 快速开始：运行 Aria v2 服务
+## 快速开始：运行 Aria 服务
 
 前置条件：Python 3.11+ 和 `uv` 已安装；`python_backend/aria/hf/model-demo.safetensors` 已自行取得（权重不随仓库分发）。连接 Vision Pro 时，两台设备还需位于同一局域网。
 
@@ -18,7 +18,9 @@
 3) 本机自检（不依赖 AVP）
 - `cd python_backend && uv run --project aria_server python scripts/aria_server_smoketest.py --host 127.0.0.1 --port 8766`
 
-4) 在 AVP 练习设置选择 `网络本地连接（Aria v2）`，并允许 Local Network 权限以发现 `_lpduet._tcp`。当前产品网络生成只有 HTTP `/generate`；旧 WebSocket 分块路径已删除，因为它在完整生成后才分块，不降低 first-playable latency。
+4) 在 AVP 练习设置选择 `网络本地连接（Aria）`，并允许 Local Network 权限以发现 `_lpduet._tcp`。当前网络协议固定为 `protocol_version=3` + HTTP `/generate`：请求只发送已验证 note、真实 CC64 与 `max_tokens`；未知字段、非法 MIDI 和旧协议直接失败。旧 WebSocket 分块路径已删除，因为它在完整生成后才分块，不降低 first-playable latency。
+
+产品当前完整-response 质量预算为 350ms，Bonjour discovery 与 HTTP 共用同一次 deadline。Aria server 只允许一个推理 in flight；旧推理因客户端取消仍在收尾时，新请求直接返回 `busy`，不排队、不重试、不自动切换本地 backend。输出侧 CC7/CC11 只来自显式 `DefaultCCPolicy`，不会伪造输入 CC64。
 
 ## 快速开始：运行 Qwen3.5-0.8B 陪伴决策服务
 

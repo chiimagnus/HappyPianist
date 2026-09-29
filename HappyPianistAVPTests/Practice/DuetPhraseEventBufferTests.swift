@@ -27,59 +27,60 @@ private func controlChange(
 }
 
 @Test
-func duetPhraseEventBufferSnapshotFiltersWhitelistAndRebasesWindow() {
+func duetPhraseEventBufferRecordsOnlyObservedSustain() {
     var buffer = DuetPhraseEventBuffer()
     buffer.record(controlChange(64, 127, at: 1.0))
     buffer.record(controlChange(7, 90, at: 1.2))
-    buffer.record(controlChange(1, 80, at: 1.3)) // ignored
+    buffer.record(controlChange(11, 80, at: 1.3))
 
     let snapshot = buffer.snapshot(nowTimestampSeconds: 1.5, lookbackSeconds: 4.0, maxPromptSeconds: 3.0)
-    let controllers = snapshot.promptEvents.compactMap(\.controller)
-    #expect(controllers == [64, 7])
-    #expect(snapshot.latestValues[64] == 127)
-    #expect(snapshot.latestValues[1] == nil)
+    #expect(snapshot.promptEvents.count == 1)
+    #expect(snapshot.promptEvents.first?.controller == 64)
+    #expect(snapshot.promptEvents.first?.value == 127)
     #expect(snapshot.sustainValue == 127)
 }
 
 @Test
-func duetPhraseEventBufferInjectsInitialCCStateAtWindowStart() {
+func duetPhraseEventBufferInjectsInitialSustainStateAtWindowStart() {
     var buffer = DuetPhraseEventBuffer()
     buffer.record(controlChange(64, 127, at: 0.5))
     buffer.record(controlChange(11, 70, at: 0.7))
     buffer.record(controlChange(64, 0, at: 2.6))
 
     let snapshot = buffer.snapshot(nowTimestampSeconds: 3.0, lookbackSeconds: 10.0, maxPromptSeconds: 1.0)
-    let zeroTime = snapshot.promptEvents.filter { abs($0.time - 0.0) < 1e-9 }
-    let zeroSummary = zeroTime.compactMap { event -> String? in
-        guard let controller = event.controller, let value = event.value else { return nil }
-        return "\(controller):\(value)"
-    }.sorted()
-
-    #expect(zeroSummary == ["11:70", "64:127"])
+    #expect(snapshot.promptEvents.count == 2)
+    #expect(snapshot.promptEvents.contains { $0.controller == 64 && $0.value == 127 && abs($0.time) < 1e-9 })
     #expect(snapshot.promptEvents.contains { $0.controller == 64 && $0.value == 0 && abs($0.time - 1.0) < 1e-9 })
+    #expect(snapshot.sustainValue == 0)
 }
 
 @Test
-func duetPhraseEventBufferPrunesOldHistory() {
+func duetPhraseEventBufferPrunesHistoryButPreservesCurrentSustainState() {
     var buffer = DuetPhraseEventBuffer()
     buffer.record(controlChange(64, 127, at: 1.0))
     buffer.record(controlChange(7, 100, at: 15.0))
 
     let snapshot = buffer.snapshot(nowTimestampSeconds: 15.5, lookbackSeconds: 12.0, maxPromptSeconds: 3.0)
-    #expect(snapshot.promptEvents.contains { $0.controller == 7 })
-    #expect(snapshot.promptEvents.contains { $0.controller == 64 && $0.value == 127 && $0.time == 0 })
+    #expect(snapshot.promptEvents.count == 1)
+    #expect(snapshot.promptEvents.first?.controller == 64)
+    #expect(snapshot.promptEvents.first?.value == 127)
+    #expect(snapshot.promptEvents.first?.time == 0)
+    #expect(snapshot.sustainValue == 127)
 }
 
 @Test
-func duetPhraseEventBufferDoesNotDuplicateControlChangeAtWindowStart() {
+func duetPhraseEventBufferDoesNotDuplicateSustainAtWindowStart() {
     var buffer = DuetPhraseEventBuffer()
     buffer.record(controlChange(64, 127, at: 1))
-    buffer.record(controlChange(7, 90, at: 3))
+    buffer.record(controlChange(64, 0, at: 3))
 
     let snapshot = buffer.snapshot(nowTimestampSeconds: 3, lookbackSeconds: 4, maxPromptSeconds: 2)
     let sustainEvents = snapshot.promptEvents.filter { $0.controller == 64 }
-    #expect(sustainEvents.count == 1)
-    #expect(sustainEvents.first?.time == 0)
+    #expect(sustainEvents.count == 2)
+    #expect(sustainEvents[0].value == 127)
+    #expect(sustainEvents[0].time == 0)
+    #expect(sustainEvents[1].value == 0)
+    #expect(sustainEvents[1].time == 2)
 }
 
 @Test

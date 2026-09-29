@@ -13,14 +13,14 @@ from typing import Any
 from aiohttp import web
 
 from shared.cc_policy import DefaultCCPolicy, inject_defaults
-from shared.protocol_v2 import (
+from shared.aria_protocol import (
     ALLOWED_CC_CONTROLLERS,
     ControlChangeEvent,
-    ErrorResponseV2,
-    GenerateRequestV2,
+    ErrorResponse,
+    GenerateRequest,
     NoteEvent,
-    ResultResponseV2,
-    legalize_events,
+    ResultResponse,
+    ordered_events,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,9 @@ def _parse_optional_cc_arg(raw: str) -> int | None:
         parsed = int(raw)
     except ValueError:
         raise argparse.ArgumentTypeError(f"invalid cc value: {raw!r}") from None
-    return max(0, min(127, parsed))
+    if not 0 <= parsed <= 127:
+        raise argparse.ArgumentTypeError(f"cc value must be 0...127: {raw!r}")
+    return parsed
 
 
 def parse_args(argv: list[str] | None = None) -> ServerConfig:
@@ -117,6 +119,10 @@ def _extract_continuation_events(prompt_events: list[Any], reply_events: list[An
     ]
 
 
+class AriaBusyError(RuntimeError):
+    pass
+
+
 class AriaPipeline:
     def __init__(self, checkpoint: Path, engine: str):
         self._checkpoint = checkpoint
@@ -164,14 +170,16 @@ class AriaPipeline:
         logger.info("Aria model loaded with engine=%s", self._engine)
 
     def generate(self, prompt_events: list[Any], params: dict[str, Any]) -> tuple[Any, int]:
-        with self._lock:
+        if not self._lock.acquire(blocking=False):
+            raise AriaBusyError("Aria inference is already running")
+        try:
             started = time.perf_counter()
             self._ensure_loaded()
             if self._tokenizer is None or self._model is None:
                 raise RuntimeError("Aria model failed to initialize")
 
             from aria.inference import get_inference_prompt
-            from shared.midi_events_v2 import MidiBuildConfig, events_to_mididict, mididict_to_events
+            from shared.aria_midi_events import MidiBuildConfig, events_to_mididict, mididict_to_events
 
             if self._engine == "cuda":
                 from aria.inference.sample_cuda import sample_batch
@@ -192,7 +200,7 @@ class AriaPipeline:
                 raise RuntimeError("Aria tokenizer returned no MIDI prompt")
             decoded_prompt_events = mididict_to_events(decoded_prompt)
 
-            max_new_tokens = int(params.get("max_tokens", 512))
+            max_new_tokens = int(params["max_tokens"])
             results = sample_batch(
                 model=self._model,
                 tokenizer=self._tokenizer,
@@ -222,6 +230,8 @@ class AriaPipeline:
             latency_ms = int(round((time.perf_counter() - started) * 1000))
             logger.info("Aria generation completed in %d ms", latency_ms)
             return reply, latency_ms
+        finally:
+            self._lock.release()
 
 
 CONFIG_KEY = web.AppKey("config", ServerConfig)
@@ -232,7 +242,7 @@ BONJOUR_BROADCASTER_KEY = web.AppKey("bonjour_broadcaster", object)
 
 async def _generate_reply_events(
     app: web.Application,
-    request_model: GenerateRequestV2,
+    request_model: GenerateRequest,
 ) -> tuple[list[Any], int]:
     pipeline: AriaPipeline = app[ARIA_PIPELINE_KEY]
     policy: DefaultCCPolicy = app[CC_POLICY_KEY]
@@ -243,28 +253,18 @@ async def _generate_reply_events(
         request_model.params.model_dump(),
     )
 
-    from shared.midi_events_v2 import mididict_to_events
+    from shared.aria_midi_events import mididict_to_events
 
-    events = legalize_events(mididict_to_events(reply_midi))
-
-    # Always include at least one CC64 at time=0 for downstream stability.
-    if not any(
-        isinstance(event, ControlChangeEvent) and event.controller == 64
-        for event in events
-    ):
-        events = legalize_events(
-            [ControlChangeEvent(controller=64, value=0, time=0.0), *events]
-        )
-
+    events = ordered_events(mididict_to_events(reply_midi))
     return inject_defaults(events, policy=policy), latency_ms
 
 
-def _generation_error() -> ErrorResponseV2:
-    return ErrorResponseV2(message="generation_failed")
+def _generation_error() -> ErrorResponse:
+    return ErrorResponse(code="generation_failed")
 
 
 async def handle_root(_: web.Request) -> web.Response:
-    return web.Response(text="aria_server running. POST /generate (protocol_version=2).\n")
+    return web.Response(text="aria_server running. POST /generate (protocol_version=3).\n")
 
 
 async def handle_generate(request: web.Request) -> web.Response:
@@ -272,25 +272,30 @@ async def handle_generate(request: web.Request) -> web.Response:
         payload = await request.json()
     except Exception:
         return web.json_response(
-            ErrorResponseV2(message="invalid_json").model_dump(),
+            ErrorResponse(code="invalid_json").model_dump(),
             status=400,
         )
 
     try:
-        request_model = GenerateRequestV2.model_validate(payload)
+        request_model = GenerateRequest.model_validate(payload)
     except Exception as exc:
         return web.json_response(
-            ErrorResponseV2(message=f"invalid_request: {exc}").model_dump(),
+            ErrorResponse(code="invalid_request", message=str(exc)).model_dump(),
             status=400,
         )
 
     try:
         events, latency_ms = await _generate_reply_events(request.app, request_model)
+    except AriaBusyError:
+        return web.json_response(
+            ErrorResponse(code="busy", message="Aria inference is already running").model_dump(),
+            status=503,
+        )
     except Exception:
         logger.exception("Aria HTTP generation failed")
         return web.json_response(_generation_error().model_dump(), status=500)
 
-    response = ResultResponseV2(events=events, latency_ms=latency_ms)
+    response = ResultResponse(events=events, latency_ms=latency_ms)
     return web.json_response(response.model_dump(), status=200)
 
 
@@ -300,7 +305,7 @@ async def _bonjour_start(app: web.Application) -> None:
     config: ServerConfig = app[CONFIG_KEY]
     txt = {
         "path": "/generate",
-        "protocol_version": "2",
+        "protocol_version": "3",
         "engine": "aria",
         "engine_impl": f"aria-{config.engine}",
     }

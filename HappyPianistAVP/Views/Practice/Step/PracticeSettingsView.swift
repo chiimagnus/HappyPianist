@@ -312,8 +312,8 @@ struct PracticeSettingsView: View {
         }
 
         switch selectedKind {
-        case .networkBonjourHTTPAriaV2:
-            return backendStatusText ?? "后端：网络本地连接（Aria v2）"
+        case .networkBonjourHTTPAria:
+            return backendStatusText ?? "后端：网络本地连接（Aria）"
         case .localCoreMLDuet:
             return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
@@ -339,8 +339,8 @@ struct PracticeSettingsView: View {
 
     private func backendTitle(_ kind: ImprovBackendKind) -> String {
         switch kind {
-        case .networkBonjourHTTPAriaV2:
-            "网络本地连接（Aria v2）"
+        case .networkBonjourHTTPAria:
+            "网络本地连接（Aria）"
         case .localCoreMLDuet:
             "本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:

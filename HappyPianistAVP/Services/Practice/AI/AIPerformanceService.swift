@@ -47,6 +47,7 @@ final class AIPerformanceService {
         case invalidSelection = "invalid_selection"
         case unavailable
         case timeout
+        case busy
         case invalidResponse = "invalid_response"
         case qualityGate = "quality_gate"
         case failed
@@ -59,6 +60,8 @@ final class AIPerformanceService {
                 "后端不可用"
             case .timeout:
                 "生成超时"
+            case .busy:
+                "后端正忙"
             case .invalidResponse:
                 "响应无效"
             case .qualityGate:
@@ -81,12 +84,10 @@ final class AIPerformanceService {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let nowUptimeSeconds: () -> TimeInterval
     private let sleepFor: @Sendable (Duration) async -> Void
-    private let improvSessionID: String
     private let discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind?
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
-    private let backendTimeout: Duration
     private let onStateChanged: @MainActor (State) -> Void
 
     private weak var practiceSession: (any AIPerformancePracticeSessionProtocol)?
@@ -145,20 +146,17 @@ final class AIPerformanceService {
             backends: [RuleBasedCompanionDecisionBackend()]
         ),
         selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind? = { .ruleBased },
-        backendTimeout: Duration = .seconds(12),
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
         self.diagnosticsReporter = diagnosticsReporter
         self.nowUptimeSeconds = nowUptimeSeconds
         self.sleepFor = sleepFor
-        improvSessionID = UUID().uuidString
         self.discoveryOrchestrator = discoveryOrchestrator
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
         self.companionDecisionBackendRegistry = companionDecisionBackendRegistry
         self.selectedCompanionDecisionBackendKind = selectedCompanionDecisionBackendKind
-        self.backendTimeout = backendTimeout
         self.onStateChanged = onStateChanged
     }
 
@@ -715,8 +713,7 @@ final class AIPerformanceService {
             let startedAt = nowUptimeSeconds()
             let response = try await backend.generateCreativeResponse(
                 phrase: phrase,
-                generation: generation,
-                timeout: backendTimeout
+                generation: generation
             )
             guard response.provider == kind, response.generation == generation else {
                 throw ImprovBackendClientError.invalidResponse
@@ -731,7 +728,7 @@ final class AIPerformanceService {
         switch kind {
         case .localRule:
             3
-        case .networkBonjourHTTPAriaV2, .localCoreMLDuet:
+        case .networkBonjourHTTPAria, .localCoreMLDuet:
             1
         }
     }
@@ -745,12 +742,9 @@ final class AIPerformanceService {
         CreativeDuetGeneration(
             requestID: requestID,
             activationID: activationID,
-            seed: seed,
-            sessionID: improvSessionID,
             parameters: ImprovGenerateParams(
                 topP: 0.95,
                 maxTokens: max(1, requestPolicy.maxTokens),
-                strategy: "continuous",
                 seed: seed
             )
         )
@@ -908,11 +902,8 @@ final class AIPerformanceService {
         if error is ImprovBackendRegistryError {
             return .unavailable
         }
-        if let error = error as? LocalRuleImprovBackendError {
-            return error == .timeout ? .timeout : .invalidResponse
-        }
-        if let error = error as? LocalCoreMLDuetImprovBackendError {
-            return error == .timeout ? .timeout : .invalidResponse
+        if error is LocalRuleImprovBackendError || error is LocalCoreMLDuetImprovBackendError {
+            return .invalidResponse
         }
         if let error = error as? AriaNetworkBonjourHTTPImprovBackendError {
             switch error {
@@ -922,7 +913,10 @@ final class AIPerformanceService {
                 return .invalidResponse
             }
         }
-        if error is ImprovBackendClientError {
+        if let error = error as? ImprovBackendClientError {
+            if case let .httpError(_, code, _) = error, code == "busy" {
+                return .busy
+            }
             return .invalidResponse
         }
         if let error = error as? URLError, error.code == .timedOut {

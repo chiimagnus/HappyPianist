@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import threading
+import time
 import types
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,8 +13,8 @@ from unittest.mock import patch
 from aiohttp.test_utils import TestClient, TestServer
 
 from aria_server import server
+from shared.aria_protocol import PROTOCOL_VERSION, ControlChangeEvent, GenerateRequest, NoteEvent
 from shared.cc_policy import DefaultCCPolicy
-from shared.protocol_v2 import ControlChangeEvent, GenerateRequestV2, NoteEvent
 
 
 class FailingPipeline:
@@ -23,6 +25,11 @@ class FailingPipeline:
 class SuccessfulPipeline:
     def generate(self, _: list[Any], __: dict[str, Any]) -> tuple[Any, int]:
         return object(), 137
+
+
+class BusyPipeline:
+    def generate(self, _: list[Any], __: dict[str, Any]) -> tuple[Any, int]:
+        raise server.AriaBusyError("already running")
 
 
 def _config() -> server.ServerConfig:
@@ -39,7 +46,7 @@ def _config() -> server.ServerConfig:
 def _request_payload() -> dict[str, Any]:
     return {
         "type": "generate",
-        "protocol_version": 2,
+        "protocol_version": PROTOCOL_VERSION,
         "events": [
             {
                 "type": "note",
@@ -47,22 +54,18 @@ def _request_payload() -> dict[str, Any]:
                 "velocity": 90,
                 "time": 0.0,
                 "duration": 0.25,
-            }
+            },
+            {"type": "cc", "controller": 64, "value": 127, "time": 0.1},
         ],
-        "params": {
-            "top_p": 0.9,
-            "max_tokens": 16,
-            "strategy": "test",
-        },
-        "session_id": "server-test",
+        "params": {"max_tokens": 16},
     }
 
 
-def _test_app():
+def _test_app(pipeline: Any = None):
     app = server.create_app(_config())
     app.on_startup.clear()
     app.on_cleanup.clear()
-    app[server.ARIA_PIPELINE_KEY] = FailingPipeline()
+    app[server.ARIA_PIPELINE_KEY] = pipeline or FailingPipeline()
     return app
 
 
@@ -73,12 +76,12 @@ def test_generate_failure_returns_typed_error_without_echoing_prompt() -> None:
         try:
             response = await client.post("/generate", json=_request_payload())
             payload = await response.json()
-
             assert response.status == 500
             assert payload == {
                 "type": "error",
-                "protocol_version": 2,
-                "message": "generation_failed",
+                "protocol_version": PROTOCOL_VERSION,
+                "code": "generation_failed",
+                "message": None,
             }
             assert "events" not in payload
         finally:
@@ -87,34 +90,95 @@ def test_generate_failure_returns_typed_error_without_echoing_prompt() -> None:
     asyncio.run(scenario())
 
 
-def test_generated_reply_preserves_pipeline_latency() -> None:
+def test_invalid_legacy_request_is_rejected_instead_of_ignored() -> None:
     async def scenario() -> None:
-        app = server.create_app(_config())
-        app[server.ARIA_PIPELINE_KEY] = SuccessfulPipeline()
-        app[server.CC_POLICY_KEY] = DefaultCCPolicy(default_cc7=None, default_cc11=None)
-
-        midi_module = types.ModuleType("shared.midi_events_v2")
-        midi_module.mididict_to_events = lambda _: []
-        previous_module = sys.modules.get("shared.midi_events_v2")
-        sys.modules["shared.midi_events_v2"] = midi_module
+        client = TestClient(TestServer(_test_app()))
+        await client.start_server()
         try:
-            request = GenerateRequestV2.model_validate(_request_payload())
-            events, latency_ms = await server._generate_reply_events(app, request)
+            payload = _request_payload()
+            payload["session_id"] = "legacy"
+            payload["params"]["top_p"] = 0.9
+            response = await client.post("/generate", json=payload)
+            body = await response.json()
+            assert response.status == 400
+            assert body["type"] == "error"
+            assert body["protocol_version"] == PROTOCOL_VERSION
+            assert body["code"] == "invalid_request"
         finally:
-            if previous_module is None:
-                del sys.modules["shared.midi_events_v2"]
-            else:
-                sys.modules["shared.midi_events_v2"] = previous_module
-
-        assert latency_ms == 137
-        assert any(getattr(event, "controller", None) == 64 for event in events)
+            await client.close()
 
     asyncio.run(scenario())
 
 
-def test_zero_cc_argument_remains_a_valid_midi_value() -> None:
+def test_busy_generation_returns_machine_readable_503() -> None:
+    async def scenario() -> None:
+        client = TestClient(TestServer(_test_app(BusyPipeline())))
+        await client.start_server()
+        try:
+            response = await client.post("/generate", json=_request_payload())
+            payload = await response.json()
+            assert response.status == 503
+            assert payload == {
+                "type": "error",
+                "protocol_version": PROTOCOL_VERSION,
+                "code": "busy",
+                "message": "Aria inference is already running",
+            }
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+
+def test_pipeline_single_flight_rejects_second_call_without_waiting() -> None:
+    pipeline = server.AriaPipeline(checkpoint=Path("missing.safetensors"), engine="mlx")
+    assert pipeline._lock.acquire(blocking=False)
+    started = time.perf_counter()
+    try:
+        try:
+            pipeline.generate([], {"max_tokens": 16})
+        except server.AriaBusyError:
+            pass
+        else:
+            raise AssertionError("second Aria generation must fail busy")
+    finally:
+        pipeline._lock.release()
+    assert time.perf_counter() - started < 0.05
+
+
+def test_generated_reply_preserves_pipeline_latency_without_synthetic_cc64() -> None:
+    async def scenario() -> None:
+        app = _test_app(SuccessfulPipeline())
+        app[server.CC_POLICY_KEY] = DefaultCCPolicy(default_cc7=None, default_cc11=None)
+
+        midi_module = types.ModuleType("shared.aria_midi_events")
+        midi_module.mididict_to_events = lambda _: []
+        previous_module = sys.modules.get("shared.aria_midi_events")
+        sys.modules["shared.aria_midi_events"] = midi_module
+        try:
+            request = GenerateRequest.model_validate(_request_payload())
+            events, latency_ms = await server._generate_reply_events(app, request)
+        finally:
+            if previous_module is None:
+                del sys.modules["shared.aria_midi_events"]
+            else:
+                sys.modules["shared.aria_midi_events"] = previous_module
+
+        assert latency_ms == 137
+        assert events == []
+
+    asyncio.run(scenario())
+
+
+def test_zero_cc_argument_remains_valid_and_out_of_range_is_rejected() -> None:
     assert server._parse_optional_cc_arg("0") == 0
     assert server._parse_optional_cc_arg("off") is None
+    try:
+        server._parse_optional_cc_arg("128")
+    except Exception:
+        pass
+    else:
+        raise AssertionError("out-of-range CC configuration must fail")
 
 
 def test_continuation_extraction_removes_prompt_and_preserves_gap() -> None:
@@ -126,9 +190,7 @@ def test_continuation_extraction_removes_prompt_and_preserves_gap() -> None:
         *prompt,
         NoteEvent(note=67, velocity=88, time=1.25, duration=0.4),
     ]
-
     continuation = server._extract_continuation_events(prompt, reply)
-
     assert continuation == [NoteEvent(note=67, velocity=88, time=0.25, duration=0.4)]
 
 
@@ -142,15 +204,12 @@ def test_continuation_extraction_tolerates_generated_events_interleaved_by_time(
         NoteEvent(note=67, velocity=76, time=0.75, duration=0.25),
         prompt[1],
     ]
-
     continuation = server._extract_continuation_events(prompt, reply)
-
     assert continuation == [NoteEvent(note=67, velocity=76, time=0.0, duration=0.25)]
 
 
 def test_cuda_engine_can_be_selected_explicitly() -> None:
     config = server.parse_args(["--engine", "cuda"])
-
     assert config.engine == "cuda"
 
 

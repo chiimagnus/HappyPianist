@@ -6,7 +6,6 @@ protocol ImprovBackendProtocol: Sendable {
 
     func generateCreativeResponse(
         phrase: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse
 }

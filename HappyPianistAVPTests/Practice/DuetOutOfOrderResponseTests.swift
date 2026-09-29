@@ -40,8 +40,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout _: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         try Task.checkCancellation()
         lastPhrase = phrase

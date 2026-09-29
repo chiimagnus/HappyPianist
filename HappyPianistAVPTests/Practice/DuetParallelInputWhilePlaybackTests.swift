@@ -51,8 +51,7 @@ private actor CountingScheduleBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout _: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         generateCallCountValue += 1
         return CreativeDuetResponse(

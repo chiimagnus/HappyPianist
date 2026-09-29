@@ -6,9 +6,7 @@ public struct RuleImprovGenerator: Sendable {
 
     public func generateRuleResponse(
         notes: [ImprovDialogueNote],
-        params: ImprovGenerateParams,
-        sessionID _: String?,
-        seed: UInt64
+        params: ImprovGenerateParams
     ) -> [ImprovDialogueNote] {
         let inputEvents = notes.map { RuleNoteEvent(note: $0.note, velocity: $0.velocity, time: $0.time, duration: $0.duration) }
         let responseSeconds = deriveResponseLengthSeconds(params: params)
@@ -21,7 +19,7 @@ public struct RuleImprovGenerator: Sendable {
             contextSeconds: contextSeconds,
             mode: "motif",
             secondsPerMeasure: 0.0,
-            seed: seed
+            seed: params.seed
         )
 
         return result.notes.map { event in
