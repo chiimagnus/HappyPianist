@@ -85,10 +85,10 @@ note = "最终保留原实现；Stage A x2 逐 case 0 mismatch，但 MAESTRO set
 [[tasks]]
 id = "P2-T1"
 title = "补齐 AIPerformanceService Companion glue"
-status = "pending"
+status = "completed"
 plan = "plan-p2.md#p2-t1"
-commit = ""
-note = "复用 P0 playback/并发覆盖，只补 backend decision→generation/no-generation/error/selection-change 的 service glue，不重复 policy/queue 测试。"
+commit = "385dc9f4"
+note = "补齐显式 listen/support、Companion error 不回退、selection change 丢弃旧 decision 的 AIPerformance glue 回归；新测试 4/4，目标回归 20/20，Simulator build PASS；生产代码无需修改。"
 
 [[tasks]]
 id = "P2-T2"
