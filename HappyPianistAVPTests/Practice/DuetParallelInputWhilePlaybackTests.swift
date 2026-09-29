@@ -128,6 +128,52 @@ private actor TakeoverCompanionBackend: CompanionDecisionBackendProtocol {
     func recordedCalls() -> [Call] { calls }
 }
 
+private actor FailingQwenCompanionBackend: CompanionDecisionBackendProtocol {
+    enum Failure: Error { case injected }
+
+    nonisolated let kind: CompanionDecisionBackendKind = .networkBonjourQwen
+    nonisolated let displayName = "Failing Qwen companion fake"
+    private var callCountValue = 0
+
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline _: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
+        _ = input
+        callCountValue += 1
+        throw Failure.injected
+    }
+
+    func callCount() -> Int { callCountValue }
+}
+
+private actor SuspendedQwenCompanionBackend: CompanionDecisionBackendProtocol {
+    nonisolated let kind: CompanionDecisionBackendKind = .networkBonjourQwen
+    nonisolated let displayName = "Suspended Qwen companion fake"
+
+    private var callCountValue = 0
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline _: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
+        _ = input
+        callCountValue += 1
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
+        return CompanionDecision(action: .support)
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+
+    func callCount() -> Int { callCountValue }
+}
+
 @MainActor
 private final class HoldingTakeoverPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var warmUpCallCount = 0
@@ -740,4 +786,171 @@ func generationInFlightWithoutPlaybackDoesNotPollCompanionDecision() async {
     await TestAsyncWait.until("fresh decision after generation completes") {
         await companionBackend.recordedCalls().count > callsWhileGenerationStarted
     }
+}
+
+@Test
+@MainActor
+func explicitListenDecisionDoesNotStartGeneration() async {
+    var nowUptime: TimeInterval = 0
+    let generationBackend = TakeoverGenerationBackend()
+    let companionBackend = TakeoverCompanionBackend()
+    await companionBackend.setAction(.listen)
+    let playbackService = HoldingTakeoverPlaybackService()
+    let playbackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: TakeoverDiscoveryOrchestrator(),
+        backendRegistry: .init(backends: [generationBackend]),
+        selectedBackendKind: { .localRule },
+        aiPlaybackServiceFactory: { playbackFactory },
+        companionDecisionBackendRegistry: .init(backends: [companionBackend]),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { _ in }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = TakeoverPracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordUserMIDI(.noteOn(note: 60, velocity: 90), at: 0, service: service)
+    nowUptime = 0.3
+
+    await TestAsyncWait.until("listen decision is consumed") {
+        await companionBackend.recordedCalls().contains { $0.action == .listen }
+    }
+    try? await Task.sleep(for: .milliseconds(150))
+
+    #expect(await generationBackend.callCount() == 0)
+    #expect(playbackService.playCallCount == 0)
+}
+
+@Test
+@MainActor
+func explicitSupportDecisionStartsGeneration() async {
+    var nowUptime: TimeInterval = 0
+    let generationBackend = TakeoverGenerationBackend()
+    let companionBackend = TakeoverCompanionBackend()
+    let playbackService = HoldingTakeoverPlaybackService()
+    let playbackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: TakeoverDiscoveryOrchestrator(),
+        backendRegistry: .init(backends: [generationBackend]),
+        selectedBackendKind: { .localRule },
+        aiPlaybackServiceFactory: { playbackFactory },
+        companionDecisionBackendRegistry: .init(backends: [companionBackend]),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { _ in }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = TakeoverPracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordUserMIDI(.noteOn(note: 60, velocity: 90), at: 0, service: service)
+    nowUptime = 0.3
+
+    await TestAsyncWait.until("support starts generation") {
+        await generationBackend.callCount() > 0
+    }
+
+    #expect(await companionBackend.recordedCalls().contains { $0.action == .support })
+    #expect(await generationBackend.callCount() > 0)
+}
+
+@Test
+@MainActor
+func companionBackendErrorStopsTickWithoutRuleFallback() async {
+    var nowUptime: TimeInterval = 0
+    let generationBackend = TakeoverGenerationBackend()
+    let failingBackend = FailingQwenCompanionBackend()
+    let fallbackBackend = TakeoverCompanionBackend()
+    let playbackService = HoldingTakeoverPlaybackService()
+    let playbackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: TakeoverDiscoveryOrchestrator(),
+        backendRegistry: .init(backends: [generationBackend]),
+        selectedBackendKind: { .localRule },
+        aiPlaybackServiceFactory: { playbackFactory },
+        companionDecisionBackendRegistry: .init(backends: [failingBackend, fallbackBackend]),
+        selectedCompanionDecisionBackendKind: { .networkBonjourQwen },
+        onStateChanged: { _ in }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = TakeoverPracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordUserMIDI(.noteOn(note: 60, velocity: 90), at: 0, service: service)
+    nowUptime = 0.3
+
+    await TestAsyncWait.until("failing Companion backend is called") {
+        await failingBackend.callCount() > 0
+    }
+    try? await Task.sleep(for: .milliseconds(150))
+
+    #expect(await generationBackend.callCount() == 0)
+    #expect(await fallbackBackend.recordedCalls().isEmpty)
+    #expect(playbackService.playCallCount == 0)
+}
+
+@Test
+@MainActor
+func companionSelectionChangeDiscardsOldSuspendedDecision() async {
+    var nowUptime: TimeInterval = 0
+    var selectedCompanionKind: CompanionDecisionBackendKind? = .networkBonjourQwen
+    let generationBackend = TakeoverGenerationBackend()
+    let suspendedBackend = SuspendedQwenCompanionBackend()
+    let replacementBackend = TakeoverCompanionBackend()
+    await replacementBackend.setAction(.listen)
+    let playbackService = HoldingTakeoverPlaybackService()
+    let playbackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: TakeoverDiscoveryOrchestrator(),
+        backendRegistry: .init(backends: [generationBackend]),
+        selectedBackendKind: { .localRule },
+        aiPlaybackServiceFactory: { playbackFactory },
+        companionDecisionBackendRegistry: .init(backends: [suspendedBackend, replacementBackend]),
+        selectedCompanionDecisionBackendKind: { selectedCompanionKind },
+        onStateChanged: { _ in }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = TakeoverPracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordUserMIDI(.noteOn(note: 60, velocity: 90), at: 0, service: service)
+    nowUptime = 0.3
+
+    await TestAsyncWait.until("old Companion decision is suspended") {
+        await suspendedBackend.callCount() > 0
+    }
+    selectedCompanionKind = .ruleBased
+    await suspendedBackend.release()
+
+    await TestAsyncWait.until("replacement Companion decision is consumed") {
+        await replacementBackend.recordedCalls().contains { $0.action == .listen }
+    }
+    try? await Task.sleep(for: .milliseconds(50))
+
+    #expect(await generationBackend.callCount() == 0)
+    #expect(playbackService.playCallCount == 0)
 }
