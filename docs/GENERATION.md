@@ -2,8 +2,8 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 源提交 | `0a8f63a036414212656e897d9391014df8f38004` |
-| 生成日期 | 2026-09-26 |
+| 源提交 | `5e3904625d3c9c5a2cce0e503ff87720617154ae` |
+| 生成日期 | 2026-09-30 |
 | 方法 | `neat-freak`：CodeGraph 核对源码边界，合并重复说明并检查链接、路径和命令。 |
 
 ## Canonical 页面
@@ -17,5 +17,5 @@
 
 ## 覆盖缺口
 
-- 2026-09-26 的 Simulator 全量回归为 `failed`（1010 通过、11 失败）；Qwen / Companion 定向回归通过；详见[测试](testing.md)。
+- 2026-09-26 的 Simulator 全量回归为 `failed`（1010 通过、11 失败）；2026-09-30 Qwen 已切到本地 NF4 4-bit，定向 Python 回归与固定 60-case Qwen → Aria 服务级 E2E 双跑通过；Stage A 仍有 `settled_end` 语义质量缺口。详见[测试](testing.md)。
 - 真机硬件、钢琴家盲评、教师标注和 coaching 研究仍为 `pending evidence`；合法多 exporter fixture 仍为 `blocked evidence`。

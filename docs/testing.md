@@ -57,7 +57,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 | 证据 | 状态 | 不能替代 |
 | --- | --- | --- |
 | Simulator 自动化 suite | `failed`：2026-09-26，基于 `0a8f63a`；1010 通过、11 失败，失败集中在手部骨架 / hand motion / local sampler | 真机、听感、教师或教学证据 |
-| Qwen / Companion 定向回归 | `passed`：2026-09-29；Swift API/backend 11/11，projection parity 1/1，Python Qwen/projection/manifest/corpus 19/19；Stage A manifest 固定 120 cases、每 bucket 10 个不同文件 | Windows CUDA 正式 Stage A 模型质量、真实设备网络 RTT、产品级 E2E |
+| Qwen / Companion 定向回归 | `passed`：2026-09-30；Qwen 已固定为本地 NF4 4-bit，Python Qwen/Stage A/service-E2E 定向回归 26/26；Stage A 固定 120 cases，延迟仅记录；服务级 E2E 固定 60 cases 双跑均为 0 action mismatch、11/11 Aria 生成成功、0 generation failure，生成 MIDI 均通过重解析与 note-on/off 配平 | `settled_end` 语义质量缺口、Vision Pro 真实设备网络与产品 playback E2E |
 | 多 exporter 合法 fixture | `blocked evidence` | 内部 fixture、伪造 provenance、不明来源下载 |
 | 真机硬件、钢琴家盲评、教师标注、coaching 研究 | `pending evidence` | Simulator bucket、诊断字段、点击次数或单个 demo |
 

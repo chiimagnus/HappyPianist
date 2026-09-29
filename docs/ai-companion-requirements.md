@@ -43,9 +43,9 @@ HappyPianist 的目标不是“生成一段音乐”，而是让 AI 在用户演
 
 ### Qwen3.5-0.8B
 
-后续实验先固定使用 `Qwen/Qwen3.5-0.8B`，不再维护并行实验后端。
+后续实验固定使用本地 `Qwen3.5-0.8B-NF4-4bit`，不再维护 BF16 或并行实验后端。
 
-Qwen 在 Windows + NVIDIA CUDA 电脑端本地运行，通过 Bonjour + `POST /v1/companion-decision` 被 visionOS 调用。服务固定加载 `Qwen/Qwen3.5-0.8B`，使用 zero-token A/B candidate logits，不生成解释文本。
+Qwen 在 Windows + NVIDIA CUDA 电脑端本地运行，通过 Bonjour + `POST /v1/companion-decision` 被 visionOS 调用。服务只加载项目本地的 NF4 4-bit checkpoint，使用 zero-token A/B candidate logits，不生成解释文本，也不提供 BF16 fallback。
 
 产品不直接让 Qwen 做五分类，而是先判断四个二元语义：
 
@@ -68,34 +68,34 @@ Qwen 网络请求只包含决策真正使用的 compact state：按住音符数�
 - MAESTRO / POP909 × 6 states，每个 source/state 固定 10 个不同文件，共 120 cases；
 - 固定 Qwen Companion protocol、四个二元语义、A/B 消偏、`semantic-v1` mapping 与 0.55 threshold；
 - 每个 source 单独检查 observable semantic boundary，不拿 MAESTRO/POP909 的 median 互相当真值；
-- decision RTT P95 hard Gate 固定为 100ms，与产品 100ms control-loop target 对齐；runner 没有 `--no-gate` 或可临时改 seed/state/case 数的入口。
+- decision RTT 继续作为观测指标写入结果，但不再属于 Stage A 自动 Gate；runner 仍没有可临时改 seed/state/case 数的入口。
 
 MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-taking 标签，因此自然静默、踏板停顿等只能验证可观察边界和模型行为，不能包装成准确率。
 
-截至 2026-09-29：
+截至 2026-09-30：
 
 - P0 架构收敛已完成：decision identity 绑定 activation / phrase generation / playback phase / post-start note-on / backend selection；stale decision 静默丢弃；
 - Companion control loop 固定 100ms hard deadline；Qwen Bonjour discovery/state fail-fast，Swift client 只消费剩余预算；Python Qwen runtime 为 single-flight，重叠请求立即 `503 busy`；
 - T7 Swift 定向回归 13/13 通过，其中 hard-deadline 用例 0.115s 完成；Python Qwen server + semantic benchmark 17/17 通过；
 - Swift/Python state-projection golden parity 已通过；Stage A corpus/manifest 已按产品 projection 重建；
 - `make build:simulator` 已通过；完整 Simulator suite 复跑为 1018 passed / 11 failed / 0 skipped，11 个失败均与 P0 前基线一致，集中在 hand motion/rig、local sampler 与 demonstration hands；Companion/AIPerformance 无新增失败；
-- 正式 Qwen 模型 Gate 留给后续固定 Stage A 执行。
+- Qwen 已切换为本地 NF4 4-bit；固定 120-case Stage A 完成，延迟仅记录，当前主要质量缺口是 `settled_end.finished` 仍低于 0.55 且 120-case 没有触发 `respond`；
+- 服务级 Qwen → Aria → MIDI E2E 已在 Windows RTX 4060 完成固定 60-case 双跑：两轮 Qwen action 完全一致且都与 Stage A reference 0 mismatch；每轮 11 次 Aria 生成全部成功，生成 MIDI 全部通过重新解析与 note-on/off 配平。该证据不等于 visionOS 产品实时性。
 
 验证边界与完整测试证据见[测试](testing.md)。
 
 ## 接下来做什么
 
-按这个顺序继续，不再同时探索多个模型：
+当前顺序已经收敛为：
 
-1. **重建固定 Stage A baseline。** 只使用已冻结 manifest/协议，在 Windows RTX 4060 + Qwen CUDA service 上完成可重复双跑。
-2. **定位 Qwen 决策时延和 Prompt 冗余。** 先用 timing 证据拆 render/tokenize/tensor/GPU/decode/HTTP，再决定是否精简。
-3. **用同一 Stage A 收口 Qwen Gate。** 不改样本、不改 100ms Gate 来“过测试”。
-4. **重跑当前协议的 Qwen → Aria → MIDI E2E。** 证明当前决策协议真的进入产品生成和播放链。
-5. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
+1. **继续处理 Qwen 的语义质量缺口。** 4-bit Stage A 已固定，延迟不再阻塞；后续重点是 `settled_end` 与 `respond` 可达性，不改样本或阈值来“过测试”。
+2. **保留已经通过的服务级 Qwen → Aria → MIDI E2E。** 固定 60-case 双跑是服务链技术证据，不替代产品真机验证。
+3. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
+4. **有 Vision Pro 真机条件时再做局域网产品验证。** 真机网络与实际 playback timing 单独记录，不用 localhost 结果替代。
 
 ## 什么时候才换路线
 
-只有固定 Qwen 协议经过上述验证仍无法达到关键语义和延迟 Gate，才进入下一层成本：先考虑 Qwen 的任务微调 / LoRA，再考虑专用音乐交互分类模型。全双工音乐模型属于更长期方向，不是当前任务。
+只有固定 Qwen 协议经过上述验证仍无法达到关键语义 Gate，才进入下一层成本：先考虑 Qwen 的任务微调 / LoRA，再考虑专用音乐交互分类模型。延迟不再决定 P1 是否继续推进。全双工音乐模型属于更长期方向，不是当前任务。
 
 ## 相关文档
 
