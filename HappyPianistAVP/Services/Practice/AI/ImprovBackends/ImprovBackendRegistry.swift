@@ -7,7 +7,7 @@ enum ImprovBackendRegistryError: Error, Equatable {
 struct ImprovBackendRegistry {
     private var backendsByKind: [ImprovBackendKind: any ImprovBackendProtocol] = [:]
 
-    init(backends: [any ImprovBackendProtocol] = []) {
+    init(backends: [any ImprovBackendProtocol]) {
         for backend in backends {
             backendsByKind[backend.kind] = backend
         }

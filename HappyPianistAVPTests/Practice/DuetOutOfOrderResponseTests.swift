@@ -136,6 +136,8 @@ func continuousDuetRequestsGenerationBeforeUserReleasesKey() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
 
@@ -187,6 +189,8 @@ func continuousDuetCoalescesMultipleFingersOnTheSameMIDIKey() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
@@ -255,6 +259,8 @@ func continuousDuetRequestsGenerationForMIDI2Input() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
 
@@ -302,6 +308,8 @@ func systemPlaybackObservationDoesNotRequestContinuousDuet() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())

@@ -130,6 +130,8 @@ func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
 

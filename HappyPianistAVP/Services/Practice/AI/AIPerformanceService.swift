@@ -142,10 +142,8 @@ final class AIPerformanceService {
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind?,
         aiPlaybackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
-        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry = .init(
-            backends: [RuleBasedCompanionDecisionBackend()]
-        ),
-        selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind? = { .ruleBased },
+        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry,
+        selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind?,
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
         self.diagnosticsReporter = diagnosticsReporter
@@ -253,7 +251,6 @@ final class AIPerformanceService {
     ) {
         guard usesBluetoothMIDIInput == false else { return }
         guard isEnabled else { return }
-        guard syncBackendDiscoveryIfNeeded() else { return }
 
         let sourceKind: PerformanceObservation.Source.Kind = isVirtualPianoEnabled
             ? .virtualPianoContact
@@ -300,7 +297,6 @@ final class AIPerformanceService {
 
     func recordPerformanceObservationForPhraseRecordingIfNeeded(_ observation: PerformanceObservation) {
         guard isEnabled, observation.source.role == .userPerformance else { return }
-        guard syncBackendDiscoveryIfNeeded() else { return }
         recordPhraseObservation(observation)
     }
 

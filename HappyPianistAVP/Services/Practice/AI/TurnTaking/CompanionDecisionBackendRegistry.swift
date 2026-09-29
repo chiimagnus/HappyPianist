@@ -9,7 +9,7 @@ enum CompanionDecisionBackendRegistryError: Error, Equatable {
 struct CompanionDecisionBackendRegistry {
     private var backendsByKind: [CompanionDecisionBackendKind: any CompanionDecisionBackendProtocol] = [:]
 
-    init(backends: [any CompanionDecisionBackendProtocol] = []) {
+    init(backends: [any CompanionDecisionBackendProtocol]) {
         for backend in backends {
             backendsByKind[backend.kind] = backend
         }

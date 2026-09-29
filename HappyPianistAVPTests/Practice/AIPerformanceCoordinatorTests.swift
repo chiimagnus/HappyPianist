@@ -174,6 +174,20 @@ private actor ThrowingBackend: ImprovBackendProtocol {
     }
 }
 
+private actor RecordingCompanionDecisionBackend: CompanionDecisionBackendProtocol {
+    nonisolated let kind: CompanionDecisionBackendKind = .ruleBased
+    nonisolated let displayName = "Recording Companion"
+
+    private var inputs: [CompanionDecisionInput] = []
+
+    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision {
+        inputs.append(input)
+        return CompanionDecision(action: .listen)
+    }
+
+    func recordedInputs() -> [CompanionDecisionInput] { inputs }
+}
+
 private actor SequencedCandidateBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
@@ -314,6 +328,8 @@ func enableDisableAreIdempotent() async {
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
 
@@ -362,6 +378,8 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
         backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
 
@@ -437,6 +455,8 @@ func shutdownPreventsFurtherEnable() async {
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
 
@@ -490,9 +510,11 @@ func invalidStoredBackendSelectionStopsWithoutFallback() async {
         nowUptimeSeconds: { 0 },
         sleepFor: { _ in },
         discoveryOrchestrator: orchestrator,
-        backendRegistry: ImprovBackendRegistry(),
+        backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selection.selectedKind() },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -542,6 +564,8 @@ func selectedUnavailableBackendStopsWithoutLocalSubstitution() async {
         backendRegistry: ImprovBackendRegistry(backends: [localFallback]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -596,7 +620,9 @@ func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() asy
             backendRegistry: ImprovBackendRegistry(backends: [backend]),
             selectedBackendKind: { selectedKind },
             aiPlaybackServiceFactory: { aiPlaybackFactory },
-            onStateChanged: { states.append($0) }
+            companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { states.append($0) }
         )
         defer { service.setEnabled(false) }
 
@@ -619,6 +645,70 @@ func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() asy
         let events = await diagnosticsReporter.events
         #expect(events.contains(where: { $0.reason == expectedReason }))
     }
+}
+
+@Test
+@MainActor
+func invalidGenerationSelectionDoesNotDropUserStateBeforeSelectionIsFixed() async throws {
+    var selectedGenerationKind: ImprovBackendKind?
+    let discoveryService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: discoveryService)
+    let generationBackend = RecordingSeedBackend(
+        kind: .localRule,
+        schedule: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+        ]
+    )
+    let companionBackend = RecordingCompanionDecisionBackend()
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { 0 },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [generationBackend]),
+        selectedBackendKind: { selectedGenerationKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry(backends: [companionBackend]),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { _ in }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0
+        )
+    )
+
+    #expect(await generationBackend.requestedSeeds.isEmpty)
+    selectedGenerationKind = .localRule
+
+    var observedInput: CompanionDecisionInput?
+    for _ in 0 ..< 200 {
+        observedInput = await companionBackend.recordedInputs().last
+        if observedInput != nil { break }
+        try await Task.sleep(for: .milliseconds(1))
+    }
+
+    let input = try #require(observedInput)
+    #expect(input.heldNotesCount == 1)
+    #expect(input.lastNoteOnTimestampSeconds == 0)
+    #expect(input.recentNoteDensityPerSecond > 0)
+    #expect(await generationBackend.requestedSeeds.isEmpty)
+    #expect(playbackService.playCallCount == 0)
 }
 
 @Test
@@ -658,7 +748,9 @@ func mismatchedCreativeResponseMetadataStopsWithInvalidResponseDiagnostics() asy
             backendRegistry: ImprovBackendRegistry(backends: [backend]),
             selectedBackendKind: { selectedKind },
             aiPlaybackServiceFactory: { aiPlaybackFactory },
-            onStateChanged: { states.append($0) }
+            companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { states.append($0) }
         )
         defer { service.setEnabled(false) }
 
@@ -708,6 +800,8 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -754,6 +848,8 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -812,6 +908,8 @@ func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession()
@@ -880,6 +978,8 @@ func networkBackendRemainsSingleCandidate() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession()
@@ -965,6 +1065,8 @@ func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     let session = FakePracticeSession()
@@ -1059,6 +1161,8 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     let session = FakePracticeSession()
