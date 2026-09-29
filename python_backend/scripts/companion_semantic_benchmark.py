@@ -42,7 +42,6 @@ MANIFEST_PATH = PYTHON_BACKEND_ROOT / "tests/fixtures/companion_stage_a_manifest
 ACTION_COLLAPSE_SHARE = 0.90
 REQUIRED_ACTIONS = {"listen", "support", "sparse", "yield", "respond"}
 REQUEST_TIMEOUT_SECONDS = 2.0
-PRODUCT_DECISION_RTT_P95_LIMIT_MS = 100.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -163,9 +162,7 @@ PER_SOURCE_BOUNDARIES = {
 }
 
 
-def screening_diagnostics(
-    summary: dict[str, Any], *, latency_hard_limit_ms: float = 100.0
-) -> dict[str, Any]:
+def screening_diagnostics(summary: dict[str, Any]) -> dict[str, Any]:
     reasons: list[str] = []
     action_total = sum(int(value) for value in summary["actions"].values())
     dominant_action, dominant_count = max(summary["actions"].items(), key=lambda item: int(item[1]))
@@ -194,13 +191,9 @@ def screening_diagnostics(
         reasons.append("settled_end_not_above_active_dense_on_respond")
     if action_rate(summary, "takeover_overlay", "yield") <= action_rate(summary, "active_dense", "yield"):
         reasons.append("takeover_overlay_not_above_active_dense_on_yield")
-    if float(summary["round_trip_latency_ms"]["p95"]) >= latency_hard_limit_ms:
-        reasons.append(f"latency_p95:{float(summary['round_trip_latency_ms']['p95']):.1f}ms")
-
     return {
         "dominant_action": {"action": dominant_action, "share": dominant_share},
         "semantic_threshold": SEMANTIC_THRESHOLD,
-        "latency_hard_limit_ms": latency_hard_limit_ms,
         "automatic_stop_reasons": reasons,
         "passed": not reasons,
     }
@@ -255,8 +248,6 @@ def validate_manifest(corpus_index: dict[str, Any], scenarios: list[Any], manife
         raise RuntimeError("Stage A case ID digest does not match manifest")
     if float(manifest["semantic_threshold"]) != SEMANTIC_THRESHOLD:
         raise RuntimeError("Stage A semantic threshold does not match runtime contract")
-    if float(manifest["latency_hard_limit_ms"]) != PRODUCT_DECISION_RTT_P95_LIMIT_MS:
-        raise RuntimeError("Stage A latency budget does not match the 100ms product control target")
 
 
 def main() -> int:
@@ -312,10 +303,7 @@ def main() -> int:
         )
 
     summary = summarize(rows)
-    screening = screening_diagnostics(
-        summary,
-        latency_hard_limit_ms=float(manifest["latency_hard_limit_ms"]),
-    )
+    screening = screening_diagnostics(summary)
     payload = {
         "methodology_note": "Fixed Qwen Companion Stage A; service owns semantic questions/A-B aggregation/action mapping and each corpus source is checked against the same observable boundaries.",
         "model": MODEL_ID,

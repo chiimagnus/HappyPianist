@@ -198,7 +198,7 @@ private func qwenClientState() -> QwenCompanionState {
 
 private func qwenCompanionDecisionBody(outputTokens: Int) -> [String: Any] {
     [
-        "model": "Qwen/Qwen3.5-0.8B",
+        "model": "Qwen3.5-0.8B-NF4-4bit",
         "action": "support",
         "semantic_scores": [
             "continuing": 0.78,

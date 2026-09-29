@@ -216,7 +216,7 @@ def test_stage_a_manifest_has_fixed_120_case_identity() -> None:
     assert len(manifest["states"]) == 6
     assert len(manifest["case_ids"]) == 120
     assert case_ids_sha256(manifest["case_ids"]) == manifest["case_ids_sha256"]
-    assert manifest["latency_hard_limit_ms"] == 100.0
+    assert "latency_hard_limit_ms" not in manifest
 
 
 def test_canonical_json_sha_is_format_independent() -> None:

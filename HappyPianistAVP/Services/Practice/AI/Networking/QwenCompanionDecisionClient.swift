@@ -121,7 +121,7 @@ protocol QwenCompanionDecisionClientProtocol: Sendable {
 }
 
 struct QwenCompanionDecisionClient: QwenCompanionDecisionClientProtocol {
-    static let expectedModel = "Qwen/Qwen3.5-0.8B"
+    static let expectedModel = "Qwen3.5-0.8B-NF4-4bit"
     static let path = "/v1/companion-decision"
 
     private let urlSession: URLSession

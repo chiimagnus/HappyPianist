@@ -261,7 +261,7 @@ def test_server_identity_is_fixed_to_qwen_cuda_companion() -> None:
     config = server.parse_args(["--host", "0.0.0.0", "--port", "9000"])
     assert config.host == "0.0.0.0"
     assert config.port == 9000
-    assert MODEL_ID == "Qwen/Qwen3.5-0.8B"
+    assert MODEL_ID == "Qwen3.5-0.8B-NF4-4bit"
     assert ENGINE_ID == "qwen-companion"
     assert PROTOCOL_VERSION == "2"
 

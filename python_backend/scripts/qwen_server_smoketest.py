@@ -33,7 +33,7 @@ def main() -> None:
     with urllib.request.urlopen(request, timeout=5) as response:
         body = json.loads(response.read().decode("utf-8"))
 
-    assert body["model"] == "Qwen/Qwen3.5-0.8B"
+    assert body["model"] == "Qwen3.5-0.8B-NF4-4bit"
     assert body["action"] in {"listen", "support", "sparse", "yield", "respond"}
     assert set(body["semantic_scores"]) == {
         "continuing",

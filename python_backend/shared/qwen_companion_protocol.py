@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-MODEL_ID = "Qwen/Qwen3.5-0.8B"
+MODEL_ID = "Qwen3.5-0.8B-NF4-4bit"
 ENGINE_ID = "qwen-companion"
 PROTOCOL_VERSION = "2"
 COMPANION_DECISION_PATH = "/v1/companion-decision"

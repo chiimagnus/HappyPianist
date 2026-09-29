@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from aiohttp import web
@@ -29,6 +30,7 @@ from shared.qwen_companion_protocol import (
 )
 
 logger = logging.getLogger(__name__)
+MODEL_PATH = Path(__file__).resolve().parents[2] / ".models" / "qwen3.5-0.8b-bnb-4bit"
 
 
 @dataclass(frozen=True)
@@ -73,16 +75,29 @@ class TransformersQwenRuntime:
             if torch.cuda.is_available() is False:
                 raise RuntimeError("Qwen companion service requires CUDA")
 
-            tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+            if MODEL_PATH.is_dir() is False:
+                raise RuntimeError(
+                    f"Qwen 4-bit checkpoint is missing: {MODEL_PATH}. "
+                    "Run scripts/prepare_qwen_4bit.py first."
+                )
+
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, local_files_only=True)
             model = AutoModelForCausalLM.from_pretrained(
-                MODEL_ID,
-                dtype=torch.bfloat16,
+                MODEL_PATH,
+                device_map={"": "cuda"},
+                local_files_only=True,
             )
-            model.eval().to("cuda")
+            model.eval()
+
+            if getattr(model, "is_loaded_in_4bit", False) is not True:
+                raise RuntimeError("Qwen companion checkpoint must be pre-quantized to 4-bit")
 
             self._tokenizer = tokenizer
             self._model = model
-            logger.info("Qwen companion runtime loaded: model=%s device=cuda", MODEL_ID)
+            logger.info(
+                "Qwen companion runtime loaded: model=%s quantization=4bit device=cuda",
+                MODEL_ID,
+            )
 
     def _render_plan(self, question_id: str, state: dict[str, Any]) -> tuple[list[int], list[int]]:
         if self._tokenizer is None:
@@ -273,6 +288,7 @@ async def handle_health(request: web.Request) -> web.Response:
             "status": "ready",
             "service": "qwen_companion",
             "model": MODEL_ID,
+            "quantization": "4bit",
             "device": "cuda",
             "path": COMPANION_DECISION_PATH,
             "protocol_version": PROTOCOL_VERSION,
@@ -361,6 +377,7 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO)
     config = parse_args(argv)
     print(f"[qwen_server] model={MODEL_ID}", flush=True)
+    print("[qwen_server] quantization=4bit", flush=True)
     print("[qwen_server] device=cuda", flush=True)
     print(
         f"[qwen_server] listening=http://{config.host}:{config.port}{COMPANION_DECISION_PATH}",

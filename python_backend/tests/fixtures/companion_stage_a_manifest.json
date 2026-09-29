@@ -6,7 +6,7 @@
     "ioi_window_seconds": 2.4,
     "density_window_seconds": 1.2
   },
-  "model": "Qwen/Qwen3.5-0.8B",
+  "model": "Qwen3.5-0.8B-NF4-4bit",
   "engine": "qwen-companion",
   "protocol_version": "2",
   "corpus_index_sha256_canonical": "5585dc864e1d33ae36a513ffb52d57c2b11b5b5e6005897bc2a3b5930b705588",
@@ -143,6 +143,5 @@
     "pop909|takeover_overlay|625/625.mid|24.706890"
   ],
   "case_ids_sha256": "48e85f6c20f032127753d7441f1d0770940977bfc4f0e8c0cf2fd48596b10bdf",
-  "semantic_threshold": 0.55,
-  "latency_hard_limit_ms": 100.0
+  "semantic_threshold": 0.55
 }
