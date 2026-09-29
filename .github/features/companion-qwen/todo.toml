@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P0-T2"
+current_task_id = "P0-T5"
 
 [[tasks]]
 id = "P0-T1"
@@ -12,31 +12,31 @@ note = "专用 /v1/companion-decision；Python 唯一拥有四语义/A-B 消偏/
 [[tasks]]
 id = "P0-T2"
 title = "对齐产品 state projection 并冻结 Stage A 真源"
-status = "in_progress"
+status = "completed"
 plan = "plan-p0.md#p0-t2"
-commit = ""
-note = "先用共享 golden fixture 对齐 Swift/Python：4s history、2.4s IOI、1.2s density、sustain-held、真实 last-note-on；旧 1s-density corpus/case IDs 作废，重建 corpus/manifest 后才冻结 Stage A。"
+commit = "2d171448"
+note = "事件流复现产品 projection；4s/2.4s/1.2s 参数入 manifest；120 cases 每 bucket 10 个不同文件；Python 20/20、Swift parity 1/1、manifest dry validation PASS。"
 
 [[tasks]]
 id = "P0-T3"
 title = "删除伪 Aria Streaming 双轨"
-status = "pending"
+status = "completed"
 plan = "plan-p0.md#p0-t3"
-commit = ""
-note = "源码已证实旧 WS 先完整生成再分块且 Swift 收齐后才返回；删除 WS backend/client/protocol/server route/UI/test，不做旧 raw value 兼容映射。"
+commit = "578fb635"
+note = "删除 Swift/Python WebSocket 伪 streaming 全链；旧 raw value 不迁移；Aria 8/8、真实 HTTP smoke、Swift 3/3、Simulator build PASS，WS 特定标识 0。"
 
 [[tasks]]
 id = "P0-T4"
 title = "收窄生成参数与 Aria HTTP 协议"
-status = "pending"
+status = "completed"
 plan = "plan-p0.md#p0-t4"
-commit = ""
-note = "删除本地假 timeout、12s generation wait、strategy/sessionID/optional-seed fallback/重复 seed、Aria fake params/silent repair/dead CC7/11 input/synthetic CC64；HTTP deadline=350ms，Aria busy single-flight fail-fast，不允许取消后的旧推理制造 backlog。"
+commit = "c63d596108edb22a76f9d883603a10d8285caf70"
+note = "删除假 timeout/strategy/sessionID/重复 seed 与旧 v2 DTO；Aria v3 strict schema、请求仅 note+真实 CC64+max_tokens、350ms 共享 deadline、single-flight busy；Python 20/20、Swift 16/16、真实 MLX HTTP smoke、Simulator build PASS。"
 
 [[tasks]]
 id = "P0-T5"
 title = "删除 Companion 隐式 fallback 与死 API"
-status = "pending"
+status = "in_progress"
 plan = "plan-p0.md#p0-t5"
 commit = ""
 note = "AIPerformanceService/registry 依赖全部显式；删除隐藏 RuleBased/empty-registry defaults、dead confidence/Codable；用户输入 state 与 generation provider availability 解耦，坏生成后端不能让演奏事实丢失。"
