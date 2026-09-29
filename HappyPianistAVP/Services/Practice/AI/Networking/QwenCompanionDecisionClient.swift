@@ -143,6 +143,9 @@ struct QwenCompanionDecisionClient: QwenCompanionDecisionClientProtocol {
             )
         }
 
+        guard Self.hasExactResponseShape(data) else {
+            throw QwenCompanionDecisionClientError.decodeFailed
+        }
         guard let result = try? JSONDecoder().decode(QwenCompanionDecisionResponse.self, from: data) else {
             throw QwenCompanionDecisionClientError.decodeFailed
         }
@@ -160,5 +163,28 @@ struct QwenCompanionDecisionClient: QwenCompanionDecisionClientProtocol {
             throw QwenCompanionDecisionClientError.invalidSemanticValues
         }
         return result
+    }
+
+    private static func hasExactResponseShape(_ data: Data) -> Bool {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(root.keys) == Set([
+                  "model",
+                  "action",
+                  "semantic_scores",
+                  "semantic_order_gaps",
+                  "usage",
+                  "server_latency_ms",
+              ]),
+              let semanticScores = root["semantic_scores"] as? [String: Any],
+              let semanticOrderGaps = root["semantic_order_gaps"] as? [String: Any],
+              let usage = root["usage"] as? [String: Any]
+        else {
+            return false
+        }
+
+        let semanticKeys = Set(["continuing", "finished", "space", "reasserted"])
+        return Set(semanticScores.keys) == semanticKeys
+            && Set(semanticOrderGaps.keys) == semanticKeys
+            && Set(usage.keys) == Set(["input_tokens", "output_tokens"])
     }
 }

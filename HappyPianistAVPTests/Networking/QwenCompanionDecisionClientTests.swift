@@ -137,6 +137,15 @@ func qwenCompanionClientFailsExplicitlyForHTTPDecodeModelAndOutputContract() asy
 
     QwenCompanionStubURLProtocol.setHandler { request in
         var body = qwenCompanionDecisionBody(outputTokens: 0)
+        body["legacy_field"] = true
+        return try qwenCompanionHTTPResponse(request: request, statusCode: 200, body: body)
+    }
+    await #expect(throws: QwenCompanionDecisionClientError.decodeFailed) {
+        _ = try await decide()
+    }
+
+    QwenCompanionStubURLProtocol.setHandler { request in
+        var body = qwenCompanionDecisionBody(outputTokens: 0)
         body["model"] = "other-model"
         return try qwenCompanionHTTPResponse(request: request, statusCode: 200, body: body)
     }
