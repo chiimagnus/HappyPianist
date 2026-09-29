@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P0-T6"
+current_task_id = ""
 
 [[tasks]]
 id = "P0-T1"
@@ -44,10 +44,10 @@ note = "删除隐式 RuleBased/empty-registry defaults、Companion dead confiden
 [[tasks]]
 id = "P0-T6"
 title = "让 Companion action 真正拥有 playback 让位语义"
-status = "in_progress"
+status = "completed"
 plan = "plan-p0.md#p0-t6"
-commit = ""
-note = "拆除旧 P14 用户输入即 stopAll 围栏；Queue 区分 preparing/playing，只有真实 playback 后的新 user note-on 才允许 reasserted/yield；旧 generation 仍立即失效。"
+commit = "66cf1b08"
+note = "Queue 收敛 idle/preparing/playing；用户输入仅淘汰未开始窗口；listen 保留当前播放、yield 才 stop；修复同代异步 invalidation 误杀 preparation；Swift 26/26、Qwen mapping 1/1、Simulator build PASS。"
 
 [[tasks]]
 id = "P0-T7"
