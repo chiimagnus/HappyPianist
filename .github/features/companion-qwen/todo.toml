@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P0-T5"
+current_task_id = "P0-T6"
 
 [[tasks]]
 id = "P0-T1"
@@ -36,15 +36,15 @@ note = "删除假 timeout/strategy/sessionID/重复 seed 与旧 v2 DTO；Aria v3
 [[tasks]]
 id = "P0-T5"
 title = "删除 Companion 隐式 fallback 与死 API"
-status = "in_progress"
+status = "completed"
 plan = "plan-p0.md#p0-t5"
-commit = ""
-note = "AIPerformanceService/registry 依赖全部显式；删除隐藏 RuleBased/empty-registry defaults、dead confidence/Codable；用户输入 state 与 generation provider availability 解耦，坏生成后端不能让演奏事实丢失。"
+commit = "b8b00dbe0ba893a86681c3e51ab91f7a30fbf97e"
+note = "删除隐式 RuleBased/empty-registry defaults、Companion dead confidence/Codable；27/27 AIPerformance 测试构造显式依赖；用户输入 state 与 generation backend availability 解耦；Swift 13/13、Simulator build PASS。"
 
 [[tasks]]
 id = "P0-T6"
 title = "让 Companion action 真正拥有 playback 让位语义"
-status = "pending"
+status = "in_progress"
 plan = "plan-p0.md#p0-t6"
 commit = ""
 note = "拆除旧 P14 用户输入即 stopAll 围栏；Queue 区分 preparing/playing，只有真实 playback 后的新 user note-on 才允许 reasserted/yield；旧 generation 仍立即失效。"
