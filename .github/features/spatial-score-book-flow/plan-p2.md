@@ -11,6 +11,12 @@ P2 负责让这些谱面关系成为真实动态 notation；当前 Library/Pract
 
 **Non-goals:** 不做 PDF/bitmap、第二 parser、出版级自动美化、旧横向兼容模式、RealityKit mesh/page curl、piano calibration 或 AR Guide 重构。
 
+**Approach:** 先把当前 viewport-coupled engraving 拆成唯一 score-level absolute layout，再用一次有停止条件的几何探索冻结 canonical page/system 约束；随后在同一条 production pipeline 上交付 pagination + Spread，并分别接入 Practice 与 Library preview。
+
+**Rules:** page/system identity 只由 score facts + canonical page geometry 决定，不由当前 tick、active range 或宿主像素尺寸决定；Library/Practice 共享同一 pagination owner；新路径接入时同步删除旧 viewport/current-context/continuous-scroll 路径，不保留兼容模式。
+
+**Phase acceptance:** 一页能真实容纳多个 Grand Staff systems；Library 与 Practice 对同一谱面得到一致页码；现有记谱/a11y 能力不回退；旧 continuous notation scroll runtime 退出 production。
+
 ## 执行顺序与接入边界
 
 - T1：新 engraving/slice 当场替换旧 View 背后的唯一管线。
@@ -274,14 +280,14 @@ Host：
 
 ---
 
-## P2 Phase Audit
+## P2 Phase completion checklist
 
 独立核对：唯一 engraving/page owner；完整 score 输入；逐 staff/context；边界/continuation；同一 canonical geometry；Library/Practice 共用动态 Spread；无练习预览副作用/第二 history 路径；无旧 tap/Ornament/View/context/scroll runtime；不丢音乐事实或可访问性；文档与真实调用一致。
 这不是最后清理机会，任何旧路径应已在所属替换 task 消失。
 
 ## 验证命令规则
 
-- 先读取本 feature `idea.md` 中“本轮独立复核”的基线限制。Apple 集成必须真实 `xcodebuild test`；build-for-testing 或 macOS package 通过不是同一证据。
+- 测试证据遵守仓库 `docs/testing.md` 与根/AVP `AGENTS.md`：Apple 集成必须真实 `xcodebuild test`；build-for-testing 或 macOS package 通过不是同一证据。只记录本轮实际执行结果，不复用旧 audit/旧计划里的通过声明。
 - 本机 package：`swift test --package-path Packages/HappyPianistCore --triple arm64-apple-macosx26.0`。换机器核对架构/系统后选有效 triple，不硬编码进 Package platforms。
 - 先 `swift test list` / Xcode test enumeration 再筛实际函数/suite；文件名不一定是 suite。确保实际运行非零个期望测试。
 - `make test:simulator` 会结束时 shutdown 指定 device并删旧 result bundle；用本轮专用 destination 与唯一报告路径，不能打断用户已启动的 Simulator 或覆盖其报告。必要时直接 xcodebuild test，使用已确认适用的 destination/超时/函数 IDs。

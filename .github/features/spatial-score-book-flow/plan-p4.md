@@ -27,11 +27,15 @@ P4 的验收重点是把前两张图从“Window 中的视觉模拟”变成真�
 - 不把整个 SwiftUI Library Window 作为一张平面截图贴进 RealityView。
 - 不保留 Window Book Flow 与 Spatial Book Flow 两套核心选曲路径。
 
-**Core decision:**
-- SwiftUI 继续负责 folio / Book Spread 内容与页内交互。
-- RealityKit 负责这些内容在 3D 世界中的 transform / depth / placement。
-- ARKit World Tracking 只提供当前设备世界位姿和稳定 world coordinates。
-- Spatial Library 第一版是 session-scoped world placement，不创建永久 WorldAnchor。
+**Approach:** 先用一个共享 ImmersiveSpace presentation/runtime owner 替换旧 Practice 专属 open/close/recover 状态机，并让 mode 切换显式迁移 mode-owned runtime + 增量重配 AR providers；再建立 session-scoped world placement，最后用有界 RealityView Attachments 承载 Book Flow/Spread，并让 Window 收敛为辅助管理入口。
+
+**Rules:**
+- SwiftUI 负责 folio / Book Spread 内容与页内交互；RealityKit 负责 3D transform/depth/placement；ARKit 只提供 tracking facts。
+- 同一 ImmersiveSpace 内切 `.library/.calibration/.practice` 不依赖新的 `onAppear/onDisappear`；旧 mode tasks 必须退出，新 mode tasks 必须显式进入。
+- Spatial Library 第一版只保存 session-scoped world placement，不给每本 folio 建永久 WorldAnchor。
+- Spatial Library 接管核心选曲后不保留 Window Book Flow 第二条核心路径。
+
+**Phase acceptance:** Spatial Book Flow 在 head movement 后保持 world-fixed；大曲库可浏览；Library/Calibration/Practice 在同一 scene 内可靠切 mode；旧 `.inTransition/yield/recover` workaround 与重复 close coordinator 均已删除。
 
 ---
 
@@ -68,7 +72,6 @@ Expected:
 - Update: `HappyPianistAVP/ViewModels/LiveAppGraph.swift`
 - Update: `HappyPianistAVP/Views/Shared/ImmersiveActionAdapters.swift`
 - Update: `HappyPianistAVP/Views/HappyPianistAVPApp.swift`
-- Update: `HappyPianistAVP/Views/Library/LibraryWindowView.swift` only if needed to inject/test the shared coordinator；do **not** expose the production “进入空间曲库” action until P4-T3 has real Spatial Library content
 - Update: `HappyPianistAVP/Views/PianoChoose/RealPiano/CalibrationStepView.swift`
 - Update: `HappyPianistAVP/Views/PianoChoose/VirtualPiano/VirtualPianoPreparationView.swift`
 - Update: `HappyPianistAVP/Views/PianoChoose/PreparationWindowRootView.swift`
@@ -77,6 +80,7 @@ Expected:
 - Update: `HappyPianistAVPTests/Tracking/ARTrackingServiceLifecycleTests.swift` and `ARGuideImmersiveLifecycleTests.swift`
 - Update protocol test doubles in `PracticeLocalizationViewModelTests.swift`, `CalibrationFlowViewModelTests.swift`, `ARGuideImmersiveLifecycleTests.swift` with the real `worldTrackingGeneration` fact；do not give the protocol a default implementation that hides missing lifecycle behavior
 - Update relevant Calibration/VirtualPiano/Practice provider-state/lifecycle tests
+- Update: `docs/architecture.md` in this same task with the new single mixed ImmersiveSpace presentation owner, mounted-scene fact ownership, explicit mode-transition runtime hook, and incremental AR provider lifecycle；do not defer these owner changes to P4-T3
 - Add focused coordinator tests
 
 ### Implementation
@@ -300,7 +304,7 @@ Simulator/device tuning may adjust the constants, but it must not change the own
 
 On entering library mode:
 1. P4-T1 has already reconciled `.library` to world tracking；
-2. run one cancellable, **time-bounded** placement task that checks the real world-provider state and queries a tracked device pose using the same default readiness cadence already proven by Practice Localization (**5 s timeout / 250 ms interval**)；share only a tiny value policy/constants if needed, not the whole Practice Localization state machine；
+2. run one cancellable, **time-bounded** placement task that checks the real world-provider state and queries a tracked device pose with explicit named local policy values **5 s timeout / 250 ms interval**（private/static constants on the Spatial Library placement owner or one tiny pure value type）；do not import/copy the Practice Localization state machine and do not add a generic readiness protocol；
 3. provider `unsupported/unauthorized/failed` ends immediately with a typed placement failure；
 4. first valid tracked pose resolves one root transform and publishes `.placed` once；
 5. timeout produces explicit `placementFailed` + user retry。
@@ -375,7 +379,7 @@ Expected:
 - Update: `HappyPianistAVP/Views/Shared/ImmersiveView.swift`
 - Update: `HappyPianistAVP/Views/HappyPianistAVPApp.swift`
 - Update: `HappyPianistAVP/ViewModels/LiveAppGraph.swift` only as needed to expose the already-created owners
-- Update: `docs/architecture.md` in this same task with the one mixed ImmersiveSpace + shared presentation coordinator + SpatialLibrarySceneController ownership；do not wait for P6 final cleanup
+- Update: `docs/architecture.md` in this same task only to extend the P4-T1 architecture with `SpatialLibrarySceneController` / Attachment ownership；the shared ImmersiveSpace coordinator and AR runtime lifecycle must already be documented by P4-T1
 - Reuse: `LibraryBookFlowPresentation.swift`
 - Reuse: `LibraryScoreFolioView.swift`
 - Reuse: `GrandStaffNotationSpreadView.swift`
@@ -646,7 +650,7 @@ No feature flag for “2D vs Spatial Library”.
 
 ---
 
-## P4 Phase Audit
+## P4 Phase completion checklist
 
 Before P5:
 

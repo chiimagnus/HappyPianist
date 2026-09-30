@@ -16,6 +16,12 @@
 - 不改导入事务、selection persistence、播放服务；
 - 不删除 destructive delete / import transaction 等真实数据安全边界。
 
+**Approach:** 只替换当前 Library Window 的视觉/交互呈现：先把当前 carousel 的纯值几何替换成 Book Flow 模型并立即接入，再用 folio UI 接管当前生产 caller；不新增第二个曲库状态 owner。
+
+**Rules:** 新实现接管当前 caller 的同一 task 就删除被替代的 Vinyl/Record/Crate presentation；导入、删除、试听、selection persistence 仍由现有业务 owner 决策，UI 不复制 gate。
+
+**Phase acceptance:** Window 中核心曲库已经是 Book Flow；导入/删除/试听/选择仍正常；production 不再依赖 Vinyl/Turntable/Record/Crate 核心视觉语义。
+
 ---
 
 ## P1-T1 建立 Book Flow 纯值呈现模型
@@ -287,7 +293,7 @@ P1 阶段先保持现有“selected item 再确认可试听”的行为，保证
 
 ---
 
-## P1 Phase Audit
+## P1 Phase completion checklist
 
 执行完 P1 立即审：
 

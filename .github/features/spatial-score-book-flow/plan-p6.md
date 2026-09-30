@@ -38,6 +38,12 @@ P6 负责把这五张图收成同一条 Reality-first Practice 主流程：真�
 - 不把 Virtual Piano 扩成新的 Companion Hands 产品路径；Virtual Piano 保持实验输入模式，现有基础练习可继续工作，但本 phase 不为它增加 Companion Teaching/Duet 控制、特殊 placement 或旧 performer fallback。
 - 不重新设计 Companion 手材质/UV/皮肤。
 - 不恢复小程完整角色。
+
+**Approach:** 先让 AI playback queue 暴露每个真实播放窗口的唯一 presentation identity/action/schedule/start time；再把 Demonstration 与 AI 共用的手部 motion 内核中性化，并补齐 Manual Replay hand timing；随后建立唯一 CompanionHands renderer、删除旧三套空间手/角色；最后把高频控制、反馈和结果迁入 Spatial Practice，并做全链路 teardown/真机验收。
+
+**Rules:** Companion 动画永远消费真实播放事实，不新增第二 playback engine/猜测 timer；一个 accepted AI window 只有一个 `windowID`；用户手保持 passthrough；只有一双虚拟 Companion Hands；motion 失败不能改变音频或伪造覆盖；旧 renderer/settings/aliases 在替换它们的 task 当场删除。
+
+**Phase acceptance:** Teaching 与 AI Duet 使用同一双 Companion Hands 并与真实 playback 同步；Neon/VirtualPerformer/Xiaocheng/第二台 AI piano 退出 production；核心控制/反馈/round result 可在空间中完成；Practice teardown/return 不残留声音、手势、旧任务或第二空间 owner。
 - 不做第二台 AI piano。
 - 不重做 Qwen/Aria 决策或生成算法。
 - 不重做练习评分/进度模型。
@@ -214,6 +220,7 @@ Expected:
 - Update: `HappyPianistAVP/Services/Practice/Playback/PracticeManualReplayService.swift` so the **existing** manual replay engine publishes the same neutral hand-motion transport/contact timing from the timeline/sequence it already builds；do not add another playback engine or timer
 - Update: `HappyPianistAVP/Services/Practice/AI/ImprovScheduleBuilder.swift` so each generated AI note occurrence receives one deterministic non-nil `sourceEventID` shared by its note-on/note-off pair；update backend/schedule tests directly, with no fallback for old nil IDs on the new Companion-hand path
 - Rename Session fields/tasks/accessors such as `pianoDemonstrationFingeringPlan*` / `pianoDemonstrationMotionClipSet*` to neutral hand-motion names in this task；update tests directly
+- Update: `docs/testing.md` in this same task so the existing pure-value hand-motion Gate uses the new neutral `PianoHandMotion` terminology and explicitly covers both score Demonstration and AI Companion motion；do not leave long-term docs describing the deleted Demonstration-only core names
 - Rename reusable geometry helpers `PianoDemonstrationHandRootPlanner` / `PianoDemonstrationHandSkeleton` to neutral `PianoHand...` names and move them with the pure motion kernel in this task because AI motion planning consumes the same geometry；do not defer these core files/aliases to renderer cleanup
 - Update: Demonstration playback path to the same generic types in this task
 - Add AI motion-planning tests
@@ -786,7 +793,7 @@ If any remain, trace ownership and fix in the task where they were supposed to b
 
 ---
 
-## P6 Phase Audit
+## P6 Phase completion checklist
 
 1. Only real passthrough user hands + one virtual Companion pair are visible.
 2. AI hand motion uses actual playback timing, not schedule-update time.

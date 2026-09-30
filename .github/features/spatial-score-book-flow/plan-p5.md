@@ -36,6 +36,12 @@ ARKit/Calibration owns `worldFromKeyboard`.
 
 Spatial Score placement owns only `keyboardLocalScoreTransform`.
 
+**Approach:** 先把 keyboard-relative placement 的方向不变量变成显式 typed contract，再建立唯一 SpatialScore owner；空间“开始练习”继续走现有 Library gate 与唯一 `PracticeLaunchViewModel`，成功后把同一 Spread handoff 到 `KeyboardScoreRoot`，并在同一 task 修正返回 Spatial Library 的生命周期；最后只增加用户微调/重置。
+
+**Rules:** 不创建第二个 launch/page/score owner；方向无法确定时明确失败，不用 zero/+Z 猜测；不保存 score world transform；save/flush/discard gate 成功前不改变 Practice→Library 空间归属；被替代的 fixed offset/旧 Window start 路径在 owning task 当场删除。
+
+**Phase acceptance:** Spatial Library 中打开的同一本 Spread 能迁移到真实钢琴上方；Real Audio/Bluetooth MIDI 共用同一 placement；setup/retry/save-failure/return 都保持唯一 launch/score 状态；成功返回 Library 不关闭整个 ImmersiveSpace。
+
 ---
 
 ## P5-T1 建立 canonical keyboard-relative score placement model / resolver
@@ -346,7 +352,7 @@ Extend that existing owner only with the minimum spatial launch facts it cannot 
 
 A setup-not-ready launch can be **registered as the existing `.requested(songID)` state without activating it yet**. That state already distinguishes “request exists but Practice preparation has not started” from `.loading/.failure/.ready`, so do not invent `awaitingPreparation/awaitingPracticeActivation` stages or a generic `consumed` boolean.
 
-Add one narrow cancellation operation on `PracticeLaunchViewModel` only if needed for a still-unactivated spatial request closed from Preparation. It clears the existing request/activation identity/current visit that has not begun recording and invalidates its generation；it is not a second coordinator and must not cancel an already-active Practice session.
+Add one narrow `PracticeLaunchViewModel.cancelPendingRequest()` (exact visibility follows current ViewModel style) for the still-unactivated `.requested` case used by Preparation cancellation. It requires `activationTask == nil` and `.requested`, increments `generation`, clears `requestedSongID/state/activationIdentity/currentVisitID` plus the spatial request facts, and leaves an already `.loading/.ready` Practice activation untouched. Add focused tests proving a cancelled setup request cannot later activate or resurrect through a stale task. This is not a second coordinator.
 
 #### Setup already ready
 
@@ -590,7 +596,7 @@ T4 only adds the final user manipulation/reset behavior. If execution reaches T4
 
 ---
 
-## P5 Phase Audit
+## P5 Phase completion checklist
 
 Before P6:
 

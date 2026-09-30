@@ -21,6 +21,12 @@ P3 只实现手动/自动翻页与 Spread 导航，不改变这三张图定义�
 - 不让 Library 和 Practice 各写一套翻页 renderer；
 - 不在 Practice 增加会和自动导航冲突的“自由浏览模式”。
 
+**Approach:** 把翻页实现为只消费目标 `spreadIndex` 的共用 presentation；Library 负责手动改变目标，Practice 只把现有离散 navigation tick 映射为目标 spread。
+
+**Rules:** page-turn 不拥有谱面事实、页码真值或播放时钟；快速目标变化只保留最终目标；Reduce Motion/VoiceOver 在首个生产接入 task 就成立，不等最后补丁。
+
+**Phase acceptance:** Library 手动翻页与 Practice 自动翻页使用同一 presentation；快速跳页不积压过时动画；Reduce Motion 下功能仍完整，且没有重新引入连续滚谱。
+
 ---
 
 ## P3-T1 建立通用 Spread page-turn presentation
@@ -64,7 +70,7 @@ Backward：
 - target spread ID/index；
 - direction forward/backward；
 - stable/no transition；
-- generation/transition identity if needed to discard stale completion。
+- required monotonic transition generation/identity used to reject stale animation completion；every new target transition increments/replaces it。
 
 它不包含：
 - timer；
@@ -352,7 +358,7 @@ Those must already have been deleted in P1/P2.
 
 Update `docs/testing.md` only with actual evidence from this execution.
 
-### Phase Audit
+### Phase completion checklist
 
 Verify:
 
