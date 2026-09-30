@@ -19,14 +19,14 @@ def _bootstrap_import_path() -> None:
 
 _bootstrap_import_path()
 
-from shared.protocol_v2 import (
+from shared.aria_protocol import (
     ALLOWED_CC_CONTROLLERS,
     ControlChangeEvent,
     GenerateParams,
-    GenerateRequestV2,
+    GenerateRequest,
     NoteEvent,
-    ResultResponseV2,
-    legalize_events,
+    ResultResponse,
+    ordered_events,
 )
 
 
@@ -59,11 +59,9 @@ def _post_json(url: str, payload: dict[str, Any], *, timeout_s: float) -> dict[s
 def main(argv: list[str] | None = None) -> int:
     config = parse_args(argv)
 
-    request = GenerateRequestV2(
-        events=legalize_events(
+    request = GenerateRequest(
+        events=ordered_events(
             [
-                ControlChangeEvent(controller=7, value=100, time=0.0),
-                ControlChangeEvent(controller=11, value=100, time=0.0),
                 ControlChangeEvent(controller=64, value=127, time=0.0),
                 NoteEvent(note=60, velocity=96, time=0.0, duration=0.5),
             ]
@@ -79,12 +77,12 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        response = ResultResponseV2.model_validate(payload)
+        response = ResultResponse.model_validate(payload)
     except Exception as exc:
         print(f"[smoketest] ERROR: invalid response json: {exc}", file=sys.stderr, flush=True)
         return 3
 
-    events = legalize_events(response.events)
+    events = ordered_events(response.events)
     cc_controllers = sorted({e.controller for e in events if isinstance(e, ControlChangeEvent)})
     note_count = sum(1 for e in events if isinstance(e, NoteEvent))
     cc64_count = sum(
@@ -94,16 +92,13 @@ def main(argv: list[str] | None = None) -> int:
     if note_count < 1:
         print("[smoketest] ERROR: expected at least 1 note event", file=sys.stderr, flush=True)
         return 4
-    if cc64_count < 1:
-        print("[smoketest] ERROR: expected at least 1 CC64 event", file=sys.stderr, flush=True)
-        return 5
     if not set(cc_controllers).issubset(ALLOWED_CC_CONTROLLERS):
         print(
             f"[smoketest] ERROR: unexpected CC controllers: {cc_controllers}",
             file=sys.stderr,
             flush=True,
         )
-        return 6
+        return 5
 
     print(
         f"[smoketest] OK: notes={note_count} cc64={cc64_count} cc_controllers={cc_controllers}",

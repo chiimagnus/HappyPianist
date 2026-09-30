@@ -30,9 +30,11 @@ struct ImprovScheduleBuilder {
         for event in events {
             switch event.type {
             case .note:
-                guard let note = event.note, let velocity = event.velocity, let duration = event.duration else { continue }
+                guard let note = event.note, let velocity = event.velocity, let duration = event.duration else {
+                    preconditionFailure("Validated note event is missing required fields")
+                }
 
-                let start = max(0, event.time + leadInSeconds)
+                let start = event.time + max(0, leadInSeconds)
                 // A.I. Duet: shorten reply note durations and cap long holds.
                 // See: `.github/features/ai-duet-turn-taking/aiexperiments-ai-duet-master/static/src/ai/AI.js`
                 let duetDuration = min(4.0, duration * 0.9)
@@ -42,7 +44,7 @@ struct ImprovScheduleBuilder {
                 schedule.append(
                     PracticeSequencerMIDIEvent(
                         timeSeconds: start,
-                        kind: .noteOn(midi: note, velocity: UInt8(clamping: velocity))
+                        kind: .noteOn(midi: note, velocity: UInt8(velocity))
                     )
                 )
                 schedule.append(
@@ -53,13 +55,15 @@ struct ImprovScheduleBuilder {
                 )
 
             case .cc:
-                guard let controller = event.controller, let value = event.value else { continue }
-                guard Self.allowedControllers.contains(controller) else { continue }
+                guard let controller = event.controller, let value = event.value else {
+                    preconditionFailure("Validated controller event is missing required fields")
+                }
+                precondition(Self.allowedControllers.contains(controller), "Unsupported validated controller")
 
                 schedule.append(
                     PracticeSequencerMIDIEvent(
-                        timeSeconds: max(0, event.time + leadInSeconds),
-                        kind: .controlChange(controller: UInt8(clamping: controller), value: UInt8(clamping: value))
+                        timeSeconds: event.time + max(0, leadInSeconds),
+                        kind: .controlChange(controller: UInt8(controller), value: UInt8(value))
                     )
                 )
             }

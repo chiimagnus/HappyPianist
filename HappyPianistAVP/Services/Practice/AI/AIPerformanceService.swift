@@ -16,6 +16,84 @@ protocol ImprovBackendDiscoveryOrchestrating: AnyObject, Sendable {
     func stopAll()
 }
 
+enum CompanionDecisionDeadlineError: Error, Equatable {
+    case timeout
+}
+
+private actor CompanionDecisionDeadlineRace {
+    private var continuation: CheckedContinuation<CompanionDecision, any Error>?
+    private var backendTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
+    private var isFinished = false
+
+    init(continuation: CheckedContinuation<CompanionDecision, any Error>) {
+        self.continuation = continuation
+    }
+
+    func install(
+        backendTask: Task<Void, Never>,
+        timeoutTask: Task<Void, Never>
+    ) {
+        guard isFinished == false else {
+            backendTask.cancel()
+            timeoutTask.cancel()
+            return
+        }
+        self.backendTask = backendTask
+        self.timeoutTask = timeoutTask
+    }
+
+    func finish(_ result: Result<CompanionDecision, any Error>) {
+        guard isFinished == false, let continuation else { return }
+        isFinished = true
+        self.continuation = nil
+        let backendTask = self.backendTask
+        let timeoutTask = self.timeoutTask
+        self.backendTask = nil
+        self.timeoutTask = nil
+        backendTask?.cancel()
+        timeoutTask?.cancel()
+        continuation.resume(with: result)
+    }
+}
+
+enum CompanionDecisionDeadlineRunner {
+    static func decide(
+        using backend: any CompanionDecisionBackendProtocol,
+        input: CompanionDecisionInput,
+        deadline: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
+        try await withCheckedThrowingContinuation { continuation in
+            let race = CompanionDecisionDeadlineRace(continuation: continuation)
+            let backendTask = Task {
+                let result: Result<CompanionDecision, any Error>
+                do {
+                    result = .success(try await backend.decide(input, deadline: deadline))
+                } catch {
+                    result = .failure(error)
+                }
+                await race.finish(result)
+            }
+            let timeoutTask = Task {
+                do {
+                    try await Task.sleep(until: deadline, clock: ContinuousClock())
+                    await race.finish(.failure(CompanionDecisionDeadlineError.timeout))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    await race.finish(.failure(error))
+                }
+            }
+            Task {
+                await race.install(
+                    backendTask: backendTask,
+                    timeoutTask: timeoutTask
+                )
+            }
+        }
+    }
+}
+
 @MainActor
 final class AIPerformanceService {
     struct State: Equatable {
@@ -47,6 +125,7 @@ final class AIPerformanceService {
         case invalidSelection = "invalid_selection"
         case unavailable
         case timeout
+        case busy
         case invalidResponse = "invalid_response"
         case qualityGate = "quality_gate"
         case failed
@@ -59,6 +138,8 @@ final class AIPerformanceService {
                 "后端不可用"
             case .timeout:
                 "生成超时"
+            case .busy:
+                "后端正忙"
             case .invalidResponse:
                 "响应无效"
             case .qualityGate:
@@ -78,15 +159,41 @@ final class AIPerformanceService {
         case stalePlayback = "stale_playback"
     }
 
+    private enum CompanionDecisionFailureCategory: String {
+        case unavailable
+        case timeout
+        case busy
+        case invalidResponse = "invalid_response"
+        case failed
+    }
+
+    private enum CompanionDecisionRequestError: Error {
+        case stale
+    }
+
+    private struct CompanionDecisionIdentity: Equatable {
+        let activationID: Int
+        let phraseGeneration: Int
+        let playbackPhase: DuetAIPlaybackQueue.PlaybackPhase
+        let userNoteOnSinceAIPlaybackStarted: Bool
+        let backendKind: CompanionDecisionBackendKind
+    }
+
+    private static let controlLoopPeriodMilliseconds: Int64 = 100
+    private static var controlLoopPeriod: Duration {
+        .milliseconds(controlLoopPeriodMilliseconds)
+    }
+    private static var controlLoopPeriodSeconds: TimeInterval {
+        TimeInterval(controlLoopPeriodMilliseconds) / 1_000
+    }
+
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let nowUptimeSeconds: () -> TimeInterval
     private let sleepFor: @Sendable (Duration) async -> Void
-    private let improvSessionID: String
     private let discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind?
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
-    private let backendTimeout: Duration
     private let onStateChanged: @MainActor (State) -> Void
 
     private weak var practiceSession: (any AIPerformancePracticeSessionProtocol)?
@@ -112,19 +219,28 @@ final class AIPerformanceService {
     private var lastWindowRequestTimestampSeconds: TimeInterval?
 
     private var isGenerating = false
-    private var isAIPlaybackActive = false
+    private var playbackPhase: DuetAIPlaybackQueue.PlaybackPhase = .idle
+    private var userNoteOnSinceAIPlaybackStarted = false
+
+    private var isAIPlaybackActive: Bool {
+        playbackPhase == .playing
+    }
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var lastImprovStatusText: String?
     private var generationFailureStatusText: String?
     private var latestCandidateDiagnostics: CandidateDiagnostics?
+    private var lastCompanionDecisionFailureCategory: CompanionDecisionFailureCategory?
 
     @MainActor
     private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = .init(
         diagnosticsReporter: diagnosticsReporter,
         playbackServiceFactory: aiPlaybackServiceFactory,
-        onPlaybackActiveChanged: { [weak self] isActive in
-            guard let self else { return }
-            isAIPlaybackActive = isActive
+        onPlaybackPhaseChanged: { [weak self] phase in
+            guard let self, isEnabled else { return }
+            playbackPhase = phase
+            if phase == .playing {
+                userNoteOnSinceAIPlaybackStarted = false
+            }
             notifyStateChanged()
         }
     )
@@ -137,24 +253,19 @@ final class AIPerformanceService {
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind?,
         aiPlaybackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
-        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry = .init(
-            backends: [RuleBasedCompanionDecisionBackend()]
-        ),
-        selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind? = { .ruleBased },
-        backendTimeout: Duration = .seconds(12),
+        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry,
+        selectedCompanionDecisionBackendKind: @escaping @MainActor () -> CompanionDecisionBackendKind?,
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
         self.diagnosticsReporter = diagnosticsReporter
         self.nowUptimeSeconds = nowUptimeSeconds
         self.sleepFor = sleepFor
-        improvSessionID = UUID().uuidString
         self.discoveryOrchestrator = discoveryOrchestrator
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
         self.companionDecisionBackendRegistry = companionDecisionBackendRegistry
         self.selectedCompanionDecisionBackendKind = selectedCompanionDecisionBackendKind
-        self.backendTimeout = backendTimeout
         self.onStateChanged = onStateChanged
     }
 
@@ -196,7 +307,7 @@ final class AIPerformanceService {
             discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
 
-            isAIPlaybackActive = false
+            playbackPhase = .idle
             resetPhraseInput()
 
             latestSchedule = []
@@ -251,7 +362,6 @@ final class AIPerformanceService {
     ) {
         guard usesBluetoothMIDIInput == false else { return }
         guard isEnabled else { return }
-        guard syncBackendDiscoveryIfNeeded() else { return }
 
         let sourceKind: PerformanceObservation.Source.Kind = isVirtualPianoEnabled
             ? .virtualPianoContact
@@ -298,7 +408,6 @@ final class AIPerformanceService {
 
     func recordPerformanceObservationForPhraseRecordingIfNeeded(_ observation: PerformanceObservation) {
         guard isEnabled, observation.source.role == .userPerformance else { return }
-        guard syncBackendDiscoveryIfNeeded() else { return }
         recordPhraseObservation(observation)
     }
 
@@ -306,9 +415,12 @@ final class AIPerformanceService {
         guard observation.source.role == .userPerformance,
               let event = phraseObservationAdapter.phraseEvent(from: observation)
         else { return }
+        if case .noteOn = event.kind, isAIPlaybackActive {
+            userNoteOnSinceAIPlaybackStarted = true
+        }
         let invalidatedPhraseGeneration = invalidatePhraseGeneration()
         Task { [aiPlaybackQueue] in
-            await aiPlaybackQueue.invalidatePendingWindows(through: invalidatedPhraseGeneration)
+            await aiPlaybackQueue.invalidateUnstartedWindows(through: invalidatedPhraseGeneration)
         }
         recordPhraseEvent(event)
         notifyStateChanged()
@@ -338,12 +450,13 @@ final class AIPerformanceService {
         noteContext.reset()
         ccContext.reset()
         activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
+        userNoteOnSinceAIPlaybackStarted = false
     }
 
     private func notifyStateChanged() {
         onStateChanged(
             State(
-                isAIPerformanceActive: isGenerating || isAIPlaybackActive,
+                isAIPerformanceActive: isGenerating || playbackPhase != .idle,
                 isAIGenerating: isGenerating,
                 isAIPlaybackActive: isAIPlaybackActive,
                 latestSchedule: latestSchedule,
@@ -364,24 +477,56 @@ final class AIPerformanceService {
             throw CompanionDecisionBackendRegistryError.invalidSelection
         }
         let backend = try companionDecisionBackendRegistry.backend(for: kind)
-        let decision = try await backend.decide(
-            .init(
-                nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
-                heldNotesCount: noteSnapshot.heldNotes.count,
-                sustainValue: ccSnapshot.sustainValue,
-                recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
-                recentVelocityTrend: noteSnapshot.recentVelocityTrend,
-                recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
-                lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
-                lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
-                activePitchCenter: noteSnapshot.activePitchCenter,
-                isAIPlaybackActive: isAIPlaybackActive
-            )
+        let identity = CompanionDecisionIdentity(
+            activationID: activationID,
+            phraseGeneration: phraseGeneration,
+            playbackPhase: playbackPhase,
+            userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted,
+            backendKind: kind
         )
-        guard selectedCompanionDecisionBackendKind() == kind else {
-            throw CompanionDecisionBackendRegistryError.selectionChanged
+        let input = CompanionDecisionInput(
+            nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
+            heldNotesCount: noteSnapshot.heldNotes.count,
+            sustainValue: ccSnapshot.sustainValue,
+            recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
+            recentVelocityTrend: noteSnapshot.recentVelocityTrend,
+            recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
+            lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
+            lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
+            isAIPlaybackActive: isAIPlaybackActive,
+            userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted
+        )
+        let deadline = ContinuousClock().now.advanced(by: Self.controlLoopPeriod)
+        let rawDecision: CompanionDecision
+        do {
+            rawDecision = try await CompanionDecisionDeadlineRunner.decide(
+                using: backend,
+                input: input,
+                deadline: deadline
+            )
+        } catch {
+            guard currentCompanionDecisionIdentity() == identity else {
+                throw CompanionDecisionRequestError.stale
+            }
+            throw error
         }
+        guard currentCompanionDecisionIdentity() == identity else {
+            throw CompanionDecisionRequestError.stale
+        }
+        let decision = try rawDecision.validated(for: input)
+        lastCompanionDecisionFailureCategory = nil
         return decision
+    }
+
+    private func currentCompanionDecisionIdentity() -> CompanionDecisionIdentity? {
+        guard let kind = selectedCompanionDecisionBackendKind() else { return nil }
+        return CompanionDecisionIdentity(
+            activationID: activationID,
+            phraseGeneration: phraseGeneration,
+            playbackPhase: playbackPhase,
+            userNoteOnSinceAIPlaybackStarted: userNoteOnSinceAIPlaybackStarted,
+            backendKind: kind
+        )
     }
 
     private func startControlLoop() {
@@ -395,7 +540,10 @@ final class AIPerformanceService {
             let tickStartedAt = self.nowUptimeSeconds()
             await self.runContinuousControlTick()
             let elapsedSeconds = max(0, self.nowUptimeSeconds() - tickStartedAt)
-            let remainingMilliseconds = Int64(max(0, ((0.1 - elapsedSeconds) * 1_000).rounded(.up)))
+            let remainingMilliseconds = Int64(max(
+                0,
+                ((Self.controlLoopPeriodSeconds - elapsedSeconds) * 1_000).rounded(.up)
+            ))
             if remainingMilliseconds > 0 {
                 await self.sleepFor(.milliseconds(remainingMilliseconds))
             }
@@ -411,6 +559,8 @@ final class AIPerformanceService {
         guard practiceSession != nil else { return }
 
         guard syncBackendDiscoveryIfNeeded() else { return }
+        guard playbackPhase != .preparing else { return }
+        guard inFlightGenerateTasks.isEmpty || playbackPhase == .playing else { return }
 
         let now = nowUptimeSeconds()
         let bootstrapPolicy = DuetPhrasePolicy.RequestPolicy(
@@ -433,22 +583,28 @@ final class AIPerformanceService {
         let decision: CompanionDecision
         do {
             decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
-        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+        } catch CompanionDecisionRequestError.stale {
             return
         } catch {
-            reportCompanionDecisionFailure()
-            await aiPlaybackQueue.clearPendingWindow()
-            if isAIPlaybackActive == false {
+            reportCompanionDecisionFailure(error)
+            await aiPlaybackQueue.clearUnstartedWindows()
+            if playbackPhase != .playing {
                 latestSchedule = []
             }
             return
         }
 
-        if decision.shouldClearFutureWindows {
-            await aiPlaybackQueue.clearPendingWindow()
-            if isAIPlaybackActive == false {
+        switch decision.playbackPolicy {
+        case .preserve:
+            break
+        case .clearUnstarted:
+            await aiPlaybackQueue.clearUnstartedWindows()
+            if playbackPhase != .playing {
                 latestSchedule = []
             }
+        case .yieldCurrent:
+            await aiPlaybackQueue.stopCurrentPlaybackAndClearPending()
+            latestSchedule = []
         }
 
         let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision, noteSnapshot: noteSnapshot)
@@ -515,7 +671,13 @@ final class AIPerformanceService {
         lastWindowRequestTimestampSeconds = nowTimestampSeconds
 
         let task = Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self,
+                  isEnabled,
+                  Task.isCancelled == false,
+                  activationAtRequest == activationID,
+                  phraseGenerationAtRequest == phraseGeneration,
+                  selectedBackendKind() == kind
+            else { return }
             isGenerating = true
             notifyStateChanged()
             defer {
@@ -611,10 +773,10 @@ final class AIPerformanceService {
         let decision: CompanionDecision
         do {
             decision = try await requestCompanionDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
-        } catch CompanionDecisionBackendRegistryError.selectionChanged {
+        } catch CompanionDecisionRequestError.stale {
             return
         } catch {
-            reportCompanionDecisionFailure()
+            reportCompanionDecisionFailure(error)
             return
         }
         guard decision.shouldRequestGeneration else { return }
@@ -707,8 +869,7 @@ final class AIPerformanceService {
             let startedAt = nowUptimeSeconds()
             let response = try await backend.generateCreativeResponse(
                 phrase: phrase,
-                generation: generation,
-                timeout: backendTimeout
+                generation: generation
             )
             guard response.provider == kind, response.generation == generation else {
                 throw ImprovBackendClientError.invalidResponse
@@ -723,7 +884,7 @@ final class AIPerformanceService {
         switch kind {
         case .localRule:
             3
-        case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet:
+        case .networkBonjourHTTPAria, .localCoreMLDuet:
             1
         }
     }
@@ -737,12 +898,9 @@ final class AIPerformanceService {
         CreativeDuetGeneration(
             requestID: requestID,
             activationID: activationID,
-            seed: seed,
-            sessionID: improvSessionID,
             parameters: ImprovGenerateParams(
                 topP: 0.95,
                 maxTokens: max(1, requestPolicy.maxTokens),
-                strategy: "continuous",
                 seed: seed
             )
         )
@@ -882,29 +1040,64 @@ final class AIPerformanceService {
         return true
     }
 
-    private func reportCompanionDecisionFailure() {
-        let statusText = "AI 即兴：陪伴决策后端失败"
-        guard lastImprovStatusText != statusText else { return }
+    private func reportCompanionDecisionFailure(_ error: any Error) {
+        let category = companionDecisionFailureCategory(for: error)
+        guard lastCompanionDecisionFailureCategory != category else { return }
+        lastCompanionDecisionFailureCategory = category
         diagnosticsReporter?.recordSystem(
             severity: .warning,
             category: .ai,
             stage: "continuousDuet.decision",
             summary: "AI 陪伴决策失败",
-            reason: "failure=decision_backend"
+            reason: "failure=\(category.rawValue)"
         )
-        lastImprovStatusText = statusText
+        lastImprovStatusText = "AI 即兴：陪伴决策失败"
         notifyStateChanged()
+    }
+
+    private func companionDecisionFailureCategory(
+        for error: any Error
+    ) -> CompanionDecisionFailureCategory {
+        if error is CompanionDecisionBackendRegistryError {
+            return .unavailable
+        }
+        if let error = error as? QwenNetworkCompanionDecisionBackendError {
+            switch error {
+            case .backendNotResolved, .discoveryDenied:
+                return .unavailable
+            case .missingModelIdentity, .unexpectedModelIdentity:
+                return .invalidResponse
+            }
+        }
+        if let error = error as? QwenCompanionDecisionClientError {
+            switch error {
+            case let .httpError(_, code, _):
+                if code == "busy" { return .busy }
+                if code == "invalid_json" || code == "invalid_request" { return .invalidResponse }
+                return .failed
+            case .invalidURL, .invalidResponse, .decodeFailed, .unexpectedModel,
+                 .unexpectedOutputTokens, .invalidSemanticValues, .invalidUsage:
+                return .invalidResponse
+            }
+        }
+        if error is CompanionDecisionValidationError {
+            return .invalidResponse
+        }
+        if error is CompanionDecisionDeadlineError {
+            return .timeout
+        }
+        if let error = error as? URLError, error.code == .timedOut {
+            return .timeout
+        }
+        return .failed
     }
 
     private func failureCategory(for error: any Error) -> GenerationFailureCategory {
         if error is ImprovBackendRegistryError {
             return .unavailable
         }
-        if let error = error as? LocalRuleImprovBackendError {
-            return error == .timeout ? .timeout : .invalidResponse
-        }
-        if let error = error as? LocalCoreMLDuetImprovBackendError {
-            return error == .timeout ? .timeout : .invalidResponse
+        if error is LocalRuleImprovBackendError || error is LocalCoreMLDuetImprovBackendError {
+            return .invalidResponse
         }
         if let error = error as? AriaNetworkBonjourHTTPImprovBackendError {
             switch error {
@@ -914,18 +1107,10 @@ final class AIPerformanceService {
                 return .invalidResponse
             }
         }
-        if let error = error as? AriaNetworkBonjourWebSocketImprovBackendError {
-            switch error {
-            case .backendNotResolved, .discoveryDenied, .discoveryFailed:
-                return .unavailable
-            case .missingWebSocketPath, .invalidWebSocketURL, .emptyReply:
-                return .invalidResponse
+        if let error = error as? ImprovBackendClientError {
+            if case let .httpError(_, code, _) = error, code == "busy" {
+                return .busy
             }
-        }
-        if let error = error as? ImprovStreamingClientError {
-            return error == .timeout ? .timeout : .invalidResponse
-        }
-        if error is ImprovBackendClientError {
             return .invalidResponse
         }
         if let error = error as? URLError, error.code == .timedOut {

@@ -5,7 +5,10 @@ struct RuleBasedCompanionDecisionBackend: CompanionDecisionBackendProtocol {
     let kind: CompanionDecisionBackendKind = .ruleBased
     let displayName = "确定性规则"
 
-    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision {
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline _: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
         let timeSinceLastEvent = input.lastUserEventTimestampSeconds.map { max(0, input.nowTimestampSeconds - $0) }
         let timeSinceLastNoteOn = input.lastNoteOnTimestampSeconds.map { max(0, input.nowTimestampSeconds - $0) }
         let sustainIsDown = input.sustainValue >= 64
@@ -13,12 +16,12 @@ struct RuleBasedCompanionDecisionBackend: CompanionDecisionBackendProtocol {
         let isDenseTexture = input.recentNoteDensityPerSecond >= 2.2
         let hasRecentActivity = (timeSinceLastEvent ?? 10) <= 1.2
 
-        if hasRecentActivity == false {
-            return CompanionDecision(action: .listen)
+        if input.isAIPlaybackActive, input.userNoteOnSinceAIPlaybackStarted {
+            return CompanionDecision(action: .yield)
         }
 
-        if isFastFigure || isDenseTexture {
-            return CompanionDecision(action: .yield)
+        if hasRecentActivity == false || isFastFigure || isDenseTexture {
+            return CompanionDecision(action: .listen)
         }
 
         if input.heldNotesCount > 0 {

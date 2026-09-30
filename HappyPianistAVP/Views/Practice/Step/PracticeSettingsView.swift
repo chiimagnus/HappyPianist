@@ -312,10 +312,8 @@ struct PracticeSettingsView: View {
         }
 
         switch selectedKind {
-        case .networkBonjourHTTPAriaV2:
-            return backendStatusText ?? "后端：网络本地连接（Aria v2）"
-        case .networkBonjourWebSocketAriaV2:
-            return backendStatusText ?? "后端：网络本地连接（Aria v2 Streaming）"
+        case .networkBonjourHTTPAria:
+            return backendStatusText ?? "后端：网络本地连接（Aria）"
         case .localCoreMLDuet:
             return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
@@ -334,17 +332,15 @@ struct PracticeSettingsView: View {
         switch kind {
         case .ruleBased:
             "确定性规则（本机）"
-        case .networkBonjourLaya:
-            "Laya-MLX 分类器（Mac 本地，实验）"
+        case .networkBonjourQwen:
+            "Qwen3.5-0.8B（电脑本地，实验）"
         }
     }
 
     private func backendTitle(_ kind: ImprovBackendKind) -> String {
         switch kind {
-        case .networkBonjourHTTPAriaV2:
-            "网络本地连接（Aria v2）"
-        case .networkBonjourWebSocketAriaV2:
-            "网络本地连接（Aria v2 Streaming）"
+        case .networkBonjourHTTPAria:
+            "网络本地连接（Aria）"
         case .localCoreMLDuet:
             "本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:

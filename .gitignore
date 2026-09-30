@@ -32,6 +32,7 @@ python_backend/**/.venv*/
 python_backend/**/out/
 python_backend/.outputs/
 python_backend/.datasets/
+python_backend/.models/
 
 __pycache__/
 .pytest_cache/

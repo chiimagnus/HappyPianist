@@ -18,6 +18,6 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 - 未知、低置信度、`insufficient` 与降级能力不是用户错误；AI/system playback、旧 generation 或后台事件不能写入用户 observation 或 progress。
 - progress、metadata 与 session 分 concern 更新；诊断只经 `DiagnosticsReporting`，导出不得含原谱、原始输入、绝对路径、AI 正文或凭据。
 - 主 Actor 不做解析、文件 I/O 或设备重活；结束会话前失效输入、停止输入和输出、保存事实并取消长任务。
-- 实时陪伴决策通过 CompanionDecisionBackendProtocol 注入；RuleBasedCompanionDecisionBackend 与电脑端 Qwen3.5 后端是显式可选的并列实现。决策后端只输出 CompanionAction 语义动作，生成窗口、请求节奏与 token 数由 DuetPhrasePolicy 负责；输入同时包含滚动统计、AI 播放状态与最近 MIDI 上下文。音乐生成后端和陪伴决策后端分别选择，任一后端失败都不得静默切换实现。
+- 实时陪伴决策通过 CompanionDecisionBackendProtocol 注入；RuleBasedCompanionDecisionBackend 是默认基线，电脑端 Qwen3.5 是唯一实验型网络实现。Qwen Companion service 是四语义、A/B 消偏和 `semantic-v1` mapping 的唯一网络 runtime owner；Swift 只发送严格 compact state 并接收最终 CompanionAction。播放生命周期由 DuetAIPlaybackQueue 唯一维护为 `idle / preparing / playing`：只有 `playing` 算 Companion active；用户输入只淘汰未开始的旧窗口，`listen` 清 future、`yield` 才停止当前播放，`support / sparse / respond` 保留当前播放。所有 `.yield` 必须满足真实 playback active 且 playback start 后出现新的用户 note-on。生成窗口、请求节奏与 token 数仍由 DuetPhrasePolicy 负责。Aria 网络生成只有 Bonjour + HTTP `/generate`；协议 v3 请求只包含 note、真实 CC64 与 `max_tokens`，discovery+HTTP 共用 350ms 完整-response deadline，server 以 single-flight `busy` 拒绝积压。旧 WebSocket 分块、旧协议兼容与 provider fallback 都不保留。音乐生成与陪伴决策分别选择，任一后端失败都不得静默切换实现。
 
 验证范围见[测试](testing.md)，产品能力措辞见[质量边界](piano-performance-quality.md)。

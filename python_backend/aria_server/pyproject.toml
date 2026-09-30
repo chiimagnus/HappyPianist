@@ -1,7 +1,7 @@
 [project]
 name = "aria-server"
 version = "0.0.1"
-description = "HappyPianist Aria v2 local HTTP+Bonjour server."
+description = "HappyPianist Aria local HTTP+Bonjour server."
 requires-python = ">=3.11"
 
 dependencies = [

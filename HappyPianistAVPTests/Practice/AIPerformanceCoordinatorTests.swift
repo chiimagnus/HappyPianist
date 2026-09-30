@@ -78,8 +78,7 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout _: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         if let responseDelay {
             try await Task.sleep(for: responseDelay)
@@ -88,8 +87,6 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
             CreativeDuetGeneration(
                 requestID: generation.requestID + responseGenerationRequestIDOffset,
                 activationID: generation.activationID,
-                seed: generation.seed,
-                sessionID: generation.sessionID,
                 parameters: generation.parameters
             )
         } else {
@@ -126,10 +123,9 @@ private actor RecordingSeedBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout _: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
-        requestedSeeds.append(generation.seed)
+        requestedSeeds.append(generation.parameters.seed)
         return CreativeDuetResponse(
             schedule: schedule,
             provider: kind,
@@ -142,6 +138,7 @@ private actor RecordingSeedBackend: ImprovBackendProtocol {
 private actor ThrowingBackend: ImprovBackendProtocol {
     enum Failure {
         case timeout
+        case busy
         case invalidResponse
     }
 
@@ -159,17 +156,39 @@ private actor ThrowingBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation _: CreativeDuetGeneration,
-        timeout _: Duration
+        generation _: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         callCount += 1
         switch failure {
         case .timeout:
             throw URLError(.timedOut)
+        case .busy:
+            throw ImprovBackendClientError.httpError(
+                statusCode: 503,
+                code: "busy",
+                message: "Aria inference is already running"
+            )
         case .invalidResponse:
             throw ImprovBackendClientError.invalidResponse
         }
     }
+}
+
+private actor RecordingCompanionDecisionBackend: CompanionDecisionBackendProtocol {
+    nonisolated let kind: CompanionDecisionBackendKind = .ruleBased
+    nonisolated let displayName = "Recording Companion"
+
+    private var inputs: [CompanionDecisionInput] = []
+
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline _: ContinuousClock.Instant
+    ) async throws -> CompanionDecision {
+        inputs.append(input)
+        return CompanionDecision(action: .listen)
+    }
+
+    func recordedInputs() -> [CompanionDecisionInput] { inputs }
 }
 
 private actor SequencedCandidateBackend: ImprovBackendProtocol {
@@ -191,8 +210,7 @@ private actor SequencedCandidateBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout _: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         let requestIndex = callCount
         let index = min(requestIndex, max(0, schedules.count - 1))
@@ -300,7 +318,7 @@ func enableDisableAreIdempotent() async {
 
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let aiPlaybackService = FakeSequencerPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { aiPlaybackService },
@@ -313,6 +331,8 @@ func enableDisableAreIdempotent() async {
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
 
@@ -361,6 +381,8 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
         backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
 
@@ -423,7 +445,7 @@ func shutdownPreventsFurtherEnable() async {
 
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let aiPlaybackService = FakeSequencerPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { aiPlaybackService },
@@ -436,6 +458,8 @@ func shutdownPreventsFurtherEnable() async {
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
 
@@ -489,9 +513,11 @@ func invalidStoredBackendSelectionStopsWithoutFallback() async {
         nowUptimeSeconds: { 0 },
         sleepFor: { _ in },
         discoveryOrchestrator: orchestrator,
-        backendRegistry: ImprovBackendRegistry(),
+        backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selection.selectedKind() },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -520,7 +546,7 @@ func selectedUnavailableBackendStopsWithoutLocalSubstitution() async {
     let diagnosticsReporter = InMemoryDiagnosticsReporter()
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let localFallback = RecordingSeedBackend(
         kind: .localRule,
         schedule: [
@@ -541,6 +567,8 @@ func selectedUnavailableBackendStopsWithoutLocalSubstitution() async {
         backendRegistry: ImprovBackendRegistry(backends: [localFallback]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -550,7 +578,7 @@ func selectedUnavailableBackendStopsWithoutLocalSubstitution() async {
     service.setEnabled(true)
     recordDuetTestPhrase(service)
 
-    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=unavailable"
+    let expectedReason = "provider=network_bonjour_http_aria;failure=unavailable"
     for _ in 0 ..< 500 {
         await Task.yield()
         let events = await diagnosticsReporter.events
@@ -570,6 +598,7 @@ func selectedUnavailableBackendStopsWithoutLocalSubstitution() async {
 func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() async {
     let scenarios: [(ThrowingBackend.Failure, String, String)] = [
         (.timeout, "timeout", "生成超时"),
+        (.busy, "busy", "后端正忙"),
         (.invalidResponse, "invalid_response", "响应无效"),
     ]
 
@@ -579,7 +608,7 @@ func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() asy
         let diagnosticsReporter = InMemoryDiagnosticsReporter()
         let backendService = FakeBackendDiscoveryService()
         let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-        let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+        let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
         let backend = ThrowingBackend(kind: selectedKind, failure: failure)
         let playbackService = FakeSequencerPlaybackService()
         let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
@@ -594,7 +623,9 @@ func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() asy
             backendRegistry: ImprovBackendRegistry(backends: [backend]),
             selectedBackendKind: { selectedKind },
             aiPlaybackServiceFactory: { aiPlaybackFactory },
-            onStateChanged: { states.append($0) }
+            companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { states.append($0) }
         )
         defer { service.setEnabled(false) }
 
@@ -603,7 +634,7 @@ func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() asy
         service.setEnabled(true)
         recordDuetTestPhrase(service)
 
-        let expectedReason = "provider=network_bonjour_http_aria_v2;failure=\(category)"
+        let expectedReason = "provider=network_bonjour_http_aria;failure=\(category)"
         for _ in 0 ..< 500 {
             await Task.yield()
             let events = await diagnosticsReporter.events
@@ -621,6 +652,70 @@ func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() asy
 
 @Test
 @MainActor
+func invalidGenerationSelectionDoesNotDropUserStateBeforeSelectionIsFixed() async throws {
+    var selectedGenerationKind: ImprovBackendKind?
+    let discoveryService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: discoveryService)
+    let generationBackend = RecordingSeedBackend(
+        kind: .localRule,
+        schedule: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+        ]
+    )
+    let companionBackend = RecordingCompanionDecisionBackend()
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { 0 },
+        sleepFor: { _ in try? await Task.sleep(for: .milliseconds(1)) },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [generationBackend]),
+        selectedBackendKind: { selectedGenerationKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: CompanionDecisionBackendRegistry(backends: [companionBackend]),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { _ in }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0
+        )
+    )
+
+    #expect(await generationBackend.requestedSeeds.isEmpty)
+    selectedGenerationKind = .localRule
+
+    var observedInput: CompanionDecisionInput?
+    for _ in 0 ..< 200 {
+        observedInput = await companionBackend.recordedInputs().last
+        if observedInput != nil { break }
+        try await Task.sleep(for: .milliseconds(1))
+    }
+
+    let input = try #require(observedInput)
+    #expect(input.heldNotesCount == 1)
+    #expect(input.lastNoteOnTimestampSeconds == 0)
+    #expect(input.recentNoteDensityPerSecond > 0)
+    #expect(await generationBackend.requestedSeeds.isEmpty)
+    #expect(playbackService.playCallCount == 0)
+}
+
+@Test
+@MainActor
 func mismatchedCreativeResponseMetadataStopsWithInvalidResponseDiagnostics() async {
     let scenarios: [(provider: ImprovBackendKind?, requestIDOffset: Int?)] = [
         (.localRule, nil),
@@ -633,7 +728,7 @@ func mismatchedCreativeResponseMetadataStopsWithInvalidResponseDiagnostics() asy
         let diagnosticsReporter = InMemoryDiagnosticsReporter()
         let backendService = FakeBackendDiscoveryService()
         let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-        let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+        let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
         let backend = FakeScheduleBackend(
             kind: selectedKind,
             schedule: [
@@ -656,7 +751,9 @@ func mismatchedCreativeResponseMetadataStopsWithInvalidResponseDiagnostics() asy
             backendRegistry: ImprovBackendRegistry(backends: [backend]),
             selectedBackendKind: { selectedKind },
             aiPlaybackServiceFactory: { aiPlaybackFactory },
-            onStateChanged: { states.append($0) }
+            companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { states.append($0) }
         )
         defer { service.setEnabled(false) }
 
@@ -665,7 +762,7 @@ func mismatchedCreativeResponseMetadataStopsWithInvalidResponseDiagnostics() asy
         service.setEnabled(true)
         recordDuetTestPhrase(service)
 
-        let expectedReason = "provider=network_bonjour_http_aria_v2;failure=invalid_response"
+        let expectedReason = "provider=network_bonjour_http_aria;failure=invalid_response"
         for _ in 0 ..< 500 {
             await Task.yield()
             let events = await diagnosticsReporter.events
@@ -687,7 +784,7 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
     let diagnosticsReporter = InMemoryDiagnosticsReporter()
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let backend = FakeScheduleBackend(
         kind: selectedKind,
         schedule: latencyGateSchedule,
@@ -706,6 +803,8 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -715,7 +814,7 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
     service.setEnabled(true)
     recordDuetTestPhrase(service)
 
-    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
+    let expectedReason = "provider=network_bonjour_http_aria;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
     for _ in 0 ..< 500 {
         await Task.yield()
         let events = await diagnosticsReporter.events
@@ -735,7 +834,7 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
     let diagnosticsReporter = InMemoryDiagnosticsReporter()
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let backend = FakeScheduleBackend(
         kind: selectedKind,
         schedule: latencyGateSchedule,
@@ -752,6 +851,8 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     defer { service.setEnabled(false) }
@@ -771,7 +872,7 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
         )
     )
 
-    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
+    let expectedReason = "provider=network_bonjour_http_aria;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
     for _ in 0 ..< 100 {
         let events = await diagnosticsReporter.events
         if events.contains(where: { $0.reason == expectedReason }) { break }
@@ -810,6 +911,8 @@ func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession()
@@ -859,7 +962,7 @@ func networkBackendRemainsSingleCandidate() async {
 
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let schedule = [
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
@@ -878,6 +981,8 @@ func networkBackendRemainsSingleCandidate() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession()
@@ -963,6 +1068,8 @@ func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     let session = FakePracticeSession()
@@ -1057,6 +1164,8 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { states.append($0) }
     )
     let session = FakePracticeSession()
@@ -1114,9 +1223,7 @@ func creativeDuetContractPreservesObservedInputAndGeneratedResponseProvenance() 
     let generation = CreativeDuetGeneration(
         requestID: 7,
         activationID: 3,
-        seed: 42,
-        sessionID: "test-session",
-        parameters: ImprovGenerateParams(topP: 0.95, maxTokens: 12, strategy: "continuous", seed: 42)
+        parameters: ImprovGenerateParams(topP: 0.95, maxTokens: 12, seed: 42)
     )
     let schedule = [
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 67, velocity: 88)),
@@ -1130,8 +1237,7 @@ func creativeDuetContractPreservesObservedInputAndGeneratedResponseProvenance() 
 
     let response = try await backend.generateCreativeResponse(
         phrase: phrase,
-        generation: generation,
-        timeout: .seconds(1)
+        generation: generation
     )
 
     #expect(phrase.provenance.observations == [observation])

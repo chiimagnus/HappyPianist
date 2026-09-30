@@ -1,8 +1,8 @@
 # Python 后端工作区
 
-本目录是可选的本地服务/工具工作区，不是 AVP App 的运行依赖。音乐生成可使用 Aria v2（Bonjour + HTTP/WS）；陪伴决策使用 Apple Silicon 本机的 Laya-MLX typed classifier。AVP 的音乐生成与陪伴决策后端分别按用户选择运行，不自动回退。模型源码在 `aria/`，服务工程在 `aria_server/` 与 `laya_server/`，入口和自检在 `scripts/`，共享协议在 `shared/`。
+本目录是可选的本地服务/工具工作区，不是 AVP App 的运行依赖。音乐生成当前只使用 Aria（Bonjour + HTTP `/generate`）；陪伴决策使用固定 Qwen3.5-0.8B Companion service。AVP 的音乐生成与陪伴决策后端分别按用户选择运行，不自动回退。服务工程在 `aria_server/` 与 `qwen_server/`，入口和自检在 `scripts/`，共享协议在 `shared/`。
 
-## 快速开始：运行 Aria v2 服务
+## 快速开始：运行 Aria 服务
 
 前置条件：Python 3.11+ 和 `uv` 已安装；`python_backend/aria/hf/model-demo.safetensors` 已自行取得（权重不随仓库分发）。连接 Vision Pro 时，两台设备还需位于同一局域网。
 
@@ -16,42 +16,45 @@
 - NVIDIA CUDA：`cd python_backend && uv run --project aria_server python scripts/aria_server.py --engine cuda --host 0.0.0.0 --port 8766`
 
 3) 本机自检（不依赖 AVP）
-- HTTP：`cd python_backend && uv run --project aria_server python scripts/aria_server_smoketest.py --host 127.0.0.1 --port 8766`
-- WebSocket：`cd python_backend && uv run --project aria_server python scripts/ws_client_smoketest.py ws://127.0.0.1:8766/stream`
+- `cd python_backend && uv run --project aria_server python scripts/aria_server_smoketest.py --host 127.0.0.1 --port 8766`
 
-4) 在 AVP 练习设置选择 `网络本地连接（Aria v2）`（HTTP `/generate`）或 streaming（WS `/stream`），并允许 Local Network 权限以发现 `_lpduet._tcp`。
+4) 在 AVP 练习设置选择 `网络本地连接（Aria）`，并允许 Local Network 权限以发现 `_lpduet._tcp`。当前网络协议固定为 `protocol_version=3` + HTTP `/generate`：请求只发送已验证 note、真实 CC64 与 `max_tokens`；未知字段、非法 MIDI 和旧协议直接失败。旧 WebSocket 分块路径已删除，因为它在完整生成后才分块，不降低 first-playable latency。
 
-## 快速开始：运行 Laya-MLX 分类服务
+产品当前完整-response 质量预算为 350ms，Bonjour discovery 与 HTTP 共用同一次 deadline。Aria server 只允许一个推理 in flight；旧推理因客户端取消仍在收尾时，新请求直接返回 `busy`，不排队、不重试、不自动切换本地 backend。输出侧 CC7/CC11 只来自显式 `DefaultCCPolicy`，不会伪造输入 CC64。
 
-Laya-MLX 是 Apple Silicon 本机的 System One typed decision runtime，支持 `choice`、`score` 与 `noul`，不生成 completion 文本。默认 checkpoint 是 `aac6fef/laya-multilingual-mlx`（322M）。
+## 快速开始：运行 Qwen3.5-0.8B 陪伴决策服务
 
-1) 安装依赖（首次/更新后执行一次）
-- `cd python_backend/laya_server && uv sync --python 3.12`
+陪伴决策服务固定使用本地 `Qwen3.5-0.8B-NF4-4bit` + CUDA。它由官方 Qwen3.5-0.8B 一次性量化为 NF4 4-bit 并保存在 `python_backend/.models/qwen3.5-0.8b-bnb-4bit/`；运行时只加载这份本地 4-bit checkpoint，不保留 BF16 加载或 fallback。模型不生成 completion，只读取 A/B 候选 token logits。四个二元语义、A/B 顺序消偏、概率聚合和 `semantic-v1` action mapping 全部由该服务统一拥有；visionOS、benchmark 与 E2E 不再复制这套逻辑。
 
-2) 启动服务
-- `cd python_backend && uv run --project laya_server --python 3.12 python scripts/laya_server.py --host 0.0.0.0 --port 8767`
-- 首次启动需要从 Hugging Face 下载 checkpoint；模型加载完成后服务才开始监听，不会把冷加载成本塞进首个产品请求。
-- 如需实验其他兼容 Laya checkpoint，可显式追加 `--model <模型目录或 Hugging Face model id>`；服务不会自动切换模型。
+1) 安装依赖（Windows + NVIDIA CUDA）
+- `cd python_backend/qwen_server && uv sync`
 
-3) 本机自检
-- `cd python_backend && uv run --project laya_server --python 3.12 python scripts/laya_server_smoketest.py --host 127.0.0.1 --port 8767`
+2) 首次准备本地 4-bit checkpoint
+- 先让官方 `Qwen/Qwen3.5-0.8B` 存在于 Hugging Face 本机缓存，再执行：`cd python_backend && uv run --project qwen_server python scripts/prepare_qwen_4bit.py`。
+- 成功后只需要保留 `python_backend/.models/qwen3.5-0.8b-bnb-4bit/`；服务不会读取 BF16 原模型。
 
-smoke 使用非音乐问题调用 `POST /v1/classifier`，并要求 typed answer 正确且 `output_tokens=0`。
+3) 启动服务
+- `cd python_backend && uv run --project qwen_server python scripts/qwen_server.py --host 0.0.0.0 --port 8767`
+- model/device 不可配置：固定 `Qwen3.5-0.8B-NF4-4bit` + CUDA；CUDA 不可用、4-bit checkpoint 缺失或不是 4-bit 时服务直接失败，不自动切换 CPU、BF16 或其它模型。
 
-4) 在 AVP 的“即兴对弹”设置中，把“陪伴决策后端”明确选择为 Laya 分类器。钢琴状态到五种动作的语义只存在于 companion adapter；音乐生成后端仍单独选择 Aria / CoreML / rule。
+4) 本机自检
+- `cd python_backend && uv run --project qwen_server python scripts/qwen_server_smoketest.py --host 127.0.0.1 --port 8767`
 
-服务通过 `_lpduet._tcp` 广播 `path=/v1/classifier`、`protocol_version=1`、`engine=laya-mlx` 与实际 `engine_impl`。分类、schema 或模型错误都会显式失败，不会伪造答案或自动切回规则后端。
+5) 在 AVP 的“即兴对弹”设置中明确选择 `Qwen3.5-0.8B（电脑本地，实验）`。服务通过 `_lpduet._tcp` 广播 `path=/v1/companion-decision`、`protocol_version=2`、`engine=qwen-companion`、`engine_impl=Qwen3.5-0.8B-NF4-4bit`。请求只包含固定 compact state；协议/model identity 错误或请求失败都会显式失败，不会自动回退规则后端。选择 Qwen 且启用 AI 时会提前启动 Bonjour discovery；decision 到来时若 endpoint 尚未 resolved，则当前轮直接失败，不做 25ms polling。Swift 产品当前仍保留自己的 decision deadline；Stage A 不再把 100ms 当模型 Gate。Qwen server 只允许一个 inference in flight；第二个并发请求立即返回 `503 busy`，不排队、不重试。
 
 ### 陪伴决策实验
 
-Laya runtime 的 smoke 只验证通用 typed-decision 协议与 0-output-token 推理，不代表钢琴陪伴行为已经达到产品质量。真实 MIDI corpus、固定边界 benchmark 与端到端音乐生成验收属于独立实验流程；验证边界记录在 `docs/ai-companion-requirements.md`。
+统一 benchmark 位于 `scripts/companion_semantic_benchmark.py`，固定真源在 `tests/fixtures/companion_stage_a_manifest.json`。当前 projection 参数是 4s rolling history、2.4s IOI、1.2s density；MAESTRO / POP909 每个 state 各取 10 个不同文件，共 120 cases。runner 只允许改 host/port、dataset path 和 output，不允许临时改 seed/state/case 数。延迟继续记录，但不再作为 Stage A 自动失败条件。
+
+服务级 Qwen → Aria E2E 使用 `scripts/companion_service_e2e.py`。它固定取 Stage A 每个 source/state 的前 5 个 case，共 60 个；逐 case 对照 Stage A action，真实调用 Qwen 与 Aria，并把生成结果写成 MIDI 后重新解析检查合法性。该测试只证明服务链和 MIDI 技术有效性，不复制 Swift 产品 policy，也不宣称产品实时性。
 
 ## 故障排查
 
 - 找不到 Aria：核对 `--host 0.0.0.0`、端口、防火墙和 `dns-sd -B _lpduet._tcp`。
 - `checkpoint missing`：提供 Aria 模型文件，或启动时传 `--checkpoint <path>`。
 - `CUDA engine selected but torch.cuda is unavailable`：确认 NVIDIA 驱动及当前 PyTorch 构建可用 CUDA；Aria 不会自动切换到 MLX。
-- Laya 分类服务找不到：确认端口 8767、防火墙、同一局域网以及 `_lpduet._tcp` Bonjour 广播。
-- Laya checkpoint 下载或加载失败：服务直接失败，不自动切换其他模型，也不自动切回规则决策。
+- Qwen 陪伴决策服务找不到：确认 Windows 服务监听 `0.0.0.0:8767`、防火墙、同一局域网以及 `_lpduet._tcp` Bonjour 广播的专用 path/protocol/engine/model identity。
+- Qwen 4-bit checkpoint 缺失：先运行 `scripts/prepare_qwen_4bit.py`；服务不会在线临时切回 BF16。
+- Qwen CUDA 不可用：确认 NVIDIA 驱动及 qwen_server 的 PyTorch CUDA 构建；服务不会自动切换 CPU 或规则决策。
 
 音乐生成后端与陪伴决策后端都严格按用户选择运行；请求失败时提示并停止本次处理，不自动切换 provider。

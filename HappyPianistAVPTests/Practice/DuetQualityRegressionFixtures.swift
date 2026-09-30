@@ -275,7 +275,7 @@ enum DuetQualityRegressionFixtures {
             ImprovDialogueNote(note: 71, velocity: 92, time: 1.5, duration: 0.18),
             ImprovDialogueNote(note: 72, velocity: 92, time: 1.75, duration: 0.25),
         ],
-        parameters: .init(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: 1234),
+        parameters: .init(topP: 0.95, maxTokens: 256, seed: 1234),
         response: .generatedRule,
         expectedBand: .risky
     )
@@ -286,33 +286,18 @@ enum DuetQualityRegressionFixtures {
         promptNotes: [
             ImprovDialogueNote(note: 60, velocity: 80, time: 0, duration: 0.5),
         ],
-        parameters: .init(topP: 0.95, maxTokens: 128, strategy: "model", seed: 7),
+        parameters: .init(topP: 0.95, maxTokens: 128, seed: 7),
         response: .scriptedCoreML([64, 305, 192, 355, 305]),
         expectedBand: .acceptable
     )
 
     static let networkFakeQualityCorpus = BackendQualityCorpus(
-        provider: .networkBonjourHTTPAriaV2,
+        provider: .networkBonjourHTTPAria,
         seed: 99,
         promptNotes: [
             ImprovDialogueNote(note: 60, velocity: 90, time: 0, duration: 0.2),
         ],
-        parameters: .init(topP: 0.9, maxTokens: 64, strategy: "network", seed: 99),
-        response: .networkFakeEvents([
-            .cc(controller: 64, value: 127, time: 0),
-            .note(note: 67, velocity: 88, time: 0, duration: 0.2),
-            .note(note: 71, velocity: 84, time: 0.24, duration: 0.2),
-        ]),
-        expectedBand: .acceptable
-    )
-
-    static let networkWebSocketFakeQualityCorpus = BackendQualityCorpus(
-        provider: .networkBonjourWebSocketAriaV2,
-        seed: 100,
-        promptNotes: [
-            ImprovDialogueNote(note: 64, velocity: 86, time: 0, duration: 0.2),
-        ],
-        parameters: .init(topP: 0.9, maxTokens: 64, strategy: "network-stream", seed: 100),
+        parameters: .init(topP: 0.9, maxTokens: 64, seed: 99),
         response: .networkFakeEvents([
             .cc(controller: 64, value: 127, time: 0),
             .note(note: 67, velocity: 88, time: 0, duration: 0.2),
@@ -336,8 +321,6 @@ extension DuetQualityRegressionFixtures.BackendQualityCorpus {
         CreativeDuetGeneration(
             requestID: 1,
             activationID: 1,
-            seed: seed,
-            sessionID: "quality-corpus",
             parameters: parameters
         )
     }

@@ -1,13 +1,13 @@
 import Foundation
 
-enum CompanionDecisionBackendKind: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+enum CompanionDecisionBackendKind: String, CaseIterable, Hashable, Identifiable, Sendable {
     case ruleBased = "rule_based"
-    case networkBonjourLaya = "network_bonjour_laya"
+    case networkBonjourQwen = "network_bonjour_qwen"
 
     var id: String { rawValue }
 }
 
-enum CompanionAction: String, Codable, Equatable, Sendable {
+enum CompanionAction: String, Equatable, Sendable {
     case listen
     case support
     case sparse
@@ -15,7 +15,7 @@ enum CompanionAction: String, Codable, Equatable, Sendable {
     case respond
 }
 
-struct CompanionDecisionInput: Codable, Equatable, Sendable {
+struct CompanionDecisionInput: Equatable, Sendable {
     let nowTimestampSeconds: TimeInterval
     let heldNotesCount: Int
     let sustainValue: Int
@@ -24,8 +24,8 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
     let recentNoteDensityPerSecond: Double
     let lastUserEventTimestampSeconds: TimeInterval?
     let lastNoteOnTimestampSeconds: TimeInterval?
-    let activePitchCenter: Double?
     let isAIPlaybackActive: Bool
+    let userNoteOnSinceAIPlaybackStarted: Bool
 
     init(
         nowTimestampSeconds: TimeInterval,
@@ -36,8 +36,8 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
         recentNoteDensityPerSecond: Double,
         lastUserEventTimestampSeconds: TimeInterval?,
         lastNoteOnTimestampSeconds: TimeInterval?,
-        activePitchCenter: Double?,
-        isAIPlaybackActive: Bool
+        isAIPlaybackActive: Bool,
+        userNoteOnSinceAIPlaybackStarted: Bool
     ) {
         self.nowTimestampSeconds = nowTimestampSeconds
         self.heldNotesCount = heldNotesCount
@@ -47,19 +47,23 @@ struct CompanionDecisionInput: Codable, Equatable, Sendable {
         self.recentNoteDensityPerSecond = recentNoteDensityPerSecond
         self.lastUserEventTimestampSeconds = lastUserEventTimestampSeconds
         self.lastNoteOnTimestampSeconds = lastNoteOnTimestampSeconds
-        self.activePitchCenter = activePitchCenter
         self.isAIPlaybackActive = isAIPlaybackActive
+        self.userNoteOnSinceAIPlaybackStarted = userNoteOnSinceAIPlaybackStarted
     }
+}
+
+enum CompanionDecisionValidationError: Error, Equatable {
+    case invalidYieldPrerequisite
+}
+
+enum CompanionPlaybackPolicy: Equatable, Sendable {
+    case preserve
+    case clearUnstarted
+    case yieldCurrent
 }
 
 struct CompanionDecision: Equatable, Sendable {
     let action: CompanionAction
-    let confidence: Double?
-
-    init(action: CompanionAction, confidence: Double? = nil) {
-        self.action = action
-        self.confidence = confidence
-    }
 
     var shouldRequestGeneration: Bool {
         switch action {
@@ -70,13 +74,24 @@ struct CompanionDecision: Equatable, Sendable {
         }
     }
 
-    var shouldClearFutureWindows: Bool {
+    var playbackPolicy: CompanionPlaybackPolicy {
         switch action {
-        case .listen, .yield:
-            true
+        case .listen:
+            .clearUnstarted
+        case .yield:
+            .yieldCurrent
         case .support, .sparse, .respond:
-            false
+            .preserve
         }
+    }
+
+    func validated(for input: CompanionDecisionInput) throws -> CompanionDecision {
+        if action == .yield,
+           (input.isAIPlaybackActive == false || input.userNoteOnSinceAIPlaybackStarted == false)
+        {
+            throw CompanionDecisionValidationError.invalidYieldPrerequisite
+        }
+        return self
     }
 }
 
@@ -84,5 +99,8 @@ protocol CompanionDecisionBackendProtocol: Sendable {
     var kind: CompanionDecisionBackendKind { get }
     var displayName: String { get }
 
-    func decide(_ input: CompanionDecisionInput) async throws -> CompanionDecision
+    func decide(
+        _ input: CompanionDecisionInput,
+        deadline: ContinuousClock.Instant
+    ) async throws -> CompanionDecision
 }

@@ -9,7 +9,7 @@ enum AriaNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable 
     var errorDescription: String? {
         switch self {
         case .backendNotResolved:
-            "Aria network backend not resolved."
+            "Aria network backend not resolved within the product deadline."
         case .discoveryDenied:
             "Local network discovery permission denied."
         case let .discoveryFailed(message):
@@ -21,8 +21,8 @@ enum AriaNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable 
 }
 
 actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
-    nonisolated let kind: ImprovBackendKind = .networkBonjourHTTPAriaV2
-    nonisolated let displayName: String = "网络本地连接（Aria v2）"
+    nonisolated let kind: ImprovBackendKind = .networkBonjourHTTPAria
+    nonisolated let displayName: String = "网络本地连接（Aria）"
 
     private let discoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let backendClient: any ImprovBackendClientProtocol
@@ -40,9 +40,13 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(
+            by: .seconds(ImprovQualityRubric.Thresholds.v2.maximumResponseLatencySeconds)
+        )
+
         await MainActor.run {
             switch discoveryService.state {
             case .idle, .failed:
@@ -52,15 +56,18 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             }
         }
 
-        let resolved = try await waitForResolvedEndpoint(timeout: timeout)
-        let timeoutSeconds = durationToTimeInterval(timeout)
-        let request = ImprovGenerateRequestV2(
-            events: phrase.events,
-            params: generation.parameters,
-            sessionID: generation.sessionID
-        )
+        let resolved = try await waitForResolvedEndpoint(deadline: deadline, clock: clock)
+        let remaining = clock.now.duration(to: deadline)
+        let timeoutSeconds = durationToTimeInterval(remaining)
+        guard timeoutSeconds > 0 else {
+            throw URLError(.timedOut)
+        }
 
-        let response = try await backendClient.generateV2(
+        let request = AriaGenerateRequest(
+            events: phrase.events,
+            maxTokens: generation.parameters.maxTokens
+        )
+        let response = try await backendClient.generate(
             host: resolved.host,
             port: resolved.port,
             request: request,
@@ -80,13 +87,12 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
         )
     }
 
-    private func waitForResolvedEndpoint(timeout: Duration) async throws -> (host: String, port: Int) {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: timeout)
-
+    private func waitForResolvedEndpoint(
+        deadline: ContinuousClock.Instant,
+        clock: ContinuousClock
+    ) async throws -> (host: String, port: Int) {
         while clock.now < deadline, Task.isCancelled == false {
             let state = await MainActor.run { discoveryService.state }
-
             switch state {
             case let .resolved(host, port, _):
                 return (host, port)
@@ -97,15 +103,14 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             case .idle, .discovering:
                 break
             }
-
-            try await Task.sleep(for: .milliseconds(50))
+            try await Task.sleep(for: .milliseconds(25))
         }
-
         throw AriaNetworkBonjourHTTPImprovBackendError.backendNotResolved
     }
 
     private nonisolated func durationToTimeInterval(_ duration: Duration) -> TimeInterval {
         let components = duration.components
-        return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
+        return TimeInterval(components.seconds)
+            + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
     }
 }

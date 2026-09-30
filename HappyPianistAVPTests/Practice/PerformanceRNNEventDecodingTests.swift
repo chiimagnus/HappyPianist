@@ -51,8 +51,7 @@ func performanceRNNEventCodec_decodesChordInStableOrder() {
 func localCoreMLDuetBackendQualityCorpusUsesNativeCreativeResponse() async throws {
     let corpus = DuetQualityRegressionFixtures.coreMLQualityCorpus
     #expect(corpus.provider == .localCoreMLDuet)
-    #expect(corpus.parameters.seed == .some(corpus.seed))
-    #expect(corpus.parameters.strategy == "model")
+    #expect(corpus.parameters.seed == corpus.seed)
     guard case let .scriptedCoreML(eventIDs) = corpus.response else {
         Issue.record("Core ML corpus must use its scripted step-model sequence.")
         return
@@ -73,8 +72,7 @@ func localCoreMLDuetBackendQualityCorpusUsesNativeCreativeResponse() async throw
     let generation = corpus.creativeGeneration
     let response = try await backend.generateCreativeResponse(
         phrase: corpus.creativePhrase,
-        generation: generation,
-        timeout: .seconds(1)
+        generation: generation
     )
 
     #expect(response.provider == corpus.provider)

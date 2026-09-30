@@ -1,19 +1,19 @@
 import Foundation
 
-enum ImprovBackendClientError: Error {
+enum ImprovBackendClientError: Error, Equatable {
     case invalidURL
     case invalidResponse
-    case httpError(statusCode: Int, message: String?)
+    case httpError(statusCode: Int, code: String, message: String?)
     case decodeFailed
 }
 
-protocol ImprovBackendClientProtocol {
-    func generateV2(
+protocol ImprovBackendClientProtocol: Sendable {
+    func generate(
         host: String,
         port: Int,
-        request: ImprovGenerateRequestV2,
+        request: AriaGenerateRequest,
         timeoutSeconds: TimeInterval
-    ) async throws -> ImprovResultResponseV2
+    ) async throws -> AriaResultResponse
 }
 
 struct ImprovBackendClient: ImprovBackendClientProtocol {
@@ -23,47 +23,56 @@ struct ImprovBackendClient: ImprovBackendClientProtocol {
         self.urlSession = urlSession
     }
 
-    func generateV2(
+    func generate(
         host: String,
         port: Int,
-        request: ImprovGenerateRequestV2,
-        timeoutSeconds: TimeInterval = 2
-    ) async throws -> ImprovResultResponseV2 {
+        request: AriaGenerateRequest,
+        timeoutSeconds: TimeInterval
+    ) async throws -> AriaResultResponse {
         var components = URLComponents()
         components.scheme = "http"
         components.host = host
         components.port = port
-        components.path = "/generate"
+        components.path = AriaNetworkProtocol.path
 
         guard let url = components.url else {
             throw ImprovBackendClientError.invalidURL
         }
-
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
+        guard timeoutSeconds.isFinite, timeoutSeconds > 0 else {
+            throw URLError(.timedOut)
+        }
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.timeoutInterval = timeoutSeconds
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try encoder.encode(request)
+        urlRequest.httpBody = try JSONEncoder().encode(request)
 
         let (data, response) = try await urlSession.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ImprovBackendClientError.invalidResponse
         }
 
+        let decoder = JSONDecoder()
         if httpResponse.statusCode != 200 {
-            let message = (try? decoder.decode(ImprovErrorResponse.self, from: data))?.message
-            throw ImprovBackendClientError.httpError(statusCode: httpResponse.statusCode, message: message)
+            do {
+                let error = try decoder.decode(AriaErrorResponse.self, from: data)
+                throw ImprovBackendClientError.httpError(
+                    statusCode: httpResponse.statusCode,
+                    code: error.code,
+                    message: error.message
+                )
+            } catch let error as ImprovBackendClientError {
+                throw error
+            } catch {
+                throw ImprovBackendClientError.decodeFailed
+            }
         }
 
-        if let result = try? decoder.decode(ImprovResultResponseV2.self, from: data) {
-            return result
+        do {
+            return try decoder.decode(AriaResultResponse.self, from: data)
+        } catch {
+            throw ImprovBackendClientError.decodeFailed
         }
-        if let error = try? decoder.decode(ImprovErrorResponse.self, from: data) {
-            throw ImprovBackendClientError.httpError(statusCode: httpResponse.statusCode, message: error.message)
-        }
-        throw ImprovBackendClientError.decodeFailed
     }
 }

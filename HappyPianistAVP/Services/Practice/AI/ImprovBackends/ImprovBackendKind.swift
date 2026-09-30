@@ -1,8 +1,7 @@
 import Foundation
 
-enum ImprovBackendKind: String, CaseIterable, Codable, Hashable, Identifiable {
-    case networkBonjourHTTPAriaV2 = "network_bonjour_http_aria_v2"
-    case networkBonjourWebSocketAriaV2 = "network_bonjour_ws_aria_v2"
+enum ImprovBackendKind: String, CaseIterable, Hashable, Identifiable {
+    case networkBonjourHTTPAria = "network_bonjour_http_aria"
     case localCoreMLDuet = "local_coreml_duet"
     case localRule = "local_rule"
 

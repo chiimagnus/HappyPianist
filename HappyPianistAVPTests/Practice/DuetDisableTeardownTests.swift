@@ -64,8 +64,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation: CreativeDuetGeneration,
-        timeout _: Duration
+        generation: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
@@ -115,8 +114,7 @@ private actor CancellationAwareBackend: ImprovBackendProtocol {
 
     func generateCreativeResponse(
         phrase _: CreativeDuetPhrase,
-        generation _: CreativeDuetGeneration,
-        timeout _: Duration
+        generation _: CreativeDuetGeneration
     ) async throws -> CreativeDuetResponse {
         didReceiveCall = true
         callWaiter?.resume()
@@ -175,10 +173,12 @@ func releasedServiceStopsItsControlLoop() async {
         let service = AIPerformanceService(
             sleepFor: { _ in await Task.yield() },
             discoveryOrchestrator: FakeDiscoveryOrchestrator(),
-            backendRegistry: .init(),
+            backendRegistry: .init(backends: []),
             selectedBackendKind: { .localRule },
             aiPlaybackServiceFactory: { factory },
-            onStateChanged: { _ in }
+            companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
+        onStateChanged: { _ in }
         )
         releasedService = service
         service.setEnabled(true)
@@ -214,6 +214,8 @@ func disablingServiceDropsLateBackendResponses() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { state in
             didEnqueueAnySchedule = didEnqueueAnySchedule || state.latestSchedule.isEmpty == false
         }
@@ -259,7 +261,7 @@ func disablingServiceDropsLateBackendResponses() async {
 func newInputDropsStaleContinuousResponse() async {
     var nowUptime: TimeInterval = 0
     let controlClock = AIPerformanceControlClock()
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let backend = ControlledBackend(kind: selectedKind)
     let diagnosticsReporter = InMemoryDiagnosticsReporter()
     let playbackService = NonAdvancingPlaybackService()
@@ -276,6 +278,8 @@ func newInputDropsStaleContinuousResponse() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
@@ -314,7 +318,7 @@ func newInputDropsStaleContinuousResponse() async {
         await Task.yield()
     }
     #expect(enqueuedSchedule == false)
-    let staleResponseReason = "provider=network_bonjour_http_aria_v2;outcome=stale_phrase"
+    let staleResponseReason = "provider=network_bonjour_http_aria;outcome=stale_phrase"
     for _ in 0 ..< 200 {
         await Task.yield()
         let events = await diagnosticsReporter.events
@@ -355,6 +359,8 @@ func cancellingGenerationRecordsDiscardOutcome() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
@@ -391,7 +397,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     let controlClock = AIPerformanceControlClock()
     let selectedKind = MutableBackendKind(.localRule)
     let oldBackend = ControlledBackend(kind: .localRule)
-    let newBackend = ControlledBackend(kind: .networkBonjourHTTPAriaV2)
+    let newBackend = ControlledBackend(kind: .networkBonjourHTTPAria)
     let playbackService = NonAdvancingPlaybackService()
     let factory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { playbackService },
@@ -404,6 +410,8 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
         backendRegistry: ImprovBackendRegistry(backends: [oldBackend, newBackend]),
         selectedBackendKind: { selectedKind.value },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
@@ -421,7 +429,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     await controlClock.advance()
     #expect(await oldBackend.waitForCall())
 
-    selectedKind.value = .networkBonjourHTTPAriaV2
+    selectedKind.value = .networkBonjourHTTPAria
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
         observations: makeTestKeyContactObservations(
@@ -444,7 +452,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
 func replacingPracticeSessionInvalidatesOldResponse() async {
     var nowUptime: TimeInterval = 0
     let controlClock = AIPerformanceControlClock()
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAria
     let backend = ControlledBackend(kind: selectedKind)
     let playbackService = NonAdvancingPlaybackService()
     let factory = DuetAIPlaybackServiceFactory(
@@ -459,6 +467,8 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
     )
     let firstSession = FakePracticeSession(settingsProvider: FakeSettingsProvider())
@@ -510,6 +520,8 @@ func silentContextDropsLateContinuousResponse() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
@@ -559,6 +571,8 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { factory },
+        companionDecisionBackendRegistry: ruleBasedCompanionDecisionTestRegistry(),
+        selectedCompanionDecisionBackendKind: { .ruleBased },
         onStateChanged: { _ in }
     )
     let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())

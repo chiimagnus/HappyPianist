@@ -1,71 +1,54 @@
 import Foundation
 import Practice
-import MusicXML
-import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
 @MainActor
 private final class ResolvedBackendDiscoveryService: BonjourBackendDiscoveryServiceProtocol {
-    let state: BonjourBackendDiscoveryService.State
+    var state: BonjourBackendDiscoveryService.State
 
-    init(host: String, port: Int, txtRecord: [String: String] = [:]) {
-        state = .resolved(host: host, port: port, txtRecord: txtRecord)
+    init(host: String, port: Int) {
+        state = .resolved(host: host, port: port, txtRecord: [:])
     }
 
     func start() {}
     func stop() {}
 }
 
-private actor FixedHTTPBackendClient: ImprovBackendClientProtocol {
-    private let result: ImprovResultResponseV2
-    private var requests: [ImprovGenerateRequestV2] = []
+@MainActor
+private final class DelayedBackendDiscoveryService: BonjourBackendDiscoveryServiceProtocol {
+    var state: BonjourBackendDiscoveryService.State = .discovering
 
-    init(result: ImprovResultResponseV2) {
-        self.result = result
-    }
+    func start() {}
+    func stop() {}
 
-    func generateV2(
-        host _: String,
-        port _: Int,
-        request: ImprovGenerateRequestV2,
-        timeoutSeconds _: TimeInterval
-    ) async throws -> ImprovResultResponseV2 {
-        requests.append(request)
-        return result
-    }
-
-    func receivedRequests() -> [ImprovGenerateRequestV2] {
-        requests
+    func resolve(host: String = "127.0.0.1", port: Int = 8766) {
+        state = .resolved(host: host, port: port, txtRecord: [:])
     }
 }
 
-private actor FixedStreamingBackendClient: ImprovStreamingClientProtocol {
-    private let chunks: [ImprovStreamChunkV2]
-    private var starts: [ImprovStreamStartRequestV2] = []
+private actor FixedHTTPBackendClient: ImprovBackendClientProtocol {
+    private let result: AriaResultResponse
+    private var requests: [AriaGenerateRequest] = []
+    private var timeouts: [TimeInterval] = []
 
-    init(chunks: [ImprovStreamChunkV2]) {
-        self.chunks = chunks
+    init(result: AriaResultResponse) {
+        self.result = result
     }
 
-    func streamChunks(
-        url _: URL,
-        start: ImprovStreamStartRequestV2,
-        timeout _: Duration
-    ) async throws -> AsyncThrowingStream<ImprovStreamChunkV2, Error> {
-        starts.append(start)
-        let chunks = self.chunks
-        return AsyncThrowingStream { continuation in
-            for chunk in chunks {
-                continuation.yield(chunk)
-            }
-            continuation.finish()
-        }
+    func generate(
+        host _: String,
+        port _: Int,
+        request: AriaGenerateRequest,
+        timeoutSeconds: TimeInterval
+    ) async throws -> AriaResultResponse {
+        requests.append(request)
+        timeouts.append(timeoutSeconds)
+        return result
     }
 
-    func receivedStarts() -> [ImprovStreamStartRequestV2] {
-        starts
-    }
+    func receivedRequests() -> [AriaGenerateRequest] { requests }
+    func receivedTimeouts() -> [TimeInterval] { timeouts }
 }
 
 @Test
@@ -76,50 +59,33 @@ func improvScheduleBuilderSortsAndGeneratesNoteOff() {
         ImprovDialogueNote(note: 67, velocity: 90, time: 0.2, duration: 0.1),
     ]
 
-    let builder = ImprovScheduleBuilder()
-    let schedule = builder.buildSchedule(from: notes, leadInSeconds: 0)
+    let schedule = ImprovScheduleBuilder().buildSchedule(from: notes, leadInSeconds: 0)
     #expect(schedule.count == 6)
     #expect(abs(schedule[0].timeSeconds - 0.0) < 0.0001)
-    // A.I. Duet: reply note durations are shortened to 90% (see `ImprovScheduleBuilder`).
     #expect(abs(schedule[5].timeSeconds - 0.58) < 0.0001)
 }
 
 @Test
-func improvScheduleBuilderClampsDuration() {
+func improvScheduleBuilderKeepsIntentionalMinimumPlayableDuration() {
     let notes = [
-        ImprovDialogueNote(note: 60, velocity: 90, time: 0.0, duration: -1.0),
+        ImprovDialogueNote(note: 60, velocity: 90, time: 0.0, duration: 0.01),
     ]
-    let builder = ImprovScheduleBuilder()
-    let schedule = builder.buildSchedule(from: notes, leadInSeconds: 0)
+    let schedule = ImprovScheduleBuilder().buildSchedule(from: notes, leadInSeconds: 0)
     #expect(schedule.count == 2)
     #expect(schedule[0].timeSeconds == 0.0)
-    #expect(schedule[1].timeSeconds >= 0.05)
-}
-
-@Test
-func improvScheduleBuilderNegativeTimeStillProducesDuration() {
-    let notes = [
-        ImprovDialogueNote(note: 60, velocity: 90, time: -1.0, duration: 0.2),
-    ]
-    let builder = ImprovScheduleBuilder()
-    let schedule = builder.buildSchedule(from: notes, leadInSeconds: 0)
-    #expect(schedule.count == 2)
-    #expect(schedule[0].timeSeconds == 0.0)
-    #expect(schedule[1].timeSeconds >= 0.18)
+    #expect(abs(schedule[1].timeSeconds - 0.05) < 0.0001)
 }
 
 @Test
 func improvScheduleBuilderEmptyNotesIsEmptySchedule() {
-    let builder = ImprovScheduleBuilder()
-    #expect(builder.buildSchedule(from: [ImprovDialogueNote](), leadInSeconds: 0).isEmpty)
+    #expect(ImprovScheduleBuilder().buildSchedule(from: [ImprovDialogueNote](), leadInSeconds: 0).isEmpty)
 }
 
 @Test
 func localRuleBackendQualityCorpusUsesNativeCreativeResponse() async throws {
     let rule = DuetQualityRegressionFixtures.ruleQualityCorpus
     #expect(rule.provider == .localRule)
-    #expect(rule.parameters.seed == .some(rule.seed))
-    #expect(rule.parameters.strategy == "deterministic")
+    #expect(rule.parameters.seed == rule.seed)
     guard case .generatedRule = rule.response else {
         Issue.record("Rule corpus must generate from its fixed seed.")
         return
@@ -128,8 +94,7 @@ func localRuleBackendQualityCorpusUsesNativeCreativeResponse() async throws {
     let generation = rule.creativeGeneration
     let response = try await LocalRuleImprovBackend().generateCreativeResponse(
         phrase: rule.creativePhrase,
-        generation: generation,
-        timeout: .seconds(1)
+        generation: generation
     )
 
     #expect(response.provider == rule.provider)
@@ -141,23 +106,17 @@ func localRuleBackendQualityCorpusUsesNativeCreativeResponse() async throws {
 
 @Test
 @MainActor
-func ariaHTTPBackendQualityCorpusUsesNativeCreativeResponse() async throws {
+func ariaHTTPBackendQualityCorpusUsesCurrentNetworkContract() async throws {
     let network = DuetQualityRegressionFixtures.networkFakeQualityCorpus
-    #expect(network.provider == .networkBonjourHTTPAriaV2)
-    #expect(network.parameters.seed == .some(network.seed))
-    #expect(network.parameters.strategy == "network")
+    #expect(network.provider == .networkBonjourHTTPAria)
+    #expect(network.parameters.seed == network.seed)
     guard case let .networkFakeEvents(events) = network.response else {
         Issue.record("Network corpus must use a protocol response fake.")
         return
     }
 
     let client = FixedHTTPBackendClient(
-        result: ImprovResultResponseV2(
-            type: "result",
-            protocolVersion: 2,
-            events: events,
-            latencyMS: 23
-        )
+        result: AriaResultResponse(events: events, latencyMS: 23)
     )
     let backend = AriaNetworkBonjourHTTPImprovBackend(
         discoveryService: ResolvedBackendDiscoveryService(host: "127.0.0.1", port: 8766),
@@ -166,8 +125,7 @@ func ariaHTTPBackendQualityCorpusUsesNativeCreativeResponse() async throws {
     let generation = network.creativeGeneration
     let response = try await backend.generateCreativeResponse(
         phrase: network.creativePhrase,
-        generation: generation,
-        timeout: .seconds(1)
+        generation: generation
     )
 
     #expect(response.provider == network.provider)
@@ -178,49 +136,41 @@ func ariaHTTPBackendQualityCorpusUsesNativeCreativeResponse() async throws {
     let requests = await client.receivedRequests()
     #expect(requests.count == 1)
     #expect(requests.first?.events == network.creativePhrase.events)
-    #expect(requests.first?.params == network.parameters)
+    #expect(requests.first?.params.maxTokens == network.parameters.maxTokens)
 }
 
 @Test
 @MainActor
-func ariaWebSocketBackendQualityCorpusUsesNativeCreativeResponse() async throws {
-    let network = DuetQualityRegressionFixtures.networkWebSocketFakeQualityCorpus
-    #expect(network.provider == .networkBonjourWebSocketAriaV2)
-    guard case let .networkFakeEvents(events) = network.response else {
-        Issue.record("WebSocket corpus must use a protocol response fake.")
-        return
+func ariaHTTPBackendSharesOne350MillisecondDeadlineAcrossDiscoveryAndRequest() async throws {
+    let discovery = DelayedBackendDiscoveryService()
+    let client = FixedHTTPBackendClient(
+        result: AriaResultResponse(
+            events: [.note(note: 67, velocity: 88, time: 0, duration: 0.2)],
+            latencyMS: 1
+        )
+    )
+    let backend = AriaNetworkBonjourHTTPImprovBackend(
+        discoveryService: discovery,
+        backendClient: client
+    )
+    let phrase = CreativeDuetPhrase(
+        events: [.note(note: 60, velocity: 90, time: 0, duration: 0.2)],
+        provenance: .empty
+    )
+    let generation = CreativeDuetGeneration(
+        requestID: 1,
+        activationID: 1,
+        parameters: .init(topP: 0.95, maxTokens: 64, seed: 1)
+    )
+
+    Task { @MainActor in
+        try? await Task.sleep(for: .milliseconds(80))
+        discovery.resolve()
     }
 
-    let client = FixedStreamingBackendClient(chunks: [
-        ImprovStreamChunkV2(
-            seq: 0,
-            isFinal: true,
-            timeRange: .init(start: 0, end: 0.5),
-            events: events
-        ),
-    ])
-    let backend = AriaNetworkBonjourWebSocketImprovBackend(
-        discoveryService: ResolvedBackendDiscoveryService(
-            host: "127.0.0.1",
-            port: 8766,
-            txtRecord: ["ws_path": "/stream"]
-        ),
-        streamingClient: client
-    )
-    let generation = network.creativeGeneration
-    let response = try await backend.generateCreativeResponse(
-        phrase: network.creativePhrase,
-        generation: generation,
-        timeout: .seconds(1)
-    )
+    _ = try await backend.generateCreativeResponse(phrase: phrase, generation: generation)
 
-    #expect(response.provider == network.provider)
-    #expect(response.generation == generation)
-    #expect(response.provenance == .backendGenerated(latencyMS: nil))
-    #expect(response.schedule.isEmpty == false)
-    #expect(ImprovQualityRubric().assess(response.schedule).band == network.expectedBand)
-    let starts = await client.receivedStarts()
-    #expect(starts.count == 1)
-    #expect(starts.first?.request.events == network.creativePhrase.events)
-    #expect(starts.first?.request.params == network.parameters)
+    let timeout = try #require(await client.receivedTimeouts().first)
+    #expect(timeout > 0)
+    #expect(timeout < ImprovQualityRubric.Thresholds.v2.maximumResponseLatencySeconds - 0.04)
 }

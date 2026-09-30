@@ -1,0 +1,143 @@
+{
+  "projection_version": "duet-phrase-buffer-v1",
+  "cases": [
+    {
+      "id": "ordinary-held-key",
+      "events": [
+        {"type": "note_on", "time": 0.5, "note": 62, "velocity": 76}
+      ],
+      "snapshot_time": 0.7,
+      "is_ai_playback_active": false,
+      "user_note_on_since_ai_playback_started": false,
+      "expected": {
+        "held_notes_count": 1,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": null,
+        "recent_note_density_per_second": 0.8333333333333334,
+        "seconds_since_last_note_on": 0.2,
+        "is_ai_playback_active": false,
+        "user_note_on_since_ai_playback_started": false
+      }
+    },
+    {
+      "id": "sustain-held-after-key-release",
+      "events": [
+        {"type": "note_on", "time": 0.0, "note": 60, "velocity": 80},
+        {"type": "cc64", "time": 0.1, "value": 127},
+        {"type": "note_off", "time": 0.2, "note": 60}
+      ],
+      "snapshot_time": 0.3,
+      "is_ai_playback_active": false,
+      "user_note_on_since_ai_playback_started": false,
+      "expected": {
+        "held_notes_count": 1,
+        "sustain_value": 127,
+        "recent_ioi_median_seconds": null,
+        "recent_note_density_per_second": 0.8333333333333334,
+        "seconds_since_last_note_on": 0.3,
+        "is_ai_playback_active": false,
+        "user_note_on_since_ai_playback_started": false
+      }
+    },
+    {
+      "id": "sustain-release-clears-held-note",
+      "events": [
+        {"type": "note_on", "time": 0.0, "note": 60, "velocity": 80},
+        {"type": "cc64", "time": 0.1, "value": 127},
+        {"type": "note_off", "time": 0.2, "note": 60},
+        {"type": "cc64", "time": 0.4, "value": 0}
+      ],
+      "snapshot_time": 0.5,
+      "is_ai_playback_active": false,
+      "user_note_on_since_ai_playback_started": false,
+      "expected": {
+        "held_notes_count": 0,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": null,
+        "recent_note_density_per_second": 0.8333333333333334,
+        "seconds_since_last_note_on": 0.5,
+        "is_ai_playback_active": false,
+        "user_note_on_since_ai_playback_started": false
+      }
+    },
+    {
+      "id": "recent-onset-statistics",
+      "events": [
+        {"type": "note_on", "time": 4.0, "note": 60, "velocity": 72},
+        {"type": "note_off", "time": 4.1, "note": 60},
+        {"type": "note_on", "time": 4.4, "note": 64, "velocity": 82},
+        {"type": "note_off", "time": 4.5, "note": 64},
+        {"type": "note_on", "time": 4.8, "note": 67, "velocity": 92},
+        {"type": "note_off", "time": 4.9, "note": 67}
+      ],
+      "snapshot_time": 5.0,
+      "is_ai_playback_active": true,
+      "user_note_on_since_ai_playback_started": true,
+      "expected": {
+        "held_notes_count": 0,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": 0.4,
+        "recent_note_density_per_second": 2.5,
+        "seconds_since_last_note_on": 0.2,
+        "is_ai_playback_active": true,
+        "user_note_on_since_ai_playback_started": true
+      }
+    },
+    {
+      "id": "dense-onset-statistics",
+      "events": [
+        {"type": "note_on", "time": 0.0, "note": 60, "velocity": 70},
+        {"type": "note_off", "time": 0.04, "note": 60},
+        {"type": "note_on", "time": 0.1, "note": 61, "velocity": 71},
+        {"type": "note_off", "time": 0.14, "note": 61},
+        {"type": "note_on", "time": 0.2, "note": 62, "velocity": 72},
+        {"type": "note_off", "time": 0.24, "note": 62},
+        {"type": "note_on", "time": 0.3, "note": 63, "velocity": 73},
+        {"type": "note_off", "time": 0.34, "note": 63},
+        {"type": "note_on", "time": 0.4, "note": 64, "velocity": 74},
+        {"type": "note_off", "time": 0.44, "note": 64},
+        {"type": "note_on", "time": 0.5, "note": 65, "velocity": 75},
+        {"type": "note_off", "time": 0.54, "note": 65},
+        {"type": "note_on", "time": 0.6, "note": 66, "velocity": 76},
+        {"type": "note_off", "time": 0.64, "note": 66},
+        {"type": "note_on", "time": 0.7, "note": 67, "velocity": 77},
+        {"type": "note_off", "time": 0.74, "note": 67},
+        {"type": "note_on", "time": 0.8, "note": 68, "velocity": 78},
+        {"type": "note_off", "time": 0.84, "note": 68},
+        {"type": "note_on", "time": 0.9, "note": 69, "velocity": 79},
+        {"type": "note_off", "time": 0.94, "note": 69}
+      ],
+      "snapshot_time": 1.0,
+      "is_ai_playback_active": false,
+      "user_note_on_since_ai_playback_started": false,
+      "expected": {
+        "held_notes_count": 0,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": 0.1,
+        "recent_note_density_per_second": 8.333333333333334,
+        "seconds_since_last_note_on": 0.1,
+        "is_ai_playback_active": false,
+        "user_note_on_since_ai_playback_started": false
+      }
+    },
+    {
+      "id": "last-note-on-survives-prompt-window",
+      "events": [
+        {"type": "note_on", "time": 0.0, "note": 55, "velocity": 70},
+        {"type": "note_off", "time": 0.2, "note": 55}
+      ],
+      "snapshot_time": 4.5,
+      "is_ai_playback_active": false,
+      "user_note_on_since_ai_playback_started": false,
+      "expected": {
+        "held_notes_count": 0,
+        "sustain_value": 0,
+        "recent_ioi_median_seconds": null,
+        "recent_note_density_per_second": 0.0,
+        "seconds_since_last_note_on": 4.5,
+        "is_ai_playback_active": false,
+        "user_note_on_since_ai_playback_started": false
+      }
+    }
+  ]
+}

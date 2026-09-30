@@ -1,10 +1,10 @@
 import Foundation
 
-public struct ImprovDialogueNote: Codable, Equatable, Sendable {
-    public var note: Int
-    public var velocity: Int
-    public var time: Double
-    public var duration: Double
+public struct ImprovDialogueNote: Equatable, Sendable {
+    public let note: Int
+    public let velocity: Int
+    public let time: Double
+    public let duration: Double
 
     public init(note: Int, velocity: Int, time: Double, duration: Double) {
         self.note = note
@@ -14,46 +14,17 @@ public struct ImprovDialogueNote: Codable, Equatable, Sendable {
     }
 }
 
-public struct ImprovGenerateParams: Codable, Equatable, Sendable {
-    public var topP: Double
-    public var maxTokens: Int
-    public var strategy: String
-    public var seed: UInt64?
+public struct ImprovGenerateParams: Equatable, Sendable {
+    public let topP: Double
+    public let maxTokens: Int
+    public let seed: UInt64
 
-    public init(topP: Double, maxTokens: Int, strategy: String, seed: UInt64? = nil) {
+    public init(topP: Double, maxTokens: Int, seed: UInt64) {
         self.topP = topP
         self.maxTokens = maxTokens
-        self.strategy = strategy
         self.seed = seed
     }
-
-    enum CodingKeys: String, CodingKey {
-        case topP = "top_p"
-        case maxTokens = "max_tokens"
-        case strategy
-        case seed
-    }
 }
-
-public struct ImprovErrorResponse: Codable, Equatable, Sendable {
-    public var type: String
-    public var protocolVersion: Int
-    public var message: String
-
-    enum CodingKeys: String, CodingKey {
-        case type
-        case protocolVersion = "protocol_version"
-        case message
-    }
-
-    public init(type: String, protocolVersion: Int, message: String) {
-        self.type = type
-        self.protocolVersion = protocolVersion
-        self.message = message
-    }
-}
-
-// MARK: - v2 (events-first)
 
 public struct ImprovEvent: Codable, Equatable, Sendable {
     public enum EventType: String, Codable, Equatable, Sendable {
@@ -61,186 +32,188 @@ public struct ImprovEvent: Codable, Equatable, Sendable {
         case cc
     }
 
-    public var type: EventType
-    public var time: Double
+    public let type: EventType
+    public let time: Double
+    public let note: Int?
+    public let velocity: Int?
+    public let duration: Double?
+    public let controller: Int?
+    public let value: Int?
 
-    public var note: Int?
-    public var velocity: Int?
-    public var duration: Double?
-
-    public var controller: Int?
-    public var value: Int?
-
-    public static func note(note: Int, velocity: Int, time: Double, duration: Double) -> ImprovEvent {
-        ImprovEvent(
+    public static func note(note: Int, velocity: Int, time: Double, duration: Double) -> Self {
+        precondition(isValid7Bit(note), "MIDI note must be 0...127")
+        precondition(isValid7Bit(velocity), "MIDI velocity must be 0...127")
+        precondition(time.isFinite && time >= 0, "MIDI event time must be finite and non-negative")
+        precondition(duration.isFinite && duration > 0, "MIDI note duration must be finite and positive")
+        return Self(
             type: .note,
-            time: sanitizeSeconds(time),
-            note: clamp7Bit(note),
-            velocity: clamp7Bit(velocity),
-            duration: sanitizeSeconds(duration),
+            time: time,
+            note: note,
+            velocity: velocity,
+            duration: duration,
             controller: nil,
             value: nil
         )
     }
 
-    public static func cc(controller: Int, value: Int, time: Double) -> ImprovEvent {
-        ImprovEvent(
+    public static func cc(controller: Int, value: Int, time: Double) -> Self {
+        precondition(Self.allowedControllers.contains(controller), "Unsupported MIDI controller")
+        precondition(isValid7Bit(value), "MIDI controller value must be 0...127")
+        precondition(time.isFinite && time >= 0, "MIDI event time must be finite and non-negative")
+        return Self(
             type: .cc,
-            time: sanitizeSeconds(time),
+            time: time,
             note: nil,
             velocity: nil,
             duration: nil,
-            controller: clamp7Bit(controller),
-            value: clamp7Bit(value)
+            controller: controller,
+            value: value
         )
     }
 
-    enum CodingKeys: String, CodingKey {
-        case type
-        case note
-        case velocity
-        case time
-        case duration
-        case controller
-        case value
-    }
-
-    public init(
+    private init(
         type: EventType,
         time: Double,
-        note: Int? = nil,
-        velocity: Int? = nil,
-        duration: Double? = nil,
-        controller: Int? = nil,
-        value: Int? = nil
+        note: Int?,
+        velocity: Int?,
+        duration: Double?,
+        controller: Int?,
+        value: Int?
     ) {
         self.type = type
-        self.time = Self.sanitizeSeconds(time)
-        self.note = note.map(Self.clamp7Bit)
-        self.velocity = velocity.map(Self.clamp7Bit)
-        self.duration = duration.map(Self.sanitizeSeconds)
-        self.controller = controller.map(Self.clamp7Bit)
-        self.value = value.map(Self.clamp7Bit)
+        self.time = time
+        self.note = note
+        self.velocity = velocity
+        self.duration = duration
+        self.controller = controller
+        self.value = value
     }
 
     public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        type = try container.decode(EventType.self, forKey: .type)
-        time = try Self.sanitizeSeconds(container.decode(Double.self, forKey: .time))
+        let raw = try decoder.container(keyedBy: AnyCodingKey.self)
+        let typeKey = AnyCodingKey("type")
+        let rawType = try raw.decode(String.self, forKey: typeKey)
+        guard let type = EventType(rawValue: rawType) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: typeKey,
+                in: raw,
+                debugDescription: "Unknown ImprovEvent type"
+            )
+        }
+
+        let expectedKeys: Set<String> = switch type {
+        case .note: ["type", "note", "velocity", "time", "duration"]
+        case .cc: ["type", "controller", "value", "time"]
+        }
+        guard Set(raw.allKeys.map(\.stringValue)) == expectedKeys else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "Unexpected ImprovEvent fields")
+            )
+        }
+
+        let time = try raw.decode(Double.self, forKey: AnyCodingKey("time"))
+        guard time.isFinite, time >= 0 else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "Invalid ImprovEvent time")
+            )
+        }
 
         switch type {
         case .note:
-            let rawNote = try container.decode(Int.self, forKey: .note)
-            let rawVelocity = try container.decode(Int.self, forKey: .velocity)
-            let rawDuration = try container.decode(Double.self, forKey: .duration)
-
-            note = Self.clamp7Bit(rawNote)
-            velocity = Self.clamp7Bit(rawVelocity)
-            duration = Self.sanitizeSeconds(rawDuration)
-            controller = nil
-            value = nil
+            let note = try raw.decode(Int.self, forKey: AnyCodingKey("note"))
+            let velocity = try raw.decode(Int.self, forKey: AnyCodingKey("velocity"))
+            let duration = try raw.decode(Double.self, forKey: AnyCodingKey("duration"))
+            guard Self.isValid7Bit(note), Self.isValid7Bit(velocity), duration.isFinite, duration > 0 else {
+                throw DecodingError.dataCorrupted(
+                    .init(codingPath: decoder.codingPath, debugDescription: "Invalid note event values")
+                )
+            }
+            self.init(
+                type: .note,
+                time: time,
+                note: note,
+                velocity: velocity,
+                duration: duration,
+                controller: nil,
+                value: nil
+            )
         case .cc:
-            let rawController = try container.decode(Int.self, forKey: .controller)
-            let rawValue = try container.decode(Int.self, forKey: .value)
-
-            note = nil
-            velocity = nil
-            duration = nil
-            controller = Self.clamp7Bit(rawController)
-            value = Self.clamp7Bit(rawValue)
+            let controller = try raw.decode(Int.self, forKey: AnyCodingKey("controller"))
+            let value = try raw.decode(Int.self, forKey: AnyCodingKey("value"))
+            guard Self.allowedControllers.contains(controller), Self.isValid7Bit(value) else {
+                throw DecodingError.dataCorrupted(
+                    .init(codingPath: decoder.codingPath, debugDescription: "Invalid controller event values")
+                )
+            }
+            self.init(
+                type: .cc,
+                time: time,
+                note: nil,
+                velocity: nil,
+                duration: nil,
+                controller: controller,
+                value: value
+            )
         }
     }
 
     public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(type, forKey: .type)
-        try container.encode(time, forKey: .time)
+        var container = encoder.container(keyedBy: AnyCodingKey.self)
+        try container.encode(type.rawValue, forKey: AnyCodingKey("type"))
+        try container.encode(time, forKey: AnyCodingKey("time"))
 
         switch type {
         case .note:
-            guard let note, let velocity, let duration else {
+            guard let note, let velocity, let duration,
+                  Self.isValid7Bit(note), Self.isValid7Bit(velocity),
+                  time.isFinite, time >= 0,
+                  duration.isFinite, duration > 0
+            else {
                 throw EncodingError.invalidValue(
                     self,
-                    EncodingError.Context(
-                        codingPath: container.codingPath,
-                        debugDescription: "ImprovEvent.note requires note/velocity/duration."
-                    )
+                    .init(codingPath: encoder.codingPath, debugDescription: "Invalid note event invariant")
                 )
             }
-            try container.encode(Self.clamp7Bit(note), forKey: .note)
-            try container.encode(Self.clamp7Bit(velocity), forKey: .velocity)
-            try container.encode(Self.sanitizeSeconds(duration), forKey: .duration)
+            try container.encode(note, forKey: AnyCodingKey("note"))
+            try container.encode(velocity, forKey: AnyCodingKey("velocity"))
+            try container.encode(duration, forKey: AnyCodingKey("duration"))
         case .cc:
-            guard let controller, let value else {
+            guard let controller, let value,
+                  Self.allowedControllers.contains(controller), Self.isValid7Bit(value),
+                  time.isFinite, time >= 0
+            else {
                 throw EncodingError.invalidValue(
                     self,
-                    EncodingError.Context(
-                        codingPath: container.codingPath,
-                        debugDescription: "ImprovEvent.cc requires controller/value."
-                    )
+                    .init(codingPath: encoder.codingPath, debugDescription: "Invalid controller event invariant")
                 )
             }
-            try container.encode(Self.clamp7Bit(controller), forKey: .controller)
-            try container.encode(Self.clamp7Bit(value), forKey: .value)
+            try container.encode(controller, forKey: AnyCodingKey("controller"))
+            try container.encode(value, forKey: AnyCodingKey("value"))
         }
     }
 
-    private static func sanitizeSeconds(_ seconds: Double) -> Double {
-        guard seconds.isFinite else { return 0 }
-        return max(0, seconds)
-    }
+    private static let allowedControllers: Set<Int> = [7, 11, 64]
 
-    private static func clamp7Bit(_ value: Int) -> Int {
-        min(127, max(0, value))
+    private static func isValid7Bit(_ value: Int) -> Bool {
+        (0 ... 127).contains(value)
     }
 }
 
-public struct ImprovGenerateRequestV2: Codable, Equatable, Sendable {
-    public var type: String
-    public var protocolVersion: Int
-    public var events: [ImprovEvent]
-    public var params: ImprovGenerateParams
-    public var sessionID: String?
+struct AnyCodingKey: CodingKey, Hashable {
+    let stringValue: String
+    let intValue: Int?
 
-    enum CodingKeys: String, CodingKey {
-        case type
-        case protocolVersion = "protocol_version"
-        case events
-        case params
-        case sessionID = "session_id"
+    init(_ stringValue: String) {
+        self.stringValue = stringValue
+        intValue = nil
     }
 
-    public init(
-        protocolVersion: Int = 2,
-        events: [ImprovEvent],
-        params: ImprovGenerateParams,
-        sessionID: String? = nil
-    ) {
-        type = "generate"
-        self.protocolVersion = protocolVersion
-        self.events = events
-        self.params = params
-        self.sessionID = sessionID
-    }
-}
-
-public struct ImprovResultResponseV2: Codable, Equatable, Sendable {
-    public var type: String
-    public var protocolVersion: Int
-    public var events: [ImprovEvent]
-    public var latencyMS: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case type
-        case protocolVersion = "protocol_version"
-        case events
-        case latencyMS = "latency_ms"
+    init?(stringValue: String) {
+        self.init(stringValue)
     }
 
-    public init(type: String, protocolVersion: Int, events: [ImprovEvent], latencyMS: Int? = nil) {
-        self.type = type
-        self.protocolVersion = protocolVersion
-        self.events = events
-        self.latencyMS = latencyMS
+    init?(intValue: Int) {
+        stringValue = String(intValue)
+        self.intValue = intValue
     }
 }

@@ -73,8 +73,8 @@ func performanceRNNImprovGenerator_generatesNonEmptyReplyWithScriptedModel() asy
     // NOTE_ON 64, TIME_SHIFT 50, NOTE_OFF 64, TIME_SHIFT 100, TIME_SHIFT 50
     let stepModel = ScriptedStepModel(warmupCallCount: warmupCalls, scriptedNextEventIDs: [64, 305, 192, 355, 305])
 
-    let params = ImprovGenerateParams(topP: 0.95, maxTokens: 128, strategy: "model", seed: 1)
-    let reply = try await generator.generateReplyNotes(promptNotes: promptNotes, params: params, sessionID: "s", stepModel: stepModel)
+    let params = ImprovGenerateParams(topP: 0.95, maxTokens: 128, seed: 1)
+    let reply = try await generator.generateReplyNotes(promptNotes: promptNotes, params: params, stepModel: stepModel)
 
     #expect(reply.isEmpty == false)
     #expect(reply.allSatisfy { $0.time >= 0.0 })
@@ -102,9 +102,9 @@ func performanceRNNImprovGenerator_throwsGenerationLimitExceededWhenNoTimeShiftP
     let repeatingEvents = Array(repeating: 60, count: 10000)
     let stepModel = ScriptedStepModel(warmupCallCount: warmupCalls, scriptedNextEventIDs: repeatingEvents)
 
-    let params = ImprovGenerateParams(topP: 0.95, maxTokens: 1, strategy: "model", seed: 1)
+    let params = ImprovGenerateParams(topP: 0.95, maxTokens: 1, seed: 1)
     do {
-        _ = try await generator.generateReplyNotes(promptNotes: promptNotes, params: params, sessionID: "s", stepModel: stepModel)
+        _ = try await generator.generateReplyNotes(promptNotes: promptNotes, params: params, stepModel: stepModel)
         Issue.record("Expected generationLimitExceeded but generation finished.")
     } catch let error as PerformanceRNNImprovGeneratorError {
         #expect(error == .generationLimitExceeded)
