@@ -3,9 +3,10 @@ import MusicXML
 import Practice
 
 public struct GrandStaffNotationView: View {
-    let projection: ScoreNotationProjection
+    let input: GrandStaffNotationScoreInput
+    private var projection: ScoreNotationProjection { input.projection }
     let overlay: ScoreNotationProjection.Overlay
-    let measureSpans: [MusicXMLMeasureSpan]
+    private var measureSpans: [MusicXMLMeasureSpan] { input.measureSpans }
     let context: GrandStaffNotationContext?
     let practiceHandMode: PracticeHandMode
     var scrollTickProvider: (() -> Double?)?
@@ -17,117 +18,99 @@ public struct GrandStaffNotationView: View {
     @Environment(\.displayScale) private var displayScale
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     @State private var centeredForFirstOccurrenceID: String?
+    @State private var scoreViewModel = GrandStaffNotationScoreViewModel()
 
     public init(
-        projection: ScoreNotationProjection,
+        input: GrandStaffNotationScoreInput,
         overlay: ScoreNotationProjection.Overlay = .empty,
-        measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         practiceHandMode: PracticeHandMode = .both,
         scrollTickProvider: (() -> Double?)? = nil
     ) {
-        self.init(
-            projection: projection,
-            overlay: overlay,
-            measureSpans: measureSpans,
-            context: context,
-            practiceHandMode: practiceHandMode,
-            scrollTickProvider: scrollTickProvider,
-            layoutService: GrandStaffNotationLayoutService(),
-            viewportLayoutService: GrandStaffNotationViewportLayoutService(),
-            renderer: GrandStaffNotationRenderer()
-        )
-    }
-
-    init(
-        projection: ScoreNotationProjection,
-        overlay: ScoreNotationProjection.Overlay,
-        measureSpans: [MusicXMLMeasureSpan],
-        context: GrandStaffNotationContext?,
-        practiceHandMode: PracticeHandMode,
-        scrollTickProvider: (() -> Double?)?,
-        layoutService: GrandStaffNotationLayoutService = GrandStaffNotationLayoutService(),
-        viewportLayoutService: GrandStaffNotationViewportLayoutService = GrandStaffNotationViewportLayoutService(),
-        renderer: GrandStaffNotationRenderer = GrandStaffNotationRenderer()
-    ) {
-        self.projection = projection
+        self.input = input
         self.overlay = overlay
-        self.measureSpans = measureSpans
         self.context = context
         self.practiceHandMode = practiceHandMode
         self.scrollTickProvider = scrollTickProvider
-        presentationViewModel = GrandStaffNotationPresentationViewModel(
-            layoutService: layoutService,
-            viewportLayoutService: viewportLayoutService
-        )
-        self.renderer = renderer
+        presentationViewModel = GrandStaffNotationPresentationViewModel()
+        renderer = GrandStaffNotationRenderer()
     }
 
     public var body: some View {
         // KEEP_GEOMETRYREADER: needs exact viewport size for notation layout + scroll anchoring.
         GeometryReader { proxy in
-            let scrollTick = scrollTickProvider?()
-            let presentation = presentationViewModel.makePresentation(
-                size: proxy.size,
-                lineSpacing: lineSpacing,
-                projection: projection,
-                overlay: overlay,
-                measureSpans: measureSpans,
-                context: context,
-                practiceHandMode: practiceHandMode,
-                scrollTick: scrollTick
-            )
-            let viewportLayout = presentation.viewportLayout
-            let accessibility = GrandStaffNotationAccessibilityDescriptor.make(
-                projection: projection,
-                layout: presentation.notationLayout,
-                measureSpans: measureSpans,
-                currentTick: scrollTick
-            )
+            if let score = scoreViewModel.score, score.input == input {
+                let scrollTick = scrollTickProvider?()
+                let presentation = presentationViewModel.makePresentation(
+                    size: proxy.size,
+                    lineSpacing: lineSpacing,
+                    score: score,
+                    overlay: overlay,
+                    context: context,
+                    practiceHandMode: practiceHandMode,
+                    scrollTick: scrollTick
+                )
+                let viewportLayout = presentation.viewportLayout
+                let accessibility = GrandStaffNotationAccessibilityDescriptor.make(
+                    projection: projection,
+                    layout: presentation.notationLayout,
+                    measureSpans: measureSpans,
+                    currentTick: scrollTick
+                )
 
-            ScrollViewReader { scrollProxy in
-                ScrollView(.vertical) {
-                    ZStack(alignment: .topLeading) {
-                        Canvas { context, _ in
-                            renderer.draw(
-                                presentation: presentation,
-                                in: context,
-                                displayScale: displayScale,
-                                differentiateWithoutColor: differentiateWithoutColor
-                            )
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.vertical) {
+                        ZStack(alignment: .topLeading) {
+                            Canvas { context, _ in
+                                renderer.draw(
+                                    presentation: presentation,
+                                    in: context,
+                                    displayScale: displayScale,
+                                    differentiateWithoutColor: differentiateWithoutColor
+                                )
+                            }
+                            .frame(width: proxy.size.width, height: viewportLayout.requiredHeight)
+
+                            VStack(spacing: 0) {
+                                Color.clear.frame(height: presentation.defaultScrollAnchorY)
+                                Color.clear
+                                    .frame(width: 1, height: 1)
+                                    .id(DefaultScrollAnchorID.value)
+                                Spacer(minLength: 0)
+                            }
+                            .frame(width: 1, height: viewportLayout.requiredHeight, alignment: .top)
+
+                            GrandStaffNotationAccessibilityOverlay(descriptor: accessibility)
                         }
-                        .frame(width: proxy.size.width, height: viewportLayout.requiredHeight)
-
-                        VStack(spacing: 0) {
-                            Color.clear.frame(height: presentation.defaultScrollAnchorY)
-                            Color.clear
-                                .frame(width: 1, height: 1)
-                                .id(DefaultScrollAnchorID.value)
-                            Spacer(minLength: 0)
-                        }
-                        .frame(width: 1, height: viewportLayout.requiredHeight, alignment: .top)
-
-                        GrandStaffNotationAccessibilityOverlay(descriptor: accessibility)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(accessibility.containerLabel)
+                        .accessibilityValue(accessibility.containerValue)
                     }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityLabel(accessibility.containerLabel)
-                    .accessibilityValue(accessibility.containerValue)
+                    .scrollIndicators(.hidden)
+                    .onAppear {
+                        centerIfNeeded(
+                            firstOccurrenceID: firstVisibleOccurrenceID,
+                            scrollProxy: scrollProxy
+                        )
+                    }
+                    .onChange(of: firstVisibleOccurrenceID) {
+                        centerIfNeeded(
+                            firstOccurrenceID: firstVisibleOccurrenceID,
+                            scrollProxy: scrollProxy
+                        )
+                    }
                 }
-                .scrollIndicators(.hidden)
-                .onAppear {
-                    centerIfNeeded(
-                        firstOccurrenceID: firstVisibleOccurrenceID,
-                        scrollProxy: scrollProxy
-                    )
-                }
-                .onChange(of: firstVisibleOccurrenceID) {
-                    centerIfNeeded(
-                        firstOccurrenceID: firstVisibleOccurrenceID,
-                        scrollProxy: scrollProxy
-                    )
-                }
+            } else if input.projection.performedOccurrences.isEmpty {
+                ContentUnavailableView("曲谱没有记谱内容", systemImage: "music.note")
+            } else if let failure = scoreViewModel.failureMessage {
+                ContentUnavailableView("曲谱排版失败", systemImage: "exclamationmark.triangle", description: Text(failure))
+            } else {
+                ProgressView("正在排版乐谱")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .task(id: input) { await scoreViewModel.load(input) }
+        .onDisappear { scoreViewModel.clear() }
     }
 
     private enum DefaultScrollAnchorID {
@@ -271,12 +254,7 @@ private struct GrandStaffNotationAccessibilityOverlay: View {
     }
 }
 
-#Preview("Grand Staff") {
-    GrandStaffNotationView(
-        projection: .empty,
-        measureSpans: [],
-        context: GrandStaffNotationContext()
-    )
-    .frame(width: 800, height: 300)
-    .padding()
+#Preview("Grand Staff 未准备") {
+    ContentUnavailableView("尚未准备曲谱", systemImage: "music.note")
+        .frame(width: 800, height: 300)
 }

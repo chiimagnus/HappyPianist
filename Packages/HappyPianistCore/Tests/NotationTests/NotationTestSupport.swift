@@ -7,11 +7,12 @@ func makeTestScorePerformancePlan(
     from score: MusicXMLScore,
     expressivity: MusicXMLExpressivityOptions = MusicXMLExpressivityOptions(),
     handAssignments: [MusicXMLSourceNoteID: ScoreHandAssignment] = [:],
-    performanceTimingEnabled: Bool = false
+    performanceTimingEnabled: Bool = false,
+    logicalInstrument explicitInstrument: MusicXMLLogicalInstrument? = nil
 ) -> ScorePerformancePlan {
     // ponytail: fixtures are single logical pianos; multi-instrument cases must provide an explicit plan.
     let memberPartIDs = Set(score.notes.map(\.partID)).sorted()
-    let logicalInstrument = MusicXMLLogicalInstrument(
+    let logicalInstrument = explicitInstrument ?? MusicXMLLogicalInstrument(
         id: "test-piano",
         memberPartIDs: memberPartIDs,
         classification: .piano,

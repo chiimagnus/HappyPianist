@@ -49,6 +49,7 @@ open class PracticeSessionRuntimeState {
 
     public private(set) var performanceEventIDByDescription: [String: ScorePerformanceNoteEventID] = [:]
     public var notationProjection: ScoreNotationProjection?
+    public var notationScoreFacts: PracticeNotationScoreFacts?
     public var steps: [PracticeStep] = []
 
     public var currentStepIndex: Int = 0 {

@@ -3,23 +3,19 @@ import MusicXML
 import Practice
 
 struct GrandStaffNotationPresentationViewModel {
-    private let layoutService: GrandStaffNotationLayoutService
     private let viewportLayoutService: GrandStaffNotationViewportLayoutService
 
     init(
-        layoutService: GrandStaffNotationLayoutService = GrandStaffNotationLayoutService(),
         viewportLayoutService: GrandStaffNotationViewportLayoutService = GrandStaffNotationViewportLayoutService()
     ) {
-        self.layoutService = layoutService
         self.viewportLayoutService = viewportLayoutService
     }
 
     func makePresentation(
         size: CGSize,
         lineSpacing: CGFloat,
-        projection: ScoreNotationProjection,
+        score: GrandStaffNotationScoreLayout,
         overlay: ScoreNotationProjection.Overlay,
-        measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         practiceHandMode: PracticeHandMode,
         scrollTick: Double?
@@ -28,19 +24,16 @@ struct GrandStaffNotationPresentationViewModel {
             size: size,
             lineSpacing: lineSpacing
         )
-        let staffStepBounds = resolvedStaffStepBounds(
-            projection: projection,
-            activeTickRange: overlay.activeTickRange
-        )
-
-        let notationLayout = layoutService.makeLayout(
-            projection: projection,
-            overlay: overlay,
-            measureSpans: measureSpans,
+        let centerTick = scrollTick ?? Double(score.input.projection.performedOccurrences.first?.writtenOnTick ?? 0)
+        let center = score.spacing.position(at: centerTick)
+        let notationLayout = GrandStaffNotationSystemLayoutService().makeLayout(
+            score: score,
+            xRange: (center - viewportWidthStaffSpaces / 2)...(center + viewportWidthStaffSpaces / 2),
+            overscan: 0.18,
             context: context,
-            viewportWidthStaffSpaces: viewportWidthStaffSpaces,
-            scrollTick: scrollTick
+            overlay: overlay
         )
+        let staffStepBounds = resolvedStaffStepBounds(score: score)
 
         let viewportLayout = viewportLayoutService.makeLayout(
             size: size,
@@ -57,6 +50,7 @@ struct GrandStaffNotationPresentationViewModel {
             notationLayout: notationLayout,
             viewportLayout: viewportLayout,
             practiceHandMode: practiceHandMode,
+            activeTickRange: overlay.activeTickRange,
             chordsByID: Dictionary(uniqueKeysWithValues: notationLayout.chords.map { ($0.id, $0) }),
             itemsByChordID: Dictionary(grouping: notationLayout.items, by: { $0.chordID ?? "" }),
             beamedChordIDs: Set(notationLayout.beams.flatMap(\.chordIDs)),
@@ -74,43 +68,15 @@ struct GrandStaffNotationPresentationViewModel {
     }
 
     private func resolvedStaffStepBounds(
-        projection: ScoreNotationProjection,
-        activeTickRange: Range<Int>?
+        score: GrandStaffNotationScoreLayout
     ) -> GrandStaffNotationViewportLayoutService.StaffStepBounds {
-        let sourceNotesByID = Dictionary(uniqueKeysWithValues: projection.sourceNotes.map { ($0.id, $0) })
-        let occurrences = projection.performedOccurrences.filter {
-            activeTickRange?.contains($0.writtenOnTick) ?? true
-        }
-        guard occurrences.isEmpty == false else { return .default }
-
-        var minTrebleStep = 0
-        var maxTrebleStep = 8
-        var minBassStep = 0
-        var maxBassStep = 8
-
-        for occurrence in occurrences {
-            guard let source = sourceNotesByID[occurrence.sourceNoteID] else { continue }
-            let staffNumber = source.staff >= 2 ? 2 : 1
-            guard let writtenPitch = source.writtenPitch else { continue }
-            let step = layoutService.staffStep(
-                for: writtenPitch,
-                staffNumber: staffNumber,
-                clef: source.clef
-            )
-            if staffNumber >= 2 {
-                minBassStep = min(minBassStep, step)
-                maxBassStep = max(maxBassStep, step)
-            } else {
-                minTrebleStep = min(minTrebleStep, step)
-                maxTrebleStep = max(maxTrebleStep, step)
-            }
-        }
-
+        let treble = score.notation.items.filter { $0.staffNumber == 1 }.map(\.staffStep)
+        let bass = score.notation.items.filter { $0.staffNumber == 2 }.map(\.staffStep)
         return GrandStaffNotationViewportLayoutService.StaffStepBounds(
-            minTrebleStep: minTrebleStep,
-            maxTrebleStep: maxTrebleStep,
-            minBassStep: minBassStep,
-            maxBassStep: maxBassStep
+            minTrebleStep: min(0, treble.min() ?? 0),
+            maxTrebleStep: max(8, treble.max() ?? 8),
+            minBassStep: min(0, bass.min() ?? 0),
+            maxBassStep: max(8, bass.max() ?? 8)
         )
     }
 }

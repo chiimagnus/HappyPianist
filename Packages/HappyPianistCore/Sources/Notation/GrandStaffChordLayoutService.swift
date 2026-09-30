@@ -93,6 +93,11 @@ struct GrandStaffChordLayoutService {
         let end: CGPoint
     }
 
+    struct BeamGeometry {
+        let stemsByChordID: [String: StemGeometry]
+        let segments: [StemGeometry]
+    }
+
     private struct Rect {
         let minX: Double
         let minY: Double
@@ -232,6 +237,72 @@ struct GrandStaffChordLayoutService {
         return StemGeometry(
             start: CGPoint(x: x, y: startCenter.y),
             end: CGPoint(x: x, y: endY)
+        )
+    }
+
+    func beamGeometry(
+        beam: GrandStaffNotationBeam,
+        chords: [GrandStaffNotationChord],
+        itemsByChordID: [String: [GrandStaffNotationItem]],
+        lineSpacing: CGFloat,
+        chordX: (GrandStaffNotationChord) -> CGFloat,
+        noteCenters: ([GrandStaffNotationItem]) -> [String: CGPoint]
+    ) -> BeamGeometry? {
+        let ordered = chords.sorted { $0.xPosition < $1.xPosition }
+        guard ordered.count >= 2, let first = ordered.first, let last = ordered.last else { return nil }
+        var stems: [String: StemGeometry] = [:]
+        for chord in ordered {
+            guard chord.stem.isVisible, chord.noteType.grandStaffHasStem,
+                  let items = itemsByChordID[chord.id], !items.isEmpty else { continue }
+            let scale = metrics.glyphScale(isGrace: items.allSatisfy(\.isGrace))
+            stems[chord.id] = stemGeometry(
+                stem: chord.stem, chordX: chordX(chord),
+                noteheadWidth: lineSpacing * metrics.noteheadColumnWidth * scale,
+                stemLength: lineSpacing * metrics.defaultStemLength * scale,
+                noteCentersByID: noteCenters(items)
+            )
+        }
+        guard let firstStem = stems[first.id], let lastStem = stems[last.id] else { return nil }
+        let span = max(lineSpacing * 0.001, abs(lastStem.end.x - firstStem.end.x))
+        let maximumDelta = lineSpacing * 1.5
+        let delta = max(-maximumDelta, min(maximumDelta, lastStem.end.y - firstStem.end.y))
+        let slope = delta / span
+        let direction = first.stem.direction
+        func beamY(_ x: CGFloat, offset: CGFloat) -> CGFloat {
+            firstStem.end.y + slope * (x - firstStem.end.x) + offset
+        }
+        var requiredOffset: CGFloat = 0
+        for stem in stems.values {
+            let currentY = beamY(stem.end.x, offset: 0)
+            if direction == .up {
+                requiredOffset = min(requiredOffset, stem.start.y - lineSpacing * 2.6 - currentY)
+            } else {
+                requiredOffset = max(requiredOffset, stem.start.y + lineSpacing * 2.6 - currentY)
+            }
+        }
+        let segments = beam.segments.compactMap { segment -> StemGeometry? in
+            guard let start = stems[segment.startChordID] else { return nil }
+            let stride = CGFloat(segment.level - 1) * lineSpacing * metrics.beamSpacing
+            let offset = requiredOffset + (direction == .up ? stride : -stride)
+            let endX: CGFloat
+            if let hook = segment.hookDirection {
+                let length = min(lineSpacing * 1.5, span / CGFloat(max(2, ordered.count)))
+                endX = start.end.x + (hook == .forward ? length : -length)
+            } else if let end = stems[segment.endChordID] {
+                endX = end.end.x
+            } else {
+                return nil
+            }
+            return StemGeometry(
+                start: CGPoint(x: start.end.x, y: beamY(start.end.x, offset: offset)),
+                end: CGPoint(x: endX, y: beamY(endX, offset: offset))
+            )
+        }
+        return BeamGeometry(
+            stemsByChordID: stems.mapValues { stem in
+                StemGeometry(start: stem.start, end: CGPoint(x: stem.end.x, y: beamY(stem.end.x, offset: requiredOffset)))
+            },
+            segments: segments
         )
     }
 

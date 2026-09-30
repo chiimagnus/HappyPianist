@@ -492,6 +492,7 @@ func guidingStartUsesPerformancePlanInsteadOfStepSoundFacts() async {
         ),
         performancePlan: plan,
         notationProjection: .empty,
+        notationScoreFacts: makeTestNotationScoreFacts(),
         measureSpans: [
             MusicXMLMeasureSpan(
                 partID: "P1",
@@ -1518,11 +1519,11 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
     )
     let notes = [TestScorePerformanceNote(midiNote: 60, onTick: 0)]
     let spanA = MusicXMLMeasureSpan(
-        partID: "A", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1",
+        partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1",
         occurrenceIndex: 0, startTick: 0, endTick: 480
     )
     let spanB = MusicXMLMeasureSpan(
-        partID: "B", measureNumber: 9, sourceMeasureIndex: 8, sourceMeasureNumberToken: "9",
+        partID: "P1", measureNumber: 9, sourceMeasureIndex: 8, sourceMeasureNumberToken: "9",
         occurrenceIndex: 0, startTick: 0, endTick: 480
     )
     let identityA = PracticeSongIdentity(songID: UUID(), scoreRevision: "a")
@@ -1535,6 +1536,7 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
             plan: planA,
             sourceScore: makeTestMusicXMLScore(notes: notes)
         ),
+        notationScoreFacts: makeTestNotationScoreFacts(),
         measureSpans: [spanA]
     )
     viewModel.state = .completed
@@ -1549,6 +1551,7 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
             plan: planB,
             sourceScore: makeTestMusicXMLScore(notes: notes)
         ),
+        notationScoreFacts: makeTestNotationScoreFacts(),
         measureSpans: [spanB]
     )
 
@@ -1939,6 +1942,7 @@ func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
             plan: plan,
             sourceScore: makeTestMusicXMLScore(notes: notes)
         ),
+        notationScoreFacts: makeTestNotationScoreFacts(),
         measureSpans: spans
     )
     session.roundConfigurationController.pendingHandMode = .left
@@ -1953,6 +1957,7 @@ func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
             plan: plan,
             sourceScore: makeTestMusicXMLScore(notes: notes)
         ),
+        notationScoreFacts: makeTestNotationScoreFacts(),
         measureSpans: spans
     )
 

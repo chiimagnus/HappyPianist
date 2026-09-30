@@ -101,7 +101,7 @@ func crossStaffChordAndBeamKeepSourceIdentityInsteadOfHandRouting() throws {
     #expect(projection.sourceNotes.map(\.chordID) == [sourceIDs[0], sourceIDs[0], sourceIDs[2], sourceIDs[2]])
     #expect(Set(projection.sourceNotes.flatMap(\.beams).map(\.groupID)).count == 1)
 
-    let notation = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let notation = try makeNotationSystemFixture(projection: projection)
     #expect(notation.chords.count == 2)
     #expect(notation.chords.allSatisfy { $0.itemIDs.count == 2 })
     #expect(notation.chords.allSatisfy { $0.stem.direction == .down })
@@ -126,7 +126,7 @@ func crossStaffChordAndBeamKeepSourceIdentityInsteadOfHandRouting() throws {
 }
 
 @Test
-func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws {
+func repeatedPerformedOccurrencesKeepGeometryAndHighlightOnlyTheActiveOccurrence() throws {
     let score = repeatedNotationScore()
     let plan = makeTestScorePerformancePlan(from: score)
     let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
@@ -137,7 +137,7 @@ func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws 
     #expect(projection.performedOccurrences.count == 4)
     #expect(Set(projection.performedOccurrences.map(\.id.occurrenceIndex)) == [0, 1])
 
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         overlay: .init(
             activeEventIDs: [repeatedEvent.id],
@@ -146,18 +146,19 @@ func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws 
         viewportWidthStaffSpaces: 12,
         scrollTick: 960
     )
-    let note = try #require(layout.items.first)
-    let rest = try #require(layout.rests.first)
-    #expect(layout.items.count == 1)
-    #expect(layout.rests.count == 1)
+    let note = try #require(layout.items.first { $0.occurrenceID.hasSuffix("@1") })
+    let rest = try #require(layout.rests.first { $0.id.hasSuffix("@1") })
+    #expect(layout.items.count == 2)
+    #expect(layout.rests.count == 2)
     #expect(note.occurrenceID.hasSuffix("@1"))
     #expect(rest.id.hasSuffix("@1"))
     #expect(note.isHighlighted)
     #expect(rest.isHighlighted == false)
+    #expect(layout.items.filter(\.isHighlighted).map(\.occurrenceID) == [note.occurrenceID])
 }
 
 @Test
-func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() {
+func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() throws {
     let performedScore = repeatedNotationScore()
     let sourceScore = MusicXMLScore(notes: Array(performedScore.notes.prefix(2)))
     let projection = ScoreNotationProjection(
@@ -165,7 +166,7 @@ func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() {
         sourceScore: sourceScore,
         performedScore: performedScore
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         viewportWidthStaffSpaces: 60,
         scrollTick: 480

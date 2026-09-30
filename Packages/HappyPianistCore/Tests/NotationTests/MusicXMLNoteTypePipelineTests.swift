@@ -21,7 +21,7 @@ func everyStandardMusicXMLNoteTypeFlowsFromParserToNotationLayout() throws {
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         viewportWidthStaffSpaces: 10_000
     )
@@ -44,12 +44,12 @@ func everyStandardMusicXMLNoteTypeFlowsFromParserToNotationLayout() throws {
 }
 
 @Test
-func oneThousandTwentyFourthNotesUseAllEightFallbackBeamLevels() {
+func oneThousandTwentyFourthNotesUseAllEightFallbackBeamLevels() throws {
     let score = MusicXMLScore(notes: [
         makeOneThousandTwentyFourthNote(ordinal: 0, tick: 0),
         makeOneThousandTwentyFourthNote(ordinal: 1, tick: 15),
     ])
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score

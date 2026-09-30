@@ -2,19 +2,19 @@ import Foundation
 import MusicXML
 
 struct GrandStaffHorizontalSpacingService {
-    struct Anchor: Equatable {
+    struct Anchor: Equatable, Sendable {
         let tick: Int
         let position: Double
     }
 
-    struct RhythmicColumn: Equatable {
+    struct RhythmicColumn: Equatable, Sendable {
         let tick: Int
         let durationTicks: Int
         let leftExtent: Double
         let rightExtent: Double
     }
 
-    struct Layout: Equatable {
+    struct Layout: Equatable, Sendable {
         let rhythmicPositionsByTick: [Int: Double]
         let barlinePositionsByTick: [Int: Double]
         let attributePositionsByTick: [Int: Double]
@@ -53,7 +53,7 @@ struct GrandStaffHorizontalSpacingService {
         }
     }
 
-    private enum Kind: Int {
+    private enum Kind: Int, Sendable {
         case barline
         case attribute
         case rhythm

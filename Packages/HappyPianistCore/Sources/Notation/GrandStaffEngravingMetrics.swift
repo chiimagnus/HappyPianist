@@ -1,6 +1,6 @@
 import Foundation
 
-struct GrandStaffGlyphBounds: Equatable {
+struct GrandStaffGlyphBounds: Equatable, Sendable {
     let minX: Double
     let minY: Double
     let maxX: Double
@@ -44,6 +44,46 @@ struct GrandStaffEngravingMetrics: Equatable {
 
     func bounds(for token: GrandStaffGlyphToken) -> GrandStaffGlyphBounds? {
         switch token {
+        case .brace:
+            GrandStaffGlyphBounds(minX: 0.008, minY: 0, maxX: 0.328, maxY: 3.988)
+        case .gClef:
+            GrandStaffGlyphBounds(minX: 0, minY: -2.632, maxX: 2.684, maxY: 4.392)
+        case .fClef:
+            GrandStaffGlyphBounds(minX: -0.02, minY: -2.54, maxX: 2.736, maxY: 1.048)
+        case .cClef:
+            GrandStaffGlyphBounds(minX: 0, minY: -2.024, maxX: 2.796, maxY: 2.024)
+        case .flagEighthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.252, maxX: 1.056, maxY: 0.036)
+        case .flagEighthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -0.056, maxX: 1.224, maxY: 3.232)
+        case .flagSixteenthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.252, maxX: 1.116, maxY: 0.008)
+        case .flagSixteenthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -0.036, maxX: 1.188, maxY: 3.252)
+        case .flagThirtySecondUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.248, maxX: 1.044, maxY: 0.596)
+        case .flagThirtySecondDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -0.688, maxX: 1.092, maxY: 3.248)
+        case .flagSixtyFourthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.248, maxX: 1.044, maxY: 1.388)
+        case .flagSixtyFourthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -1.504, maxX: 1.092, maxY: 3.248)
+        case .flagOneHundredTwentyEighthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.248, maxX: 1.044, maxY: 2.132)
+        case .flagOneHundredTwentyEighthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -2.32, maxX: 1.092, maxY: 3.248)
+        case .flagTwoHundredFiftySixthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.248, maxX: 1.056, maxY: 2.816)
+        case .flagTwoHundredFiftySixthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.004, maxX: 1.196, maxY: 3.252)
+        case .flagFiveHundredTwelfthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.248, maxX: 1.06, maxY: 3.564)
+        case .flagFiveHundredTwelfthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.756, maxX: 1.2, maxY: 3.248)
+        case .flagOneThousandTwentyFourthUp:
+            GrandStaffGlyphBounds(minX: 0, minY: -3.248, maxX: 1.06, maxY: 4.316)
+        case .flagOneThousandTwentyFourthDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -4.808, maxX: 1.204, maxY: 2.972)
         case .mensuralWhiteMaxima:
             GrandStaffGlyphBounds(minX: -1.25, minY: -3.548, maxX: 1.25, maxY: 0.684)
         case .mensuralWhiteLonga:
@@ -114,8 +154,10 @@ struct GrandStaffEngravingMetrics: Equatable {
             GrandStaffGlyphBounds(minX: 0, minY: -0.032, maxX: 4.076, maxY: 2.22)
         case .keyboardPedalUp:
             GrandStaffGlyphBounds(minX: 0, minY: 0, maxX: 1.8, maxY: 1.8)
-        default:
-            nil
+        case .timeSignature0, .timeSignature1, .timeSignature2, .timeSignature3,
+             .timeSignature4, .timeSignature5, .timeSignature6, .timeSignature7,
+             .timeSignature8, .timeSignature9:
+            GrandStaffGlyphBounds(minX: 0.08, minY: -1.036, maxX: 1.8, maxY: 1.036)
         }
     }
 }

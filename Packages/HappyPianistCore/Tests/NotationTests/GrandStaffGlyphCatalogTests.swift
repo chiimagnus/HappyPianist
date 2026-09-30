@@ -136,7 +136,8 @@ func engravingMetricsStayInStaffSpaceUnits() {
         maxX: 1.198,
         maxY: 0.62
     ))
-    #expect(metrics.bounds(for: .gClef) == nil)
+    #expect(abs((metrics.bounds(for: .gClef)?.height ?? 0) - 7.024) < 0.00001)
+    #expect(GrandStaffGlyphToken.allCases.allSatisfy { metrics.bounds(for: $0) != nil })
 }
 
 @Test

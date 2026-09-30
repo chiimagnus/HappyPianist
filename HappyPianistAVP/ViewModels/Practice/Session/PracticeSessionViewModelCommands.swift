@@ -630,6 +630,7 @@ extension PracticeSessionViewModel {
         identity: PracticeSongIdentity,
         performancePlan: ScorePerformancePlan,
         notationProjection: ScoreNotationProjection,
+        notationScoreFacts: PracticeNotationScoreFacts,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan]
@@ -646,6 +647,7 @@ extension PracticeSessionViewModel {
         self.steps = steps
         self.performancePlan = performancePlan
         self.notationProjection = notationProjection
+        self.notationScoreFacts = notationScoreFacts
         self.measureSpans = measureSpans
         if let firstMeasure = measureSpans.first,
            let lastMeasure = measureSpans.last,
@@ -748,6 +750,7 @@ extension PracticeSessionViewModel {
         self.performancePlan = nil
         enqueueSessionRecorderEvent(.resetAnalysis)
         self.notationProjection = nil
+        self.notationScoreFacts = nil
         self.steps = []
         self.measureSpans = []
         self.measureIndex = nil

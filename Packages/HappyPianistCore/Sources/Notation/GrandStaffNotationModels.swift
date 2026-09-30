@@ -83,13 +83,13 @@ extension MusicXMLNoteType {
     }
 }
 
-enum GrandStaffStemDirection: Equatable {
+enum GrandStaffStemDirection: Equatable, Sendable {
     case up
     case down
 }
 
-struct GrandStaffAccidental: Equatable {
-    enum Kind: Equatable {
+struct GrandStaffAccidental: Equatable, Sendable {
+    enum Kind: Equatable, Sendable {
         case sharp
         case flat
         case natural
@@ -114,7 +114,7 @@ struct GrandStaffAccidental: Equatable {
     }
 }
 
-struct GrandStaffNotationLayout: Equatable {
+struct GrandStaffNotationLayout: Equatable, Sendable {
     let items: [GrandStaffNotationItem]
     let chords: [GrandStaffNotationChord]
     let rests: [GrandStaffNotationRest]
@@ -129,16 +129,16 @@ struct GrandStaffNotationLayout: Equatable {
     let context: GrandStaffNotationContext?
 }
 
-struct GrandStaffNotationChord: Equatable, Identifiable {
+struct GrandStaffNotationChord: Equatable, Identifiable, Sendable {
     let id: String
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
     let itemIDs: [String]
     let stem: GrandStaffNotationStem
     let noteType: MusicXMLNoteType
 }
 
-struct GrandStaffNotationStem: Equatable {
+struct GrandStaffNotationStem: Equatable, Sendable {
     let direction: GrandStaffStemDirection
     let isVisible: Bool
     let startItemID: String
@@ -146,17 +146,17 @@ struct GrandStaffNotationStem: Equatable {
     let xOffset: Double
 }
 
-struct GrandStaffNotationRest: Equatable, Identifiable {
+struct GrandStaffNotationRest: Equatable, Identifiable, Sendable {
     let id: String
     let staffNumber: Int
     let voice: Int
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
     let noteType: MusicXMLNoteType
     let durationTicks: Int
     let dotCount: Int
     let isMeasureRest: Bool
-    let isHighlighted: Bool
+    var isHighlighted: Bool
 
     var glyphToken: GrandStaffGlyphToken? {
         noteType.grandStaffRestGlyphToken
@@ -170,65 +170,77 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     }
 }
 
-struct GrandStaffNotationTie: Equatable, Identifiable {
+struct GrandStaffNotationTie: Equatable, Identifiable, Sendable {
     let id: String
     let staffNumber: Int
+    let startTick: Int
+    let endTick: Int
     let voice: Int
     let numberToken: String?
     let placementToken: String?
-    let startOccurrenceID: String?
-    let endOccurrenceID: String?
-    let startXPosition: Double
-    let endXPosition: Double
-    let continuesFromPrevious: Bool
-    let continuesToNext: Bool
+    var startOccurrenceID: String?
+    var endOccurrenceID: String?
+    var startXPosition: Double
+    var endXPosition: Double
+    var continuesFromPrevious: Bool
+    var continuesToNext: Bool
 }
 
-struct GrandStaffNotationSlur: Equatable, Identifiable {
+struct GrandStaffNotationSlur: Equatable, Identifiable, Sendable {
     let id: String
     let staffNumber: Int
+    let startTick: Int
+    let endTick: Int
     let voice: Int
     let numberToken: String?
     let placementToken: String?
-    let startOccurrenceID: String?
-    let endOccurrenceID: String?
-    let startXPosition: Double
-    let endXPosition: Double
-    let continuesFromPrevious: Bool
-    let continuesToNext: Bool
+    var startOccurrenceID: String?
+    var endOccurrenceID: String?
+    var startXPosition: Double
+    var endXPosition: Double
+    var continuesFromPrevious: Bool
+    var continuesToNext: Bool
 }
 
-struct GrandStaffNotationTuplet: Equatable, Identifiable {
+struct GrandStaffNotationTuplet: Equatable, Identifiable, Sendable {
     let id: String
     let staffNumber: Int
+    let startTick: Int
+    let endTick: Int
     let voice: Int
     let numberToken: String?
     let displayNumber: Int?
     let bracketToken: String?
     let placementToken: String?
-    let startOccurrenceID: String?
-    let endOccurrenceID: String?
-    let startXPosition: Double
-    let endXPosition: Double
-    let continuesFromPrevious: Bool
-    let continuesToNext: Bool
+    var startOccurrenceID: String?
+    var endOccurrenceID: String?
+    var startXPosition: Double
+    var endXPosition: Double
+    var continuesFromPrevious: Bool
+    var continuesToNext: Bool
     let nestingLevel: Int
 }
 
-struct GrandStaffNotationBarline: Equatable, Identifiable {
+struct GrandStaffNotationBarline: Equatable, Identifiable, Sendable {
     let id: String
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
 }
 
-struct GrandStaffNotationBeam: Equatable, Identifiable {
+struct GrandStaffNotationBeam: Equatable, Identifiable, Sendable {
+    enum Provenance: Equatable, Sendable {
+        case source(groupID: String, chordIDs: [String])
+        case meterDerived
+    }
+
+    let provenance: Provenance
     let id: String
     let chordIDs: [String]
     let segments: [GrandStaffNotationBeamSegment]
 }
 
-struct GrandStaffNotationBeamSegment: Equatable {
-    enum HookDirection: Equatable {
+struct GrandStaffNotationBeamSegment: Equatable, Sendable {
+    enum HookDirection: Equatable, Sendable {
         case forward
         case backward
     }
@@ -239,24 +251,24 @@ struct GrandStaffNotationBeamSegment: Equatable {
     let hookDirection: HookDirection?
 }
 
-struct GrandStaffNotationLedgerLine: Equatable, Identifiable {
+struct GrandStaffNotationLedgerLine: Equatable, Identifiable, Sendable {
     let id: String
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
     let staffNumber: Int
     let staffStep: Int
     let minXOffsetStaffSpaces: Double
     let maxXOffsetStaffSpaces: Double
 }
 
-enum GrandStaffNotationPlacement: Equatable {
+enum GrandStaffNotationPlacement: Equatable, Sendable {
     case above
     case below
     case left
 }
 
-struct GrandStaffNotationMark: Equatable, Identifiable {
-    enum Kind: Equatable {
+struct GrandStaffNotationMark: Equatable, Identifiable, Sendable {
+    enum Kind: Equatable, Sendable {
         case dynamic
         case tempo
         case text
@@ -277,7 +289,7 @@ struct GrandStaffNotationMark: Equatable, Identifiable {
 
     let id: String
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
     let staffNumber: Int
     let voice: Int
     let kind: Kind
@@ -336,10 +348,10 @@ struct GrandStaffNotationMark: Equatable, Identifiable {
     }
 }
 
-struct GrandStaffNotationAttributeChange: Equatable, Identifiable {
+struct GrandStaffNotationAttributeChange: Equatable, Identifiable, Sendable {
     let id: String
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
     let staffNumber: Int
     let clefSignToken: String?
     let clefLine: Int?
@@ -357,7 +369,7 @@ struct GrandStaffNotationAttributeChange: Equatable, Identifiable {
     }
 }
 
-public struct GrandStaffNotationContext: Equatable {
+public struct GrandStaffNotationContext: Equatable, Sendable {
     let trebleClefSymbol: String
     let bassClefSymbol: String
     let trebleClefSignToken: String?
@@ -408,7 +420,7 @@ public struct GrandStaffNotationContext: Equatable {
     }
 }
 
-struct GrandStaffNotationItem: Equatable, Identifiable {
+struct GrandStaffNotationItem: Equatable, Identifiable, Sendable {
     var id: String {
         occurrenceID
     }
@@ -418,10 +430,10 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let voice: Int
     let hand: ScoreHand
     let tick: Int
-    let xPosition: Double
+    var xPosition: Double
     let staffStep: Int
     let displayedAccidental: GrandStaffAccidental?
-    let isHighlighted: Bool
+    var isHighlighted: Bool
     let fingerings: [MusicXMLFingering]
     let noteType: MusicXMLNoteType
     let noteheadGlyphToken: GrandStaffGlyphToken?

@@ -132,8 +132,9 @@ extension PracticeSessionViewModel {
         measureSpans: [MusicXMLMeasureSpan] = []
     ) {
         let steps = PracticeStepBuilder().buildSteps(from: plan).steps
+        let scoreContext = makeTestPreparedPracticeScoreContext(sourceScore: sourceScore)
         let resolvedMeasureSpans = measureSpans.isEmpty
-            ? [Self.syntheticMeasureSpan(for: steps)]
+            ? [Self.syntheticMeasureSpan(for: steps, partID: scoreContext.structuralPartID)]
             : measureSpans
         let identity = self.songIdentity ?? PracticeSongIdentity(
             songID: plan.sourceScoreIdentity.songID,
@@ -144,17 +145,21 @@ extension PracticeSessionViewModel {
             identity: identity,
             performancePlan: plan,
             notationProjection: ScoreNotationProjection(plan: plan, sourceScore: sourceScore),
+            notationScoreFacts: PracticeNotationScoreFacts(
+                logicalInstrument: scoreContext.logicalInstrument,
+                structuralPartID: scoreContext.structuralPartID
+            ),
             attributeTimeline: attributeTimeline,
             highlightGuides: highlightGuides,
             measureSpans: resolvedMeasureSpans
         )
     }
 
-    private static func syntheticMeasureSpan(for steps: [PracticeStep]) -> MusicXMLMeasureSpan {
+    private static func syntheticMeasureSpan(for steps: [PracticeStep], partID: String) -> MusicXMLMeasureSpan {
         let startTick = steps.map(\.tick).min() ?? 0
         let finalTick = steps.map(\.tick).max() ?? startTick
         return MusicXMLMeasureSpan(
-            partID: "test-part",
+            partID: partID,
             measureNumber: 1,
             sourceMeasureIndex: 0,
             sourceMeasureNumberToken: "1",

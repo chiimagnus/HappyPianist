@@ -171,6 +171,7 @@ private func installHistoricalApplicationScore(
             plan: plan,
             sourceScore: makeTestMusicXMLScore(notes: notes)
         ),
+        notationScoreFacts: makeTestNotationScoreFacts(),
         measureSpans: spans
     )
 }

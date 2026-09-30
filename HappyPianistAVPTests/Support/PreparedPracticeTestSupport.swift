@@ -33,3 +33,11 @@ func makeTestPreparedPracticeScoreContext(
         handAssignments: handAssignments
     )
 }
+
+func makeTestNotationScoreFacts() -> PracticeNotationScoreFacts {
+    let context = makeTestPreparedPracticeScoreContext()
+    return PracticeNotationScoreFacts(
+        logicalInstrument: context.logicalInstrument,
+        structuralPartID: context.structuralPartID
+    )
+}

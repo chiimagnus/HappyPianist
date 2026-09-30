@@ -75,7 +75,7 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
 }
 
 @Test
-func highlightGuide2D3DAndNotationUseSameMIDINoteSet() {
+func highlightGuide2D3DAndNotationUseSameMIDINoteSet() throws {
     let score = MusicXMLScore(notes: [
         consistencyNote(ordinal: 0, midiNote: 60, step: "C", octave: 4, staff: 1),
         consistencyNote(ordinal: 1, midiNote: 64, step: "E", octave: 3, staff: 2),
@@ -109,7 +109,7 @@ func highlightGuide2D3DAndNotationUseSameMIDINoteSet() {
         keyboardGeometry: makeGeometry(for: [60, 64])
     )
     let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         overlay: .init(activeEventIDs: Set(plan.noteEvents.map(\.id)), activeTickRange: nil)
     )

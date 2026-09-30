@@ -29,15 +29,27 @@ struct PracticeStepView: View {
         let manualAdvanceMode = session.manualAdvanceMode
 
         VStack(spacing: 30) {
-            GrandStaffNotationView(
-                projection: session.notationProjection ?? .empty,
-                overlay: session.activeNotationOverlay,
-                measureSpans: session.notationMeasureSpans,
-                context: session.currentGrandStaffNotationContext,
-                practiceHandMode: practiceHandMode,
-                scrollTickProvider: session.notationViewportTick
-            )
-            .frame(minHeight: 350, maxHeight: .infinity)
+            if let identity = session.songIdentity,
+               let projection = session.notationProjection,
+               let facts = session.notationScoreFacts {
+                GrandStaffNotationView(
+                    input: GrandStaffNotationScoreInput(
+                        identity: identity,
+                        projection: projection,
+                        measureSpans: session.measureSpans,
+                        facts: facts,
+                        attributeTimeline: session.attributeTimeline
+                    ),
+                    overlay: session.activeNotationOverlay,
+                    context: session.currentGrandStaffNotationContext,
+                    practiceHandMode: practiceHandMode,
+                    scrollTickProvider: session.notationViewportTick
+                )
+                .frame(minHeight: 350, maxHeight: .infinity)
+            } else {
+                ProgressView("正在准备乐谱")
+                    .frame(minHeight: 350, maxHeight: .infinity)
+            }
 
             PianoKeyboard88View(
                 highlightByMIDINote: highlightByMIDINote,

@@ -12,7 +12,8 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - 仅接受 `.musicxml`、`.xml`、`.mxl`。导入在 security scope 内完成安全校验、同卷暂存、校验与 index 提交；失败不留下部分曲谱，恢复不能把损坏的非空 index 当作空库覆盖。
 - MusicXML/MXL 在解析或解包前验证普通文件、archive 路径、条目数、大小和压缩比。每个普通 note/rest 必须有标准 `MusicXMLNoteType`；非 grace note 必须有显式 duration；整小节 rest 的例外由语义字段决定。
 - `PracticePreparationService` 先生成唯一的 `ScorePerformancePlan`，再单向投影 steps、琴键引导、notation、时间线和 sequence。没有 steps 或 measure spans 的结果是 typed failure，不存在 legacy/fallback 练习模式。
-- Notation 只接收 projection、overlay、measure spans 与 context；高亮、VoiceOver 和辅助显示是派生表现，不写入 progress。
+- preparation 将正式 logical instrument / structural part 事实接到 runtime。Notation 接收完整 projection、小节结构、attribute timeline 与这些来源事实；projection 已映射到显示 staff，不再重复 normalizer。
+- Notation owner 在非主 Actor 异步构建唯一的 staff-space 绝对布局，保留完整边界、source beam provenance、spanner 与墨迹边界；换谱/关闭取消任务并拒绝迟到 generation。tick、hand、active range 和 overlay 只更新局部 slice/presentation，不重建全谱；范围外内容变淡但不删除。高亮、VoiceOver 和辅助显示不写入 progress。
 
 曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策，Reduce Motion 保留中央强调但取消透视旋转。
 

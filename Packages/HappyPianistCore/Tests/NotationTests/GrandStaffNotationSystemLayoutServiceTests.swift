@@ -5,9 +5,9 @@ import Foundation
 import Testing
 
 @Test
-func layoutAssignsItemsToTrebleAndBassStaves() {
+func systemLayoutAssignsItemsToTrebleAndBassStaves() throws {
     let score = notationProjectionScore()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -36,7 +36,7 @@ func layoutPositionsWrittenPitchUsingTheActiveClef() throws {
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let layout = try makeNotationSystemFixture(projection: projection)
 
     #expect(projection.sourceNotes.map { $0.clef?.signToken } == ["G", "F"])
     #expect(layout.items.map(\.staffStep) == [-2, 10])
@@ -60,7 +60,7 @@ func layoutOmitsPitchedNotesMarkedPrintObjectNo() throws {
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let layout = try makeNotationSystemFixture(projection: projection)
 
     #expect(projection.sourceNotes.map(\.isPrintObjectVisible) == [false, true])
     #expect(layout.items.count == 1)
@@ -87,7 +87,7 @@ func layoutRendersWholeMeasureRestWithoutTypeAtMeasureCenter() throws {
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         measureSpans: score.measures,
         viewportWidthStaffSpaces: 36,
@@ -122,7 +122,7 @@ func layoutSupportsSixtyFourthAndOneHundredTwentyEighthNotesAndRests() throws {
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let layout = try makeNotationSystemFixture(projection: projection)
 
     #expect(projection.fallbacks.isEmpty)
     #expect(layout.items.map(\.noteType) == [.sixtyFourth, .oneHundredTwentyEighth])
@@ -134,18 +134,18 @@ func layoutSupportsSixtyFourthAndOneHundredTwentyEighthNotesAndRests() throws {
 }
 
 @Test
-func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
+func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() throws {
     let measureSpans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
     ]
 
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: .empty,
         measureSpans: measureSpans
     )
 
-    #expect(layout.barlines.map(\.tick) == [480, 960])
+    #expect(layout.barlines.map(\.tick) == [0, 480, 960])
 }
 
 @Test
@@ -206,7 +206,7 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         measureSpans: score.measures,
         viewportWidthStaffSpaces: 60,
@@ -355,7 +355,7 @@ func notationProjectionKeepsSourceFactsAndOccurrenceLinksWhileOverlayStaysTransi
     #expect(projection.performedOccurrences[0].performanceEventIDs == [activeEvent.id])
     #expect(overlay.activeEventIDs == [activeEvent.id])
     #expect(overlay.activeTickRange == 0 ..< 960)
-    #expect(GrandStaffNotationLayoutService().makeLayout(projection: projection, overlay: overlay).items.count == 1)
+    #expect(try makeNotationSystemFixture(projection: projection, overlay: overlay).items.count == 2)
 }
 
 @Test
@@ -365,7 +365,7 @@ func projectionLayoutUsesWrittenDurationAndAccidentalInsteadOfPerformanceOrMidi(
     let activeEvent = try #require(plan.noteEvents.first)
     let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
 
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         overlay: .init(activeEventIDs: [activeEvent.id], activeTickRange: nil)
     )
@@ -384,13 +384,13 @@ func projectionLayoutUsesWrittenDurationAndAccidentalInsteadOfPerformanceOrMidi(
 }
 
 @Test
-func projectionResolvesKeyAndMeasureAccidentalStateWithoutLosingPitchTransforms() {
+func projectionResolvesKeyAndMeasureAccidentalStateWithoutLosingPitchTransforms() throws {
     let score = accidentalStateScore()
     let projection = ScoreNotationProjection(
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let layout = try makeNotationSystemFixture(projection: projection)
 
     #expect(layout.items.map { $0.displayedAccidental?.kind } == [
         nil,
@@ -425,7 +425,7 @@ func projectionLayoutKeepsEveryWrittenTieContributor() throws {
     #expect(projection.performedOccurrences.count == 2)
     #expect(projection.performedOccurrences.allSatisfy { $0.performanceEventIDs == [event.id] })
 
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         overlay: .init(activeEventIDs: [event.id], activeTickRange: nil)
     )
@@ -443,7 +443,7 @@ func projectionLayoutKeepsEveryWrittenTieContributor() throws {
 @Test
 func layoutKeepsTieContinuationAcrossActiveRangeAndViewportBoundary() throws {
     let score = notationTieScore()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -467,7 +467,7 @@ func projectionAndLayoutKeepVisibleRestsSameNumberSlursAndNestedTuplets() throws
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score
     )
-    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let layout = try makeNotationSystemFixture(projection: projection)
 
     #expect(projection.sourceNotes.filter(\.isRest).map(\.isPrintObjectVisible) == [true, false])
     let rest = try #require(layout.rests.first)
@@ -520,7 +520,7 @@ func layoutPairsTieSlurAndTupletAcrossGrandStaffStaves() throws {
     </score-partwise>
     """
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -559,7 +559,7 @@ func layoutUsesOneArpeggioMarkAcrossGrandStaffStaves() throws {
     </score-partwise>
     """
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -583,7 +583,7 @@ func layoutUsesOneArpeggioMarkAcrossGrandStaffStaves() throws {
 @Test
 func sourceBeamValuesProducePrimarySecondaryAndHookSegments() throws {
     let score = mixedSourceBeamScore()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -609,7 +609,7 @@ func sourceBeamValuesProducePrimarySecondaryAndHookSegments() throws {
 @Test
 func meterFallbackStopsAtBeatAndRestBoundaries() throws {
     let score = fallbackBeamRestScore()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -633,7 +633,7 @@ func unsupportedNotationKeepsStandardRhythmsWithoutChangingPerformanceFacts() th
     let originalEvents = plan.noteEvents
     let activeEvent = try #require(plan.noteEvents.first)
     let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         overlay: .init(activeEventIDs: [activeEvent.id], activeTickRange: nil)
     )
@@ -701,7 +701,7 @@ func parserAndProjectionPreserveUnsupportedNoteheadAndPerformanceNotationIdentit
     let originalEvents = plan.noteEvents
     let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
     let projectedNote = try #require(projection.sourceNotes.first)
-    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let layout = try makeNotationSystemFixture(projection: projection)
     let item = try #require(layout.items.first)
 
     #expect(sourceNote.noteheadToken == "diamond")
@@ -742,9 +742,9 @@ func parserAndProjectionPreserveUnsupportedNoteheadAndPerformanceNotationIdentit
 }
 
 @Test
-func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() {
+func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() throws {
     let score = notationRestAndSpannerScore()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
@@ -803,7 +803,7 @@ func projectionDeduplicatesGeneratedPerformanceEventsForOneWrittenOccurrence() t
 
     let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
     let occurrence = try #require(projection.performedOccurrences.first)
-    let item = try #require(GrandStaffNotationLayoutService().makeLayout(projection: projection).items.first)
+    let item = try #require(try makeNotationSystemFixture(projection: projection).items.first)
 
     #expect(projection.performedOccurrences.count == 1)
     #expect(occurrence.performanceEventIDs == generatedEvents.map(\.id))

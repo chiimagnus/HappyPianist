@@ -353,6 +353,7 @@ func sessionProjectsCurrentGuideActivityOntoAuthoritativeNotation() throws {
         identity: identity,
         performancePlan: plan,
         notationProjection: ScoreNotationProjection(plan: plan, sourceScore: score),
+        notationScoreFacts: makeTestNotationScoreFacts(),
         highlightGuides: [guide],
         measureSpans: [
             MusicXMLMeasureSpan(

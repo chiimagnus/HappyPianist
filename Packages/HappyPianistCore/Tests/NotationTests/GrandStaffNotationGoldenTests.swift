@@ -37,7 +37,7 @@ private func notationFidelityModel() throws -> NotationFidelityModel {
         sourceScore: score
     )
     let endTick = score.measures.map(\.endTick).max() ?? 0
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: projection,
         measureSpans: score.measures,
         viewportWidthStaffSpaces: 240,

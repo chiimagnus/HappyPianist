@@ -230,6 +230,10 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             identity: prepared.identity,
             performancePlan: prepared.performancePlan,
             notationProjection: prepared.notationProjection,
+            notationScoreFacts: PracticeNotationScoreFacts(
+                logicalInstrument: prepared.scoreContext.logicalInstrument,
+                structuralPartID: prepared.scoreContext.structuralPartID
+            ),
             attributeTimeline: prepared.attributeTimeline,
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans

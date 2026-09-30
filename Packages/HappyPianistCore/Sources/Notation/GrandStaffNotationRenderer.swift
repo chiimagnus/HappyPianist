@@ -5,12 +5,14 @@ import Practice
 struct GrandStaffNotationRenderer {
     private let displayScale: CGFloat
     private let differentiateWithoutColor: Bool
+    private let activeTickRange: Range<Int>?
     private let engravingMetrics = GrandStaffEngravingMetrics()
     private let chordLayoutService = GrandStaffChordLayoutService()
 
-    init(displayScale: CGFloat = 1, differentiateWithoutColor: Bool = false) {
+    init(displayScale: CGFloat = 1, differentiateWithoutColor: Bool = false, activeTickRange: Range<Int>? = nil) {
         self.displayScale = displayScale
         self.differentiateWithoutColor = differentiateWithoutColor
+        self.activeTickRange = activeTickRange
     }
 
     func draw(
@@ -21,7 +23,8 @@ struct GrandStaffNotationRenderer {
     ) {
         let renderer = GrandStaffNotationRenderer(
             displayScale: displayScale,
-            differentiateWithoutColor: differentiateWithoutColor
+            differentiateWithoutColor: differentiateWithoutColor,
+            activeTickRange: presentation.activeTickRange
         )
         renderer.drawInternal(presentation, in: context)
     }
@@ -89,6 +92,16 @@ struct GrandStaffNotationRenderer {
             layout: layout
         )
         drawMarks(presentation.notationLayout.marks, in: translatedContext, layout: layout)
+    }
+
+    private func rangeContext(forTicks ticks: [Int], in context: GraphicsContext) -> GraphicsContext {
+        guard let activeTickRange,
+              let first = ticks.min(), let last = ticks.max(),
+              last < activeTickRange.lowerBound || first >= activeTickRange.upperBound
+        else { return context }
+        var result = context
+        result.opacity *= 0.35
+        return result
     }
 
     private func drawGrandStaffLines(
@@ -357,6 +370,7 @@ struct GrandStaffNotationRenderer {
     ) {
         drawEndings(marks, in: context, layout: layout)
         for mark in marks {
+            let context = rangeContext(forTicks: [mark.tick], in: context)
             switch mark.kind {
             case .repeatForward, .repeatBackward:
                 drawRepeat(mark, in: context, layout: layout)
@@ -521,6 +535,7 @@ struct GrandStaffNotationRenderer {
             let next = endings.dropFirst(index + 1).first {
                 $0.kind == .endingStop || $0.kind == .endingDiscontinue
             }
+            let context = rangeContext(forTicks: [mark.tick, next?.tick ?? mark.tick], in: context)
             let endX = next.map { layout.xPosition($0.xPosition) } ?? layout.contentMaxX
             let y = layout.trebleTopLineY - layout.lineSpacing * (4.5 + CGFloat(mark.collisionLevel) * 1.35)
             var path = Path()
@@ -574,6 +589,7 @@ struct GrandStaffNotationRenderer {
         guard items.isEmpty == false else { return }
 
         for item in items {
+            let context = rangeContext(forTicks: [item.tick], in: context)
             let glyphScale = engravingMetrics.glyphScale(isGrace: item.isGrace)
             let x = layout.xPosition(item.xPosition)
                 + item.noteheadXOffset * layout.noteheadColumnWidth * glyphScale
@@ -600,6 +616,7 @@ struct GrandStaffNotationRenderer {
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         for tie in ties {
+            let context = rangeContext(forTicks: [tie.startTick, tie.endTick], in: context)
             let isAbove = resolvedIsAbove(placementToken: tie.placementToken, voice: tie.voice)
             drawCurve(
                 startOccurrenceID: tie.startOccurrenceID,
@@ -615,6 +632,7 @@ struct GrandStaffNotationRenderer {
             )
         }
         for slur in slurs {
+            let context = rangeContext(forTicks: [slur.startTick, slur.endTick], in: context)
             let isAbove = resolvedIsAbove(placementToken: slur.placementToken, voice: slur.voice)
             drawCurve(
                 startOccurrenceID: slur.startOccurrenceID,
@@ -706,6 +724,7 @@ struct GrandStaffNotationRenderer {
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         for tuplet in tuplets {
+            let context = rangeContext(forTicks: [tuplet.startTick, tuplet.endTick], in: context)
             let isAbove = resolvedIsAbove(placementToken: tuplet.placementToken, voice: tuplet.voice)
             let start = curveEndpoint(
                 occurrenceID: tuplet.startOccurrenceID,
@@ -777,6 +796,7 @@ struct GrandStaffNotationRenderer {
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         for ledgerLine in ledgerLines {
+            let context = rangeContext(forTicks: [ledgerLine.tick], in: context)
             let baseX = layout.xPosition(ledgerLine.xPosition)
             let y = alignedToPixel(layout.yPosition(
                 staffStep: ledgerLine.staffStep,
@@ -805,6 +825,7 @@ struct GrandStaffNotationRenderer {
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         for rest in rests {
+            let context = rangeContext(forTicks: [rest.tick], in: context)
             guard let token = rest.glyphToken else { continue }
             let color = resolvedNotationColor(isHighlighted: rest.isHighlighted, staffNumber: rest.staffNumber)
             drawGlyph(
@@ -871,6 +892,7 @@ struct GrandStaffNotationRenderer {
         )
 
         for chord in chords {
+            let context = rangeContext(forTicks: [chord.tick], in: context)
             if beamedChordIDs.contains(chord.id) { continue }
             guard chord.noteType.grandStaffHasStem, chord.stem.isVisible else { continue }
             guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
@@ -922,110 +944,29 @@ struct GrandStaffNotationRenderer {
             lineWidth: strokeWidth(engravingMetrics.beamThickness, layout: layout),
             lineCap: .butt
         )
-        let beamStackStride = layout.lineSpacing * engravingMetrics.beamSpacing
-        let minStemLength = layout.lineSpacing * 2.6
-
         for beam in beams {
-            let chords = beam.chordIDs.compactMap { chordsByID[$0] }.sorted { $0.xPosition < $1.xPosition }
-            guard chords.count >= 2 else { continue }
-
-            let fadeScale = chords
-                .compactMap { chord -> Double? in
-                    guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { return nil }
-                    return chordFadeScale(for: chordItems, practiceHandMode: practiceHandMode)
-                }
-                .max() ?? 1.0
-
-            let direction = chords.first?.stem.direction ?? .up
-            var stemByChordID: [String: (start: CGPoint, end: CGPoint)] = [:]
-            stemByChordID.reserveCapacity(chords.count)
-
-            for chord in chords {
-                guard chord.stem.isVisible, chord.noteType.grandStaffHasStem,
-                      let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false
-                else { continue }
-                let glyphScale = engravingMetrics.glyphScale(isGrace: chordItems.allSatisfy(\.isGrace))
-                guard let stem = chordLayoutService.stemGeometry(
-                    stem: chord.stem,
-                    chordX: layout.xPosition(chord.xPosition),
-                    noteheadWidth: layout.noteheadColumnWidth * glyphScale,
-                    stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
-                    noteCentersByID: noteCenters(for: chordItems, layout: layout)
-                ) else { continue }
-                stemByChordID[chord.id] = (start: stem.start, end: stem.end)
-            }
-
-            guard let firstChord = chords.first, let lastChord = chords.last else { continue }
-            guard let firstStem = stemByChordID[firstChord.id],
-                  let lastStem = stemByChordID[lastChord.id] else { continue }
-
-            let x1 = firstStem.end.x
-            let xN = lastStem.end.x
-            let span = max(1, abs(xN - x1))
-            let rawDeltaY = lastStem.end.y - firstStem.end.y
-            let maxDeltaY = layout.lineSpacing * 1.5
-            let clampedDeltaY = max(-maxDeltaY, min(maxDeltaY, rawDeltaY))
-            let slope = clampedDeltaY / span
-
-            func yOnBeam(at x: CGFloat, offset: CGFloat) -> CGFloat {
-                firstStem.end.y + slope * (x - x1) + offset
-            }
-
-            let noteheadClearance = layout.lineSpacing * 0.8
-            var requiredOffset: CGFloat = 0
-
-            for chord in chords {
-                guard let stem = stemByChordID[chord.id] else { continue }
-                let chordBeamY = yOnBeam(at: stem.end.x, offset: 0)
-
-                if direction == .up {
-                    let allowedMaxY = stem.start.y - minStemLength
-                    if chordBeamY > allowedMaxY {
-                        requiredOffset = min(requiredOffset, allowedMaxY - chordBeamY)
-                    }
-                    let clearanceMaxY = stem.start.y - noteheadClearance
-                    if chordBeamY > clearanceMaxY {
-                        requiredOffset = min(requiredOffset, clearanceMaxY - chordBeamY)
-                    }
-                } else {
-                    let allowedMinY = stem.start.y + minStemLength
-                    if chordBeamY < allowedMinY {
-                        requiredOffset = max(requiredOffset, allowedMinY - chordBeamY)
-                    }
-                    let clearanceMinY = stem.start.y + noteheadClearance
-                    if chordBeamY < clearanceMinY {
-                        requiredOffset = max(requiredOffset, clearanceMinY - chordBeamY)
-                    }
-                }
-            }
-
-            for segment in beam.segments {
-                guard let startStem = stemByChordID[segment.startChordID] else { continue }
-                let stride = CGFloat(segment.level - 1) * beamStackStride
-                let segmentOffset = direction == .up ? requiredOffset + stride : requiredOffset - stride
-                let startX = startStem.end.x
-                let endX: CGFloat
-                if let hookDirection = segment.hookDirection {
-                    let hookLength = min(layout.lineSpacing * 1.5, span / CGFloat(max(2, chords.count)))
-                    endX = startX + (hookDirection == .forward ? hookLength : -hookLength)
-                } else if let endStem = stemByChordID[segment.endChordID] {
-                    endX = endStem.end.x
-                } else {
-                    continue
-                }
+            let chords = beam.chordIDs.compactMap { chordsByID[$0] }
+            let context = rangeContext(forTicks: chords.map(\.tick), in: context)
+            guard let geometry = chordLayoutService.beamGeometry(
+                beam: beam, chords: chords, itemsByChordID: itemsByChordID,
+                lineSpacing: layout.lineSpacing,
+                chordX: { layout.xPosition($0.xPosition) },
+                noteCenters: { noteCenters(for: $0, layout: layout) }
+            ) else { continue }
+            let fadeScale = chords.compactMap { itemsByChordID[$0.id] }
+                .map { chordFadeScale(for: $0, practiceHandMode: practiceHandMode) }.max() ?? 1
+            for segment in geometry.segments {
                 var path = Path()
-                path.move(to: CGPoint(x: startX, y: yOnBeam(at: startX, offset: segmentOffset)))
-                path.addLine(to: CGPoint(x: endX, y: yOnBeam(at: endX, offset: segmentOffset)))
+                path.move(to: segment.start)
+                path.addLine(to: segment.end)
                 context.stroke(path, with: .color(Color.primary.opacity(0.42 * fadeScale)), style: beamStroke)
             }
-
             for chord in chords {
-                guard let stem = stemByChordID[chord.id] else { continue }
-                let adjustedEnd = CGPoint(x: stem.end.x, y: yOnBeam(at: stem.end.x, offset: requiredOffset))
+                guard let stem = geometry.stemsByChordID[chord.id] else { continue }
                 var path = Path()
                 path.move(to: stem.start)
-                path.addLine(to: adjustedEnd)
-                let chordScale = itemsByChordID[chord.id].map { chordFadeScale(for: $0, practiceHandMode: practiceHandMode) } ?? 1.0
+                path.addLine(to: stem.end)
+                let chordScale = itemsByChordID[chord.id].map { chordFadeScale(for: $0, practiceHandMode: practiceHandMode) } ?? 1
                 context.stroke(path, with: .color(Color.primary.opacity(0.45 * chordScale)), style: stemStroke)
             }
         }

@@ -2,7 +2,7 @@ import Foundation
 import MusicXML
 import Practice
 
-struct GrandStaffNotationLayoutService {
+struct GrandStaffNotationScoreLayoutService {
     private struct ChordKey: Hashable {
         let performedSourceID: String
     }
@@ -82,7 +82,9 @@ struct GrandStaffNotationLayoutService {
         let end: SpannerEndpoint?
     }
 
-    private struct ClippedSpannerSegment {
+    private struct PositionedSpannerSegment {
+        let startTick: Int
+        let endTick: Int
         let segment: SpannerSegment
         let startXPosition: Double
         let endXPosition: Double
@@ -90,7 +92,6 @@ struct GrandStaffNotationLayoutService {
         let continuesToNext: Bool
     }
 
-    private let visibleOverscan: Double = 0.18
     private let chordLayoutService: GrandStaffChordLayoutService
     private let horizontalSpacingService: GrandStaffHorizontalSpacingService
 
@@ -102,14 +103,15 @@ struct GrandStaffNotationLayoutService {
         self.horizontalSpacingService = horizontalSpacingService
     }
 
-    func makeLayout(
-        projection: ScoreNotationProjection,
-        overlay: ScoreNotationProjection.Overlay = .empty,
-        measureSpans: [MusicXMLMeasureSpan] = [],
-        context: GrandStaffNotationContext? = nil,
-        viewportWidthStaffSpaces: Double = 36,
-        scrollTick: Double? = nil
-    ) -> GrandStaffNotationLayout {
+    func makeLayout(input: GrandStaffNotationScoreInput) throws -> GrandStaffNotationScoreLayout {
+        try Task.checkCancellation()
+        let projection = input.projection
+        guard input.facts.logicalInstrument.memberPartIDs.contains(input.facts.structuralPartID),
+              input.measureSpans.allSatisfy({ $0.partID == input.facts.structuralPartID && $0.startTick < $0.endTick }),
+              projection.sourceNotes.allSatisfy({ input.facts.logicalInstrument.memberPartIDs.contains($0.id.partID) && (1...2).contains($0.staff) }),
+              projection.marks.allSatisfy({ $0.staff.map { (1...2).contains($0) } ?? true }),
+              projection.attributeChanges.allSatisfy({ (1...2).contains($0.staff) })
+        else { throw ScoreLayoutError.inconsistentSourceFacts }
         let sourceNotesByID = Dictionary(uniqueKeysWithValues: projection.sourceNotes.map { ($0.id, $0) })
         let occurrences = projection.performedOccurrences.compactMap { occurrence -> LayoutOccurrence? in
             guard let source = sourceNotesByID[occurrence.sourceNoteID] else { return nil }
@@ -117,11 +119,11 @@ struct GrandStaffNotationLayoutService {
                 performedID: occurrence.id,
                 occurrenceID: occurrence.id.description,
                 source: source,
-                staffNumber: resolvedStaffNumber(source.staff),
+                staffNumber: source.staff,
                 voice: source.voice,
                 hand: occurrence.handAssignment.hand,
                 tick: occurrence.writtenOnTick,
-                isHighlighted: occurrence.performanceEventIDs.contains { overlay.activeEventIDs.contains($0) }
+                isHighlighted: false
             )
         }
         let unresolvedNotes = occurrences.compactMap { occurrence -> LayoutNote? in
@@ -172,17 +174,21 @@ struct GrandStaffNotationLayoutService {
         }
         let layoutNotes = resolvingDisplayedAccidentals(unresolvedNotes)
 
-        return makeLayout(
+        let result = makeLayout(
             notes: layoutNotes,
             occurrences: occurrences,
             sourceMarks: projection.marks,
             sourceAttributeChanges: projection.attributeChanges,
-            activeTickRange: overlay.activeTickRange,
-            measureSpans: measureSpans,
-            context: context,
-            viewportWidthStaffSpaces: viewportWidthStaffSpaces,
-            scrollTick: scrollTick
+            measureSpans: input.measureSpans
         )
+        try Task.checkCancellation()
+        let ink = GrandStaffNotationInkBoundsService().makeLayout(notation: result.notation)
+        try Task.checkCancellation()
+        return GrandStaffNotationScoreLayout(input: input, notation: result.notation, spacing: result.spacing, ink: ink)
+    }
+
+    enum ScoreLayoutError: Error {
+        case inconsistentSourceFacts
     }
 
     private struct LayoutOccurrence {
@@ -227,15 +233,8 @@ struct GrandStaffNotationLayoutService {
         occurrences: [LayoutOccurrence],
         sourceMarks: [ScoreNotationProjection.Mark],
         sourceAttributeChanges: [ScoreNotationProjection.AttributeChange],
-        activeTickRange: Range<Int>?,
-        measureSpans: [MusicXMLMeasureSpan],
-        context: GrandStaffNotationContext?,
-        viewportWidthStaffSpaces: Double,
-        scrollTick: Double?
-    ) -> GrandStaffNotationLayout {
-        let currentTick = scrollTick ?? Double(
-            occurrences.first?.tick ?? sourceMarks.first?.tick ?? sourceAttributeChanges.first?.tick ?? 0
-        )
+        measureSpans: [MusicXMLMeasureSpan]
+    ) -> (notation: GrandStaffNotationLayout, spacing: GrandStaffHorizontalSpacingService.Layout) {
         let notationFactsByOccurrenceID = Dictionary(uniqueKeysWithValues: notes.map { note in
             (
                 note.occurrenceID,
@@ -343,33 +342,17 @@ struct GrandStaffNotationLayoutService {
             barlineExtentsByTick: Dictionary(uniqueKeysWithValues: structuralMarkTicks.map { ($0, 0.8) }),
             attributeRightExtentsByTick: attributeRightExtentsByTick(sourceAttributeChanges)
         )
-        let safeViewportWidth = max(1, viewportWidthStaffSpaces)
-        let scrollPosition = spacing.position(at: currentTick)
-        func normalized(_ position: Double) -> Double {
-            0.5 + (position - scrollPosition) / safeViewportWidth
-        }
-        func normalizedTick(_ tick: Int) -> Double {
-            normalized(spacing.rhythmicPositionsByTick[tick] ?? spacing.position(at: Double(tick)))
+        func positionedTick(_ tick: Int) -> Double {
+            spacing.rhythmicPositionsByTick[tick] ?? spacing.position(at: Double(tick))
         }
 
         let positionedItems = chordBuild.items.map { item in
-            copy(item: item, xPosition: normalizedTick(item.tick))
-        }.filter {
-            (activeTickRange?.contains($0.tick) ?? true) &&
-                $0.xPosition >= -visibleOverscan && $0.xPosition <= 1 + visibleOverscan
+            copy(item: item, xPosition: positionedTick(item.tick))
         }
-        let visibleItemIDs = Set(positionedItems.map(\.id))
-        let visibleChordIDs = Set(positionedItems.compactMap(\.chordID))
-        let positionedChords = chordBuild.chords.compactMap { chord -> GrandStaffNotationChord? in
-            guard visibleChordIDs.contains(chord.id) else { return nil }
-            return GrandStaffNotationChord(
-                id: chord.id,
-                tick: chord.tick,
-                xPosition: normalizedTick(chord.tick),
-                itemIDs: chord.itemIDs.filter { visibleItemIDs.contains($0) },
-                stem: chord.stem,
-                noteType: chord.noteType
-            )
+        let positionedChords = chordBuild.chords.map { chord in
+            var positioned = chord
+            positioned.xPosition = positionedTick(chord.tick)
+            return positioned
         }
         let positionedRests = rests.map { rest in
             let position: Double
@@ -383,9 +366,9 @@ struct GrandStaffNotationLayoutService {
                     ?? spacing.position(at: Double(measure.startTick))
                 let endPosition = spacing.barlinePositionsByTick[measure.endTick]
                     ?? spacing.position(at: Double(measure.endTick))
-                position = normalized((startPosition + endPosition) / 2)
+                position = (startPosition + endPosition) / 2
             } else {
-                position = normalizedTick(rest.tick)
+                position = positionedTick(rest.tick)
             }
             return GrandStaffNotationRest(
                 id: rest.id,
@@ -399,25 +382,21 @@ struct GrandStaffNotationLayoutService {
                 isMeasureRest: rest.isMeasureRest,
                 isHighlighted: rest.isHighlighted
             )
-        }.filter {
-            (activeTickRange?.contains($0.tick) ?? true) &&
-                $0.xPosition >= -visibleOverscan && $0.xPosition <= 1 + visibleOverscan
         }
         let positionedLedgerLines = chordBuild.ledgerLines.map { ledgerLine in
             GrandStaffNotationLedgerLine(
                 id: ledgerLine.id,
                 tick: ledgerLine.tick,
-                xPosition: normalizedTick(ledgerLine.tick),
+                xPosition: positionedTick(ledgerLine.tick),
                 staffNumber: ledgerLine.staffNumber,
                 staffStep: ledgerLine.staffStep,
                 minXOffsetStaffSpaces: ledgerLine.minXOffsetStaffSpaces,
                 maxXOffsetStaffSpaces: ledgerLine.maxXOffsetStaffSpaces
             )
-        }.filter { $0.xPosition >= -visibleOverscan && $0.xPosition <= 1 + visibleOverscan }
+        }
         let positionedBarlines = barlineTicks.sorted().compactMap { tick -> GrandStaffNotationBarline? in
             guard let position = spacing.barlinePositionsByTick[tick] else { return nil }
-            let xPosition = normalized(position)
-            guard xPosition >= -visibleOverscan, xPosition <= 1 + visibleOverscan else { return nil }
+            let xPosition = position
             return GrandStaffNotationBarline(id: "barline-\(tick)", tick: tick, xPosition: xPosition)
         }
         let positionedMarks = rawMarks.compactMap { mark -> GrandStaffNotationMark? in
@@ -425,17 +404,12 @@ struct GrandStaffNotationLayoutService {
                 ? spacing.barlinePositionsByTick[mark.tick]
                 : spacing.rhythmicPositionsByTick[mark.tick] ?? spacing.position(at: Double(mark.tick))
             guard let position else { return nil }
-            let positioned = copy(mark: mark, xPosition: normalized(position))
-            guard positioned.xPosition >= -visibleOverscan,
-                  positioned.xPosition <= 1 + visibleOverscan,
-                  activeTickRange?.contains(positioned.tick) ?? true
-            else { return nil }
+            let positioned = copy(mark: mark, xPosition: position)
             return positioned
         }
         let positionedAttributeChanges = sourceAttributeChanges.compactMap { change -> GrandStaffNotationAttributeChange? in
             guard let position = spacing.attributePositionsByTick[change.tick] else { return nil }
-            let xPosition = normalized(position)
-            guard xPosition >= -visibleOverscan, xPosition <= 1 + visibleOverscan else { return nil }
+            let xPosition = position
             return GrandStaffNotationAttributeChange(
                 id: change.id,
                 tick: change.tick,
@@ -448,15 +422,24 @@ struct GrandStaffNotationLayoutService {
                 timeSignatureText: change.meterText
             )
         }
-        let spanners = clippedSpannerSegments(
-            occurrences: occurrences,
-            activeTickRange: activeTickRange,
-            spacing: spacing,
-            scrollPosition: scrollPosition,
-            viewportWidthStaffSpaces: safeViewportWidth
+        let lowerPosition = spacing.barlinePositionsByTick.values.min() ?? 0
+        let upperPosition = max(
+            spacing.barlinePositionsByTick.values.max() ?? 0,
+            spacing.rhythmicPositionsByTick.values.max() ?? 0
         )
+        let spanners = pairedSpannerSegments(occurrences: occurrences).map { segment in
+            PositionedSpannerSegment(
+                startTick: segment.start?.tick ?? measureSpans.map(\.startTick).min() ?? occurrences.map(\.tick).min() ?? 0,
+                endTick: segment.end?.tick ?? measureSpans.map(\.endTick).max() ?? occurrences.map(\.tick).max() ?? 0,
+                segment: segment,
+                startXPosition: segment.start.map { positionedTick($0.tick) } ?? lowerPosition,
+                endXPosition: segment.end.map { positionedTick($0.tick) } ?? upperPosition,
+                continuesFromPrevious: segment.start == nil,
+                continuesToNext: segment.end == nil
+            )
+        }
 
-        return GrandStaffNotationLayout(
+        let notation = GrandStaffNotationLayout(
             items: positionedItems,
             chords: positionedChords,
             rests: positionedRests,
@@ -464,63 +447,13 @@ struct GrandStaffNotationLayoutService {
             slurs: spanners.compactMap(makeSlur),
             tuplets: makeTuplets(spanners),
             barlines: positionedBarlines,
-            beams: clippedBeams(chordBuild.beams, visibleChordIDs: visibleChordIDs),
+            beams: chordBuild.beams,
             ledgerLines: positionedLedgerLines,
             marks: positionedMarks,
             attributeChanges: positionedAttributeChanges,
-            context: context
+            context: nil
         )
-    }
-
-    private func clippedSpannerSegments(
-        occurrences: [LayoutOccurrence],
-        activeTickRange: Range<Int>?,
-        spacing: GrandStaffHorizontalSpacingService.Layout,
-        scrollPosition: Double,
-        viewportWidthStaffSpaces: Double
-    ) -> [ClippedSpannerSegment] {
-        let viewportLower = scrollPosition + (-visibleOverscan - 0.5) * viewportWidthStaffSpaces
-        let viewportUpper = scrollPosition + (1 + visibleOverscan - 0.5) * viewportWidthStaffSpaces
-        let lowerPosition = max(
-            viewportLower,
-            activeTickRange.map { spacing.position(at: Double($0.lowerBound)) } ?? viewportLower
-        )
-        let upperPosition = min(
-            viewportUpper,
-            activeTickRange.map { spacing.position(at: Double($0.upperBound)) } ?? viewportUpper
-        )
-        guard lowerPosition < upperPosition else { return [] }
-
-        return pairedSpannerSegments(occurrences: occurrences).compactMap { segment in
-            let startTick = segment.start?.tick
-            let endTick = segment.end?.tick
-            if let activeTickRange {
-                guard (startTick ?? Int.min) < activeTickRange.upperBound,
-                      (endTick ?? Int.max) >= activeTickRange.lowerBound
-                else { return nil }
-            }
-            let startPosition = segment.start.map { spacing.position(at: Double($0.tick)) }
-            let endPosition = segment.end.map { spacing.position(at: Double($0.tick)) }
-            guard (startPosition ?? -.infinity) < upperPosition,
-                  (endPosition ?? .infinity) >= lowerPosition
-            else {
-                return nil
-            }
-            let continuesFromPrevious = startPosition == nil || startPosition! < viewportLower ||
-                activeTickRange.map { (startTick ?? Int.min) < $0.lowerBound } == true
-            let continuesToNext = endPosition == nil || endPosition! >= viewportUpper ||
-                activeTickRange.map { (endTick ?? Int.max) >= $0.upperBound } == true
-            let clippedStart = max(startPosition ?? lowerPosition, lowerPosition)
-            let clippedEnd = min(endPosition ?? upperPosition, upperPosition)
-            guard clippedStart <= clippedEnd else { return nil }
-            return ClippedSpannerSegment(
-                segment: segment,
-                startXPosition: 0.5 + (clippedStart - scrollPosition) / viewportWidthStaffSpaces,
-                endXPosition: 0.5 + (clippedEnd - scrollPosition) / viewportWidthStaffSpaces,
-                continuesFromPrevious: continuesFromPrevious,
-                continuesToNext: continuesToNext
-            )
-        }
+        return (notation, spacing)
     }
 
     private func pairedSpannerSegments(occurrences: [LayoutOccurrence]) -> [SpannerSegment] {
@@ -647,11 +580,12 @@ struct GrandStaffNotationLayoutService {
         )
     }
 
-    private func makeTie(_ clipped: ClippedSpannerSegment) -> GrandStaffNotationTie? {
+    private func makeTie(_ clipped: PositionedSpannerSegment) -> GrandStaffNotationTie? {
         guard clipped.segment.kind == .tie, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
         return GrandStaffNotationTie(
             id: spannerID(clipped.segment),
             staffNumber: endpoint.staffNumber,
+            startTick: clipped.startTick, endTick: clipped.endTick,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
             placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
@@ -664,11 +598,12 @@ struct GrandStaffNotationLayoutService {
         )
     }
 
-    private func makeSlur(_ clipped: ClippedSpannerSegment) -> GrandStaffNotationSlur? {
+    private func makeSlur(_ clipped: PositionedSpannerSegment) -> GrandStaffNotationSlur? {
         guard clipped.segment.kind == .slur, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
         return GrandStaffNotationSlur(
             id: spannerID(clipped.segment),
             staffNumber: endpoint.staffNumber,
+            startTick: clipped.startTick, endTick: clipped.endTick,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
             placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
@@ -681,11 +616,12 @@ struct GrandStaffNotationLayoutService {
         )
     }
 
-    private func makeTuplet(_ clipped: ClippedSpannerSegment) -> GrandStaffNotationTuplet? {
+    private func makeTuplet(_ clipped: PositionedSpannerSegment) -> GrandStaffNotationTuplet? {
         guard clipped.segment.kind == .tuplet, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
         return GrandStaffNotationTuplet(
             id: spannerID(clipped.segment),
             staffNumber: endpoint.staffNumber,
+            startTick: clipped.startTick, endTick: clipped.endTick,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
             displayNumber: clipped.segment.start?.tupletDisplayNumber ?? clipped.segment.end?.tupletDisplayNumber,
@@ -701,7 +637,7 @@ struct GrandStaffNotationLayoutService {
         )
     }
 
-    private func makeTuplets(_ spanners: [ClippedSpannerSegment]) -> [GrandStaffNotationTuplet] {
+    private func makeTuplets(_ spanners: [PositionedSpannerSegment]) -> [GrandStaffNotationTuplet] {
         let rawTuplets = spanners.compactMap(makeTuplet).sorted {
             if $0.startXPosition != $1.startXPosition { return $0.startXPosition < $1.startXPosition }
             if $0.endXPosition != $1.endXPosition { return $0.endXPosition > $1.endXPosition }
@@ -718,6 +654,7 @@ struct GrandStaffNotationLayoutService {
             result.append(GrandStaffNotationTuplet(
                 id: tuplet.id,
                 staffNumber: tuplet.staffNumber,
+                startTick: tuplet.startTick, endTick: tuplet.endTick,
                 voice: tuplet.voice,
                 numberToken: tuplet.numberToken,
                 displayNumber: tuplet.displayNumber,
@@ -868,11 +805,7 @@ struct GrandStaffNotationLayoutService {
     }
 
     private func makeBarlineTicks(measureSpans: [MusicXMLMeasureSpan]) -> Set<Int> {
-        guard let headerStartTick = measureSpans.map(\.startTick).min() else { return [] }
-        var ticks = Set(measureSpans.flatMap { [$0.startTick, $0.endTick] })
-        // ponytail: the fixed clef/key/meter header owns the first measure start; pagination can add system-start rules later.
-        ticks.remove(headerStartTick)
-        return ticks
+        Set(measureSpans.flatMap { [$0.startTick, $0.endTick] })
     }
 
     private func notationMarks(
@@ -899,10 +832,10 @@ struct GrandStaffNotationLayoutService {
             let voice = source.voice ?? 1
             let matchingItems = items.filter {
                 $0.tick == source.tick &&
-                    (source.staff == nil || $0.staffNumber == resolvedStaffNumber(source.staff)) &&
+                    (source.staff == nil || $0.staffNumber == source.staff) &&
                     (source.voice == nil || $0.voice == source.voice)
             }
-            let staffNumber = source.staff.map(resolvedStaffNumber)
+            let staffNumber = source.staff
                 ?? matchingItems.first?.staffNumber
                 ?? (kind == .pedalStart || kind == .pedalStop || kind == .pedalChange ? 2 : 1)
             let placement = resolvedMarkPlacement(
@@ -1169,89 +1102,15 @@ struct GrandStaffNotationLayoutService {
     }
 
     private func copy(item: GrandStaffNotationItem, xPosition: Double) -> GrandStaffNotationItem {
-        GrandStaffNotationItem(
-            occurrenceID: item.occurrenceID,
-            staffNumber: item.staffNumber,
-            voice: item.voice,
-            hand: item.hand,
-            tick: item.tick,
-            xPosition: xPosition,
-            staffStep: item.staffStep,
-            displayedAccidental: item.displayedAccidental,
-            isHighlighted: item.isHighlighted,
-            fingerings: item.fingerings,
-            noteType: item.noteType,
-            noteheadGlyphToken: item.noteheadGlyphToken,
-            chordID: item.chordID,
-            noteheadXOffset: item.noteheadXOffset,
-            accidentalXOffsetStaffSpaces: item.accidentalXOffsetStaffSpaces,
-            dotXOffsetStaffSpaces: item.dotXOffsetStaffSpaces,
-            dotStaffStep: item.dotStaffStep,
-            beamID: item.beamID,
-            durationTicks: item.durationTicks,
-            isGrace: item.isGrace,
-            articulations: item.articulations,
-            arpeggiate: item.arpeggiate,
-            dotCount: item.dotCount
-        )
+        var positioned = item
+        positioned.xPosition = xPosition
+        return positioned
     }
 
     private func copy(mark: GrandStaffNotationMark, xPosition: Double) -> GrandStaffNotationMark {
-        GrandStaffNotationMark(
-            id: mark.id,
-            tick: mark.tick,
-            xPosition: xPosition,
-            staffNumber: mark.staffNumber,
-            voice: mark.voice,
-            kind: mark.kind,
-            text: mark.text,
-            placement: mark.placement,
-            collisionLevel: mark.collisionLevel,
-            minimumStaffStep: mark.minimumStaffStep,
-            maximumStaffStep: mark.maximumStaffStep,
-            minimumStaffNumber: mark.minimumStaffNumber,
-            maximumStaffNumber: mark.maximumStaffNumber
-        )
-    }
-
-    private func clippedBeams(
-        _ beams: [GrandStaffNotationBeam],
-        visibleChordIDs: Set<String>
-    ) -> [GrandStaffNotationBeam] {
-        beams.compactMap { beam in
-            let indexByChordID = Dictionary(uniqueKeysWithValues: beam.chordIDs.enumerated().map { ($0.element, $0.offset) })
-            let segments = beam.segments.compactMap { segment -> GrandStaffNotationBeamSegment? in
-                if let hookDirection = segment.hookDirection {
-                    guard visibleChordIDs.contains(segment.startChordID) else { return nil }
-                    return .init(
-                        level: segment.level,
-                        startChordID: segment.startChordID,
-                        endChordID: segment.endChordID,
-                        hookDirection: hookDirection
-                    )
-                }
-                guard let startIndex = indexByChordID[segment.startChordID],
-                      let endIndex = indexByChordID[segment.endChordID]
-                else { return nil }
-                let visible = beam.chordIDs[min(startIndex, endIndex) ... max(startIndex, endIndex)]
-                    .filter { visibleChordIDs.contains($0) }
-                guard let first = visible.first, let last = visible.last, first != last else { return nil }
-                return .init(
-                    level: segment.level,
-                    startChordID: first,
-                    endChordID: last,
-                    hookDirection: nil
-                )
-            }
-            guard segments.isEmpty == false else { return nil }
-            let chordIDs = beam.chordIDs.filter { visibleChordIDs.contains($0) }
-            return GrandStaffNotationBeam(id: beam.id, chordIDs: chordIDs, segments: segments)
-        }
-    }
-
-    private func resolvedStaffNumber(_ staff: Int?) -> Int {
-        guard let staff else { return 1 }
-        return (staff >= 2) ? 2 : 1
+        var positioned = mark
+        positioned.xPosition = xPosition
+        return positioned
     }
 
     private func buildChordsAndBeams(
@@ -1466,6 +1325,7 @@ struct GrandStaffNotationLayoutService {
             guard segments.isEmpty == false else { continue }
             beamChordIDsByBeamID[beamID] = chordIDs
             beams.append(GrandStaffNotationBeam(
+                provenance: .source(groupID: beamID, chordIDs: chordIDs),
                 id: beamID,
                 chordIDs: chordIDs,
                 segments: segments
@@ -1493,6 +1353,7 @@ struct GrandStaffNotationLayoutService {
                 let chordIDs = currentGroup.map(\.id)
                 beamChordIDsByBeamID[beamID] = chordIDs
                 beams.append(GrandStaffNotationBeam(
+                    provenance: .meterDerived,
                     id: beamID,
                     chordIDs: chordIDs,
                     segments: fallbackBeamSegments(chords: currentGroup)

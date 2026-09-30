@@ -64,7 +64,7 @@ private func visualGoldenLines() throws -> [String] {
 @Test
 func grandStaffNotationAccessibilityDescribesMeasureNotation() throws {
     let model = try visualNotationModel()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
+    let layout = try makeNotationSystemFixture(
         projection: model.projection,
         overlay: model.overlay,
         measureSpans: model.score.measures,
@@ -118,9 +118,8 @@ private func visualSnapshot(
     let presentation = GrandStaffNotationPresentationViewModel().makePresentation(
         size: viewport,
         lineSpacing: dynamicTypeSize.isAccessibilitySize ? 22 : 14,
-        projection: model.projection,
+        score: try makeNotationScoreFixture(projection: model.projection, measureSpans: model.score.measures),
         overlay: model.overlay,
-        measureSpans: model.score.measures,
         context: model.context,
         practiceHandMode: .both,
         scrollTick: 960
