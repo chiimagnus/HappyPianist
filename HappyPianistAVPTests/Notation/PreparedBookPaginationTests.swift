@@ -51,6 +51,9 @@ func preparedAutoplayRestBoundariesDriveBookInsteadOfStaleGuideAndPauseHolds() a
     await owner.load(try bookInput(session))
     let plan = try #require(owner.plan)
     let destination = try #require(plan.pages.first { $0.index >= 2 }?.measures.first?.span)
+    var turn = GrandStaffNotationPageTurnState()
+    let initialTick = try #require(session.notationNavigationTick())
+    turn.request(identity: plan.turnIdentity, target: try #require(plan.spreadIndex(containingTick: initialTick)), animated: true)
     session.setAutoplayEnabled(true)
     session.startGuidingIfReady()
     await TestAsyncWait.until("prepared autoplay started") {
@@ -65,6 +68,9 @@ func preparedAutoplayRestBoundariesDriveBookInsteadOfStaleGuideAndPauseHolds() a
     #expect(session.currentStepIndex == 0)
     #expect(session.currentPianoHighlightGuide?.tick != destination.startTick)
     #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 1)
+    turn.request(identity: plan.turnIdentity, target: 1, animated: true)
+    let forward = try #require(turn.transition)
+    #expect(forward.isForward)
     playback.holdNextSeconds = true
     await TestAsyncWait.until("in-flight transport sample") { playback.pendingSeconds != nil }
     playback.seconds = session.tempoMap.timeSeconds(atTick: destination.endTick) - baseSeconds + session.autoplayTimingLeadInSeconds + 0.001
@@ -73,6 +79,9 @@ func preparedAutoplayRestBoundariesDriveBookInsteadOfStaleGuideAndPauseHolds() a
     playback.releasePendingSeconds()
     try await Task.sleep(for: .milliseconds(100))
     #expect(session.notationNavigationTick() == held)
+    let heldTick = try #require(session.notationNavigationTick())
+    turn.request(identity: plan.turnIdentity, target: try #require(plan.spreadIndex(containingTick: heldTick)), animated: true)
+    #expect(turn.transition == forward)
     try await session.resumeAutoplayPlayback()
     await TestAsyncWait.until("resumed transport position") { session.notationNavigationTick() != held }
     session.setAutoplayEnabled(false)
@@ -151,6 +160,9 @@ func preparedBookResumeAndReturnPreserveNavigationAndActualProgress(outcome: Str
     #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
     session.startGuidingIfReady()
     #expect(session.currentStepIndex == 1)
+    var restoredTurn = GrandStaffNotationPageTurnState()
+    restoredTurn.request(identity: plan.turnIdentity, target: plan.spreadCount - 1, animated: true)
+    #expect(restoredTurn.target == plan.spreadCount - 1 && restoredTurn.transition == nil)
     session.moveToStep(0, shouldPlaySound: false)
     #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
     if outcome == "cancelled" {
@@ -198,16 +210,88 @@ func nativeSequencePreservesSilentTailForTransportPositionEvents() async throws 
 }
 
 @MainActor
-private func preparedBookFixture() async throws -> PreparedPractice {
+private func preparedBookFixture(dense: Bool = false) async throws -> PreparedPractice {
     let measures = (1...128).map { index in
         let content = index == 1 || index == 128 ? "<pitch><step>C</step><octave>5</octave></pitch>" : "<rest measure=\"yes\"/>"
-        return "<measure number=\"\(index)\">\(index == 1 ? "<attributes><divisions>1</divisions><staves>2</staves><time><beats>4</beats><beat-type>4</beat-type></time></attributes>" : "")<note>\(content)<duration>4</duration><type>whole</type><staff>1</staff></note></measure>"
+        let notes = dense ? (0..<4).map { note in "<note><pitch><step>\(note.isMultiple(of: 2) ? "C" : "G")</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type><staff>1</staff></note>" }.joined() : "<note>\(content)<duration>4</duration><type>whole</type><staff>1</staff></note>"
+        return "<measure number=\"\(index)\">\(index == 1 ? "<attributes><divisions>1</divisions><staves>2</staves><time><beats>4</beats><beat-type>4</beat-type></time></attributes>" : "")\(notes)</measure>"
     }.joined()
     let xml = "<score-partwise><part-list><score-part id=\"P1\"><part-name>Piano</part-name></score-part></part-list><part id=\"P1\">\(measures)</part></score-partwise>"
     let url = URL.temporaryDirectory.appending(path: "book-\(UUID()).musicxml")
     try Data(xml.utf8).write(to: url)
     defer { try? FileManager.default.removeItem(at: url) }
     return try await PracticePreparationService(diagnosticsReporter: InMemoryDiagnosticsReporter()).prepare(songID: UUID(), from: url, file: ImportedMusicXMLFile(fileName: url.lastPathComponent, storedURL: url, importedAt: .distantPast), options: .practice)
+}
+
+@Test
+@MainActor
+func preparedNavigationFeedsSingleTurnStateAcrossRetryJumpAndScoreReplacement() async throws {
+    let prepared = try await preparedBookFixture(dense: true)
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper())
+    defer { session.shutdown() }
+    installBook(prepared, into: session)
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let plan = try #require(owner.plan)
+    #expect(plan.spreadCount > 3)
+    var turn = GrandStaffNotationPageTurnState()
+    func target() throws -> Int {
+        let tick = try #require(session.notationNavigationTick())
+        return try #require(plan.spreadIndex(containingTick: tick))
+    }
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    let initial = turn
+    session.startGuidingIfReady()
+    session.skip()
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    #expect(turn == initial)
+    let firstNextStep = try #require(prepared.steps.firstIndex { plan.spreadIndex(containingTick: $0.tick) == 1 })
+    session.moveToStep(firstNextStep, shouldPlaySound: false)
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    let forward = try #require(turn.transition)
+    #expect(forward.source == 0 && forward.target == 1 && forward.isForward)
+    session.skip()
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    #expect(turn.transition == forward)
+    turn.complete(forward)
+    session.retryMeasure(prepared.measureSpans[0].sourceMeasureID)
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    let backward = try #require(turn.transition)
+    #expect(!backward.isForward && backward.target == 0)
+    turn.complete(backward)
+    session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: prepared.measureSpans[0].occurrenceID, end: prepared.measureSpans[127].occurrenceID))
+    _ = session.applyPendingRoundConfiguration()
+    session.startGuidingIfReady()
+    session.moveToStep(prepared.steps.count - 1, shouldPlaySound: false)
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    #expect(turn.target == plan.spreadCount - 1 && turn.transition == nil)
+    session.moveToStep(0, shouldPlaySound: false)
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    #expect(turn.transition == nil)
+    session.moveToStep(firstNextStep, shouldPlaySound: false)
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    let superseded = try #require(turn.transition)
+    let laterStep = try #require(prepared.steps.firstIndex { plan.spreadIndex(containingTick: $0.tick) == 2 })
+    session.moveToStep(laterStep, shouldPlaySound: false)
+    turn.request(identity: plan.turnIdentity, target: try target(), animated: true)
+    turn.complete(superseded)
+    #expect(turn.target == 2 && turn.transition == nil)
+    await owner.load(try bookInput(session))
+    let originalPlanUnchanged = owner.plan == plan
+    #expect(owner.buildCount == 1 && originalPlanUnchanged)
+    session.resetSession()
+    turn.clear()
+    #expect(session.notationNavigationTick() == nil)
+    let replacement = try await preparedBookFixture(dense: true)
+    installBook(replacement, into: session)
+    await owner.load(try bookInput(session))
+    let newPlan = try #require(owner.plan)
+    #expect(newPlan.pages.map(\.id) == plan.pages.map(\.id))
+    let replacementTick = try #require(session.notationNavigationTick())
+    turn.request(identity: newPlan.turnIdentity, target: try #require(newPlan.spreadIndex(containingTick: replacementTick)), animated: true)
+    turn.complete(superseded)
+    #expect(turn.identity == newPlan.turnIdentity && turn.target == 0 && turn.transition == nil)
+    #expect(owner.buildCount == 2)
 }
 
 @Test

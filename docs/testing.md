@@ -37,6 +37,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 - observation 的 capability、unknown/insufficient、alignment、assessment、单一 coaching action；
 - recording、session、progress 的 checkpoint、flush-before-teardown、恢复与持久化边界；
 - 完整 PreparedPractice 到双页分页的 step/measure 导航、局部范围、末步恢复、休止时的 autoplay、暂停、重练和换谱；分页几何不因演奏位置或范围改变。保存失败保留会话与原进度，取消返回不卸载谱面。原生窗口测试使用生产 Book View，不代替完整 Practice 宿主、Immersive 或真机验收；
+- 共用翻页状态覆盖同双页仅更新高亮、相邻正反向、大跳直接到达、翻动期间新目标取代、换谱与旧 completion 拒绝；真实 transport 的休止边界与暂停不得产生第二导航时钟；
 - AI 请求取消、乱序响应、generation 隔离与 teardown；Qwen Companion 专用 schema、固定 model identity、服务端 A/B 双顺序聚合/semantic mapping 与失败不回退；Aria v3 strict schema、CC64 输入、single-flight busy 与共享 350ms discovery+HTTP deadline；
 
 ### 示范手纯值 Gate
