@@ -87,7 +87,7 @@ public struct PracticeSequencerSequenceBuilder {
                     switch event.kind {
                     case .pauseSeconds, .noteOff:
                         break
-                    case .controlChange, .tempo, .noteOn, .advanceStep, .advanceGuide:
+                    case .controlChange, .tempo, .noteOn, .advanceStep, .advanceGuide, .advancePosition:
                         continue
                     }
                 }
@@ -129,7 +129,7 @@ public struct PracticeSequencerSequenceBuilder {
                 )
                 openNotes[event.sourceEventID ?? "timeline:\(event.id)"] = midi
 
-            case .tempo, .advanceStep, .advanceGuide:
+            case .tempo, .advanceStep, .advanceGuide, .advancePosition:
                 continue
             }
         }
@@ -149,7 +149,7 @@ public struct PracticeSequencerSequenceBuilder {
         return schedule
     }
 
-    public func buildSequence(from schedule: [PracticeSequencerMIDIEvent]) throws -> PracticeSequencerSequence {
+    public func buildSequence(from schedule: [PracticeSequencerMIDIEvent], minimumDurationSeconds: TimeInterval = 0) throws -> PracticeSequencerSequence {
         var musicSequence: MusicSequence?
         NewMusicSequence(&musicSequence)
         guard let musicSequence else {
@@ -182,7 +182,7 @@ public struct PracticeSequencerSequenceBuilder {
             return lhs.offset < rhs.offset
         }.map(\.element)
 
-        var durationSeconds: TimeInterval = 0
+        var durationSeconds = max(0, minimumDurationSeconds)
         var outputApproximations: [PerformanceOutputApproximation] = []
         for event in sortedSchedule {
             durationSeconds = max(durationSeconds, event.timeSeconds)
@@ -198,6 +198,10 @@ public struct PracticeSequencerSequenceBuilder {
                 throw PracticeSequencerSequenceBuilderError.trackEventInsertFailed(status: insertStatus)
             }
         }
+
+        var trackLength = MusicTimeStamp(durationSeconds)
+        let lengthStatus = MusicTrackSetProperty(track, kSequenceTrackProperty_TrackLength, &trackLength, UInt32(MemoryLayout<MusicTimeStamp>.size))
+        guard lengthStatus == noErr else { throw PracticeSequencerSequenceBuilderError.trackEventInsertFailed(status: lengthStatus) }
 
         var exportedData: Unmanaged<CFData>?
         let exportStatus = MusicSequenceFileCreateData(

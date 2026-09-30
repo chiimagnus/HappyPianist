@@ -90,8 +90,8 @@ func layoutRendersWholeMeasureRestWithoutTypeAtMeasureCenter() throws {
     let layout = try makeNotationSystemFixture(
         projection: projection,
         measureSpans: score.measures,
-        viewportWidthStaffSpaces: 36,
-        scrollTick: 0
+        sliceWidthStaffSpaces: 36,
+        sliceCenterTick: 0
     )
     let rest = try #require(layout.rests.first)
 
@@ -209,8 +209,8 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
     let layout = try makeNotationSystemFixture(
         projection: projection,
         measureSpans: score.measures,
-        viewportWidthStaffSpaces: 60,
-        scrollTick: 240
+        sliceWidthStaffSpaces: 60,
+        sliceCenterTick: 240
     )
 
     let dynamic = try #require(projection.marks.first { $0.kind == .dynamic })
@@ -441,7 +441,7 @@ func projectionLayoutKeepsEveryWrittenTieContributor() throws {
 }
 
 @Test
-func layoutKeepsTieContinuationAcrossActiveRangeAndViewportBoundary() throws {
+func systemSliceKeepsTieContinuationAcrossActiveRangeAndBoundary() throws {
     let score = notationTieScore()
     let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
@@ -449,14 +449,16 @@ func layoutKeepsTieContinuationAcrossActiveRangeAndViewportBoundary() throws {
             sourceScore: score
         ),
         overlay: .init(activeEventIDs: [], activeTickRange: 240 ..< 960),
-        viewportWidthStaffSpaces: 2,
-        scrollTick: 480
+        sliceWidthStaffSpaces: 2,
+        sliceCenterTick: 480
     )
 
     let tie = try #require(layout.ties.first)
     #expect(tie.continuesFromPrevious)
     #expect(tie.continuesToNext == false)
-    #expect(tie.startOccurrenceID == nil)
+    let startID = try #require(tie.startOccurrenceID)
+    #expect(layout.spannerAnchors[startID] != nil)
+    #expect(layout.items.contains { $0.id == startID } == false)
     #expect(tie.endOccurrenceID == layout.items.first?.occurrenceID)
 }
 
@@ -742,15 +744,15 @@ func parserAndProjectionPreserveUnsupportedNoteheadAndPerformanceNotationIdentit
 }
 
 @Test
-func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() throws {
+func spannersKeepNestedLevelsAndSystemContinuationSeparateByKind() throws {
     let score = notationRestAndSpannerScore()
     let layout = try makeNotationSystemFixture(
         projection: ScoreNotationProjection(
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
         ),
-        viewportWidthStaffSpaces: 2,
-        scrollTick: 180
+        sliceWidthStaffSpaces: 2,
+        sliceCenterTick: 180
     )
 
     #expect(layout.ties.isEmpty)

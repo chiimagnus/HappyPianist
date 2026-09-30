@@ -6,12 +6,11 @@ struct GrandStaffNotationSystemLayoutService {
         score: GrandStaffNotationScoreLayout,
         xRange: ClosedRange<Double>,
         tickRange: Range<Int>? = nil,
-        overscan: Double = 0,
         context: GrandStaffNotationContext?,
         overlay: ScoreNotationProjection.Overlay
     ) -> GrandStaffNotationLayout {
         let width = xRange.upperBound - xRange.lowerBound
-        let visibleRange = (xRange.lowerBound - overscan * width)...(xRange.upperBound + overscan * width)
+        let visibleRange = xRange
         let absolute = score.notation
         let highlightedIDs = Set(score.input.projection.performedOccurrences.compactMap {
             $0.performanceEventIDs.contains(where: overlay.activeEventIDs.contains) ? $0.id.description : nil
@@ -74,8 +73,6 @@ struct GrandStaffNotationSystemLayoutService {
                     || (tickRange.map { value[keyPath: startTick] < $0.lowerBound } ?? false)
                 result[keyPath: toNext] = value[keyPath: toNext] || value[keyPath: endX] >= visibleRange.upperBound
                     || (tickRange.map { value[keyPath: endTick] >= $0.upperBound } ?? false)
-                if result[keyPath: fromPrevious] { result[keyPath: startID] = nil }
-                if result[keyPath: toNext] { result[keyPath: endID] = nil }
                 result[keyPath: startX] = (max(value[keyPath: startX], visibleRange.lowerBound) - xRange.lowerBound) / width
                 result[keyPath: endX] = (min(value[keyPath: endX], visibleRange.upperBound) - xRange.lowerBound) / width
                 return result
@@ -84,7 +81,7 @@ struct GrandStaffNotationSystemLayoutService {
         let ties = clipped(absolute.ties, startX: \.startXPosition, endX: \.endXPosition, startTick: \.startTick, endTick: \.endTick, startID: \.startOccurrenceID, endID: \.endOccurrenceID, fromPrevious: \.continuesFromPrevious, toNext: \.continuesToNext)
         let slurs = clipped(absolute.slurs, startX: \.startXPosition, endX: \.endXPosition, startTick: \.startTick, endTick: \.endTick, startID: \.startOccurrenceID, endID: \.endOccurrenceID, fromPrevious: \.continuesFromPrevious, toNext: \.continuesToNext)
         let tuplets = clipped(absolute.tuplets, startX: \.startXPosition, endX: \.endXPosition, startTick: \.startTick, endTick: \.endTick, startID: \.startOccurrenceID, endID: \.endOccurrenceID, fromPrevious: \.continuesFromPrevious, toNext: \.continuesToNext)
-        let marks = absolute.marks.filter { mark in
+        var marks = absolute.marks.filter { mark in
             guard let tickRange else { return true }
             switch mark.kind {
             case .endingStop, .endingDiscontinue, .repeatBackward:
@@ -93,6 +90,18 @@ struct GrandStaffNotationSystemLayoutService {
                 return tickRange.contains(mark.tick)
             }
         }
+        if let tickRange {
+            for staff in [1, 2] {
+                let previous = absolute.marks.filter { $0.staffNumber == staff && ($0.tick < tickRange.lowerBound || ($0.tick == tickRange.lowerBound && $0.kind != .endingStart)) && ($0.kind == .endingStart || $0.kind == .endingStop || $0.kind == .endingDiscontinue) }.max { $0.tick < $1.tick }
+                if var continuation = previous, continuation.kind == .endingStart {
+                    continuation.xPosition = xRange.lowerBound
+                    continuation.continuesFromPrevious = true
+                    marks.append(continuation)
+                }
+            }
+        }
+        let anchorIDs = Set(ties.flatMap { [$0.startOccurrenceID, $0.endOccurrenceID] } + slurs.flatMap { [$0.startOccurrenceID, $0.endOccurrenceID] } + tuplets.flatMap { [$0.startOccurrenceID, $0.endOccurrenceID] })
+        let anchors = Dictionary(uniqueKeysWithValues: absolute.items.filter { anchorIDs.contains($0.id) }.map { ($0.id, $0) })
         return GrandStaffNotationLayout(
             items: items, chords: chords, rests: rests, ties: ties, slurs: slurs, tuplets: tuplets,
             barlines: absolute.barlines.compactMap { barline in
@@ -106,8 +115,9 @@ struct GrandStaffNotationSystemLayoutService {
             beams: beams,
             ledgerLines: positioned(absolute.ledgerLines, x: \.xPosition, tick: \.tick),
             marks: positioned(marks, x: \.xPosition, tick: \.tick, useTickRange: false),
-            attributeChanges: positioned(absolute.attributeChanges, x: \.xPosition, tick: \.tick),
-            context: context
+            attributeChanges: positioned(absolute.attributeChanges.filter { context == nil || $0.tick != tickRange?.lowerBound }, x: \.xPosition, tick: \.tick),
+            context: context,
+            spannerAnchors: anchors
         )
     }
 }

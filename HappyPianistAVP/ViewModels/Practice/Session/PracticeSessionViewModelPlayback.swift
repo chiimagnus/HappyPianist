@@ -50,9 +50,9 @@ extension PracticeSessionViewModel {
         try await playbackControlService?.setAutoplayPlaybackRate(rate)
     }
 
-    func notationViewportTick() -> Double? {
+    func notationNavigationTick() -> Int? {
         guard stateStore.isActiveRangeInvalid == false else { return nil }
-        if let autoplayTick = playbackControlService?.smoothNotationScrollTick() {
+        if autoplayState == .playing, let autoplayTick = stateStore.autoplayNotationTick {
             return autoplayTick
         }
 
@@ -67,7 +67,7 @@ extension PracticeSessionViewModel {
         else {
             return nil
         }
-        return Double(self.steps[stepIndex].tick)
+        return self.steps[stepIndex].tick
     }
 
     func rebuildAutoplayTimeline() {
@@ -87,6 +87,7 @@ extension PracticeSessionViewModel {
         let tempoMap = self.tempoMap
         let handMode = self.practiceHandMode
         let activeRange = self.activeRange
+        let measureBoundaryTicks = self.measureSpans.map(\.startTick) + self.measureSpans.suffix(1).map(\.endTick)
         autoplayTimelineBuildTask = Task { @MainActor [weak self] in
             let timeline = await AutoplayPerformanceTimeline.buildOffMain(
                 plan: performancePlan,
@@ -94,7 +95,8 @@ extension PracticeSessionViewModel {
                 stepProjection: stepProjection,
                 tempoMap: tempoMap,
                 practiceHandMode: handMode,
-                activeRange: activeRange
+                activeRange: activeRange,
+                measureBoundaryTicks: measureBoundaryTicks
             )
             guard let self,
                   Task.isCancelled == false,

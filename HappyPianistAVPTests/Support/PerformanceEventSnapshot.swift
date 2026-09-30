@@ -65,6 +65,8 @@ struct PerformanceEventSnapshot {
             "advanceStep:\(index)"
         case let .advanceGuide(index, guideID):
             "advanceGuide:\(index):\(guideID)"
+        case .advancePosition:
+            "advancePosition"
         }
     }
 

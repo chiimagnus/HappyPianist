@@ -32,7 +32,7 @@ struct PracticeStepView: View {
             if let identity = session.songIdentity,
                let projection = session.notationProjection,
                let facts = session.notationScoreFacts {
-                GrandStaffNotationView(
+                GrandStaffNotationBookView(
                     input: GrandStaffNotationScoreInput(
                         identity: identity,
                         projection: projection,
@@ -40,15 +40,14 @@ struct PracticeStepView: View {
                         facts: facts,
                         attributeTimeline: session.attributeTimeline
                     ),
+                    navigationTick: session.notationNavigationTick(),
                     overlay: session.activeNotationOverlay,
-                    context: session.currentGrandStaffNotationContext,
-                    practiceHandMode: practiceHandMode,
-                    scrollTickProvider: session.notationViewportTick
+                    practiceHandMode: practiceHandMode
                 )
-                .frame(minHeight: 350, maxHeight: .infinity)
+                .frame(minHeight: 820, maxHeight: .infinity)
             } else {
                 ProgressView("正在准备乐谱")
-                    .frame(minHeight: 350, maxHeight: .infinity)
+                    .frame(minHeight: 820, maxHeight: .infinity)
             }
 
             PianoKeyboard88View(
@@ -61,6 +60,7 @@ struct PracticeStepView: View {
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 30)
+        .frame(minWidth: 1240, minHeight: 1160)
         .overlay(alignment: .top) {
             if let cue = viewModel.practiceFeedbackViewModel.cue {
                 PracticeFeedbackCueView(

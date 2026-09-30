@@ -94,7 +94,7 @@ public struct PianoKeyContactTimeline: Equatable, Sendable {
                 events.noteOn = event
             case .noteOff where events.noteOff == nil:
                 events.noteOff = event
-            case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide, .noteOn, .noteOff:
+            case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide, .advancePosition, .noteOn, .noteOff:
                 continue
             }
             noteEventsByOccurrenceID[occurrenceID] = events

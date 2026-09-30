@@ -127,6 +127,7 @@ struct GrandStaffNotationLayout: Equatable, Sendable {
     let marks: [GrandStaffNotationMark]
     let attributeChanges: [GrandStaffNotationAttributeChange]
     let context: GrandStaffNotationContext?
+    var spannerAnchors: [String: GrandStaffNotationItem] = [:]
 }
 
 struct GrandStaffNotationChord: Equatable, Identifiable, Sendable {
@@ -300,6 +301,7 @@ struct GrandStaffNotationMark: Equatable, Identifiable, Sendable {
     let maximumStaffStep: Int?
     let minimumStaffNumber: Int?
     let maximumStaffNumber: Int?
+    var continuesFromPrevious = false
 
     init(
         id: String,
@@ -370,54 +372,32 @@ struct GrandStaffNotationAttributeChange: Equatable, Identifiable, Sendable {
 }
 
 public struct GrandStaffNotationContext: Equatable, Sendable {
-    let trebleClefSymbol: String
-    let bassClefSymbol: String
-    let trebleClefSignToken: String?
-    let trebleClefLine: Int?
-    let bassClefSignToken: String?
-    let bassClefLine: Int?
-    let keySignatureText: String?
-    let keySignatureFifths: Int?
-    let timeSignatureText: String?
+    public struct Staff: Equatable, Sendable {
+        let clefSign: String
+        let clefLine: Int
+        let fifths: Int
+        let meter: String?
 
-    var trebleClefGlyphToken: GrandStaffGlyphToken? {
-        clefGlyphToken(signToken: trebleClefSignToken)
-    }
+        public init(clefSign: String, clefLine: Int, fifths: Int = 0, meter: String? = nil) {
+            self.clefSign = clefSign
+            self.clefLine = clefLine
+            self.fifths = fifths
+            self.meter = meter
+        }
 
-    var bassClefGlyphToken: GrandStaffGlyphToken? {
-        clefGlyphToken(signToken: bassClefSignToken)
-    }
-
-    public init(
-        trebleClefSymbol: String = GrandStaffGlyphToken.gClef.glyph,
-        bassClefSymbol: String = GrandStaffGlyphToken.fClef.glyph,
-        trebleClefSignToken: String? = "G",
-        trebleClefLine: Int? = 2,
-        bassClefSignToken: String? = "F",
-        bassClefLine: Int? = 4,
-        keySignatureText: String? = nil,
-        keySignatureFifths: Int? = nil,
-        timeSignatureText: String? = nil
-    ) {
-        self.trebleClefSymbol = trebleClefSymbol
-        self.bassClefSymbol = bassClefSymbol
-        self.trebleClefSignToken = trebleClefSignToken
-        self.trebleClefLine = trebleClefLine
-        self.bassClefSignToken = bassClefSignToken
-        self.bassClefLine = bassClefLine
-        self.keySignatureText = keySignatureText
-        self.keySignatureFifths = keySignatureFifths
-        self.timeSignatureText = timeSignatureText
-    }
-
-    private func clefGlyphToken(signToken: String?) -> GrandStaffGlyphToken? {
-        switch signToken?.uppercased() {
-        case "G": .gClef
-        case "F": .fClef
-        case "C": .cClef
-        default: nil
+        var clefGlyph: GrandStaffGlyphToken? {
+            switch clefSign.uppercased() { case "F": .fClef; case "C": .cClef; case "G": .gClef; default: nil }
         }
     }
+    let treble: Staff
+    let bass: Staff
+
+    public init(treble: Staff = .init(clefSign: "G", clefLine: 2), bass: Staff = .init(clefSign: "F", clefLine: 4)) {
+        self.treble = treble
+        self.bass = bass
+    }
+
+    func staff(_ number: Int) -> Staff { number == 2 ? bass : treble }
 }
 
 struct GrandStaffNotationItem: Equatable, Identifiable, Sendable {

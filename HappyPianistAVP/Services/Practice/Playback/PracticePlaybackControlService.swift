@@ -128,9 +128,12 @@ final class PracticePlaybackControlService {
         else {
             return
         }
-        recordPlaybackPosition(await sequencerPlaybackService.currentSeconds())
-        await sequencerPlaybackService.pause()
+        let generation = autoplayTaskGeneration
         isAutoplayPaused = true
+        let seconds = await sequencerPlaybackService.currentSeconds()
+        guard autoplayTaskGeneration == generation, isAutoplayPaused else { return }
+        recordPlaybackPosition(seconds)
+        await sequencerPlaybackService.pause()
     }
 
     func resumeAutoplay() async throws {
@@ -140,8 +143,17 @@ final class PracticePlaybackControlService {
         else {
             return
         }
-        try await sequencerPlaybackService.resume()
-        recordPlaybackPosition(await sequencerPlaybackService.currentSeconds())
+        let generation = autoplayTaskGeneration
+        do {
+            try await sequencerPlaybackService.resume()
+        } catch {
+            guard autoplayTaskGeneration == generation else { return }
+            throw error
+        }
+        guard autoplayTaskGeneration == generation, isAutoplayPaused else { return }
+        let seconds = await sequencerPlaybackService.currentSeconds()
+        guard autoplayTaskGeneration == generation, isAutoplayPaused else { return }
+        recordPlaybackPosition(seconds)
         isAutoplayPaused = false
     }
 
@@ -239,8 +251,8 @@ final class PracticePlaybackControlService {
         let tempoMapSnapshot = stateStore.tempoMap
         let handModeSnapshot = stateStore.activeRoundConfiguration?.handMode ?? .both
         let activeRangeSnapshot = stateStore.activeRange
-        stateStore.autoplayTimingBaseTick = timingBaseTick
-        stateStore.notationGuideScrollScheduleTaskGeneration = -1
+        stateStore.autoplayNotationTick = timingBaseTick
+        let measureBoundaryTicks = stateStore.measureSpans.map(\.startTick) + stateStore.measureSpans.suffix(1).map(\.endTick)
 
         autoplayTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -251,7 +263,8 @@ final class PracticePlaybackControlService {
                 tempoMap: tempoMapSnapshot,
                 practiceHandMode: handModeSnapshot,
                 activeRange: activeRangeSnapshot,
-                transportStartTick: timingBaseTick
+                transportStartTick: timingBaseTick,
+                measureBoundaryTicks: measureBoundaryTicks
             )
             guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             stateStore.autoplayTimeline = timelineSnapshot
@@ -271,6 +284,7 @@ final class PracticePlaybackControlService {
                     resetBeforeLoad: resetBeforeLoad
                 )
             } catch {
+                guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
                 stateStore.recordPlaybackError(error)
                 stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放任务异常。")
             }
@@ -303,51 +317,7 @@ final class PracticePlaybackControlService {
         isAutoplayPaused = false
         onPianoDemonstrationContactTimelineChange?(nil, nil)
 
-        stateStore.autoplayTimingBaseTick = nil
-        stateStore.notationGuideScrollSchedule.removeAll()
-        stateStore.notationGuideScrollScheduleTaskGeneration = -1
-    }
-
-    func smoothNotationScrollTick() -> Double? {
-        guard stateStore.autoplayState == .playing, autoplayTask != nil else { return nil }
-        guard let baseTick = stateStore.autoplayTimingBaseTick else { return nil }
-
-        let schedule = ensureNotationGuideScrollSchedule(baseTick: baseTick)
-        let fallbackTick = Double(currentHighlightGuide?.tick ?? baseTick)
-        guard schedule.isEmpty == false else { return fallbackTick }
-
-        let nowSeconds = playbackPositionSeconds
-        guard nowSeconds.isFinite else { return fallbackTick }
-
-        if nowSeconds <= schedule[0].timeSeconds {
-            return Double(schedule[0].tick)
-        }
-        if let last = schedule.last, nowSeconds >= last.timeSeconds {
-            return Double(last.tick)
-        }
-
-        var low = 0
-        var high = schedule.count - 1
-        var best = 0
-        while low <= high {
-            let mid = (low + high) / 2
-            if schedule[mid].timeSeconds <= nowSeconds {
-                best = mid
-                low = mid + 1
-            } else {
-                high = mid - 1
-            }
-        }
-
-        let currentIndex = min(best, schedule.count - 1)
-        let nextIndex = min(currentIndex + 1, schedule.count - 1)
-        guard currentIndex != nextIndex else { return Double(schedule[currentIndex].tick) }
-
-        let currentPoint = schedule[currentIndex]
-        let nextPoint = schedule[nextIndex]
-        let duration = max(0.000_1, nextPoint.timeSeconds - currentPoint.timeSeconds)
-        let fraction = max(0, min(1, (nowSeconds - currentPoint.timeSeconds) / duration))
-        return Double(currentPoint.tick) + Double(nextPoint.tick - currentPoint.tick) * fraction
+        stateStore.autoplayNotationTick = nil
     }
 
     private var currentStep: PracticeStep? {
@@ -479,6 +449,7 @@ final class PracticePlaybackControlService {
             await pendingResetTask?.value
             try await sequencerPlaybackService.warmUp()
         } catch {
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：音频服务初始化失败。")
             return
@@ -503,6 +474,7 @@ final class PracticePlaybackControlService {
                 leadInSeconds: leadInSeconds
             )
         } catch {
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")
             return
@@ -526,8 +498,11 @@ final class PracticePlaybackControlService {
 
         do {
             try await sequencerPlaybackService.load(sequence: sequence)
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             try await sequencerPlaybackService.setPlaybackRate(autoplayPlaybackRate)
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             try await sequencerPlaybackService.play(fromSeconds: 0)
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             requiresResetBeforeLoad = true
             autoplayTimeSchedule = timeSchedule
             autoplayContactTimeline = contactTimeline
@@ -535,6 +510,7 @@ final class PracticePlaybackControlService {
             onPianoDemonstrationContactTimelineChange?(generation, contactTimeline)
             recordPlaybackPosition(0)
         } catch {
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
             stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放服务启动失败。")
             return
@@ -562,20 +538,27 @@ final class PracticePlaybackControlService {
             }
 
             let nowSeconds = await sequencerPlaybackService.currentSeconds()
+            guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
+            if isAutoplayPaused { continue }
             recordPlaybackPosition(nowSeconds)
 
             if let isDown = pedalCursor.advance(toSeconds: nowSeconds) {
                 stateStore.isSustainPedalDown = isDown
             }
 
-            for event in cursor.advance(toSeconds: nowSeconds) {
-                switch event {
+            let cursorEvents = cursor.advance(toSeconds: nowSeconds)
+            for scheduled in cursorEvents {
+                switch scheduled.event {
                 case let .step(index):
                     advanceAutoplayStep(to: index)
                 case let .guide(index, _):
                     stateStore.currentHighlightGuideIndex = index
+                case .position:
+                    break
                 }
             }
+
+            if let final = cursorEvents.last { stateStore.autoplayNotationTick = final.tick }
 
             if nowSeconds >= sequenceEndSeconds, pedalCursor.isFinished, cursor.isFinished {
                 break
@@ -611,35 +594,7 @@ final class PracticePlaybackControlService {
         effectHandler?.handle(effect: .refreshAudioRecognition)
     }
 
-    private func ensureNotationGuideScrollSchedule(baseTick: Int) -> [PracticeSessionNotationGuideScrollPoint] {
-        if stateStore.notationGuideScrollScheduleTaskGeneration == autoplayTaskGeneration,
-           stateStore.notationGuideScrollScheduleBaseTick == baseTick,
-           stateStore.notationGuideScrollScheduleTimelineEventCount == stateStore.autoplayTimeline.events.count
-        {
-            return stateStore.notationGuideScrollSchedule
-        }
 
-        let schedule = autoplayTimeSchedule ?? AutoplayTimelineTimeSchedule(
-            timeline: stateStore.autoplayTimeline,
-            tickToSeconds: { stateStore.tempoMap.timeSeconds(atTick: $0) },
-            startTick: baseTick,
-            leadInSeconds: leadInSeconds
-        )
-        let points: [PracticeSessionNotationGuideScrollPoint] = schedule.scheduledCursorEvents.compactMap {
-            scheduledEvent -> PracticeSessionNotationGuideScrollPoint? in
-            guard case .guide(_, _) = scheduledEvent.event else { return nil }
-            return PracticeSessionNotationGuideScrollPoint(
-                timeSeconds: scheduledEvent.timeSeconds,
-                tick: scheduledEvent.tick
-            )
-        }
-
-        stateStore.notationGuideScrollSchedule = points
-        stateStore.notationGuideScrollScheduleBaseTick = baseTick
-        stateStore.notationGuideScrollScheduleTaskGeneration = autoplayTaskGeneration
-        stateStore.notationGuideScrollScheduleTimelineEventCount = stateStore.autoplayTimeline.events.count
-        return points
-    }
 }
 
 private struct AutoplayTimelinePedalTimeCursor: Equatable {

@@ -23,7 +23,7 @@ func everyStandardMusicXMLNoteTypeFlowsFromParserToNotationLayout() throws {
     )
     let layout = try makeNotationSystemFixture(
         projection: projection,
-        viewportWidthStaffSpaces: 10_000
+        sliceWidthStaffSpaces: 10_000
     )
 
     #expect(projection.fallbacks.isEmpty)

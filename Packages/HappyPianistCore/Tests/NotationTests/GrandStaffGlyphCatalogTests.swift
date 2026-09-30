@@ -141,7 +141,7 @@ func engravingMetricsStayInStaffSpaceUnits() {
 }
 
 @Test
-func rhythmicGlyphsExposeStemEligibilityAndViewportBounds() {
+func rhythmicGlyphsExposeStemEligibilityAndSystemBounds() {
     #expect(MusicXMLNoteType.maxima.grandStaffHasStem == false)
     #expect(MusicXMLNoteType.long.grandStaffHasStem == false)
     #expect(MusicXMLNoteType.breve.grandStaffHasStem == false)
@@ -150,15 +150,10 @@ func rhythmicGlyphsExposeStemEligibilityAndViewportBounds() {
     #expect(MusicXMLNoteType.oneThousandTwentyFourth.grandStaffHasStem)
 
     let metrics = GrandStaffEngravingMetrics()
-    let layout = GrandStaffNotationViewportLayoutService().makeLayout(
-        size: CGSize(width: 800, height: 220),
-        lineSpacing: 14,
-        items: [],
-        context: nil
-    )
+    let layout = makeNotationCanvasFixture()
     #expect(abs(layout.noteWidth - 14 * metrics.noteheadViewportBounds.width) < 0.0001)
     #expect(abs(layout.noteHeight - 14 * metrics.noteheadViewportBounds.height) < 0.0001)
     #expect(abs(layout.smuflFontSize - 14 * metrics.smuflEmSize) < 0.0001)
     #expect(abs(layout.noteheadColumnWidth - 14 * metrics.noteheadColumnWidth) < 0.0001)
-    #expect(layout.requiredHeight > layout.bassBottomLineY + layout.canvasYOffset)
+    #expect(layout.size.height > layout.bassBottomLineY)
 }

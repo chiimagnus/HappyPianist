@@ -62,6 +62,37 @@ private func visualGoldenLines() throws -> [String] {
 }
 
 @Test
+@MainActor
+func bookSpreadRendersMultipleSystemsWithReadableInkInEveryAppearance() throws {
+    try requireBundledBravura()
+    let score = try MusicXMLParser().parse(fileURL: testFixtureURL("NotationFidelityPiano.musicxml"))
+    let projection = ScoreNotationProjection(plan: makeTestScorePerformancePlan(from: score), sourceScore: score)
+    let timeline = MusicXMLAttributeTimeline(timeSignatureEvents: score.timeSignatureEvents, keySignatureEvents: score.keySignatureEvents, clefEvents: score.clefEvents)
+    let plan = try GrandStaffNotationPaginationService().makePlan(score: makeNotationScoreFixture(projection: projection, measureSpans: score.measures, attributeTimeline: timeline))
+    #expect(plan.pages.contains { $0.systems.count > 1 })
+    var normalHashes: [String] = []
+    for (index, appearance) in [(ColorScheme.light, DynamicTypeSize.large), (.dark, .large)].enumerated() {
+        let content = GrandStaffNotationSpreadView(plan: plan, targetIndex: 0)
+            .frame(width: 1180, height: 820)
+            .environment(\.colorScheme, appearance.0)
+            .environment(\.dynamicTypeSize, appearance.1)
+        let renderer = ImageRenderer(content: content)
+        let rendered = try #require(renderer.cgImage)
+        let bitmap = try #require(CGContext(data: nil, width: rendered.width, height: rendered.height, bitsPerComponent: 8, bytesPerRow: rendered.width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue))
+        bitmap.draw(rendered, in: CGRect(x: 0, y: 0, width: rendered.width, height: rendered.height))
+        let snapshot = try #require(normalizedSnapshot(name: "spread-\(index)", bitmap: bitmap, width: rendered.width, height: rendered.height))
+        #expect(snapshot.width == 1180)
+        #expect(snapshot.height == 820)
+        #expect(snapshot.sampledInkPixelCount > 100)
+        let page = try #require(rendered.cropping(to: CGRect(x: 0, y: 2, width: 578, height: 812)))
+        let pagePixels = try #require(page.dataProvider?.data)
+        normalHashes.append(SHA256.hash(data: pagePixels as Data).description)
+    }
+    #expect(normalHashes.count == 2)
+    #expect(normalHashes[0] == normalHashes[1])
+}
+
+@Test
 func grandStaffNotationAccessibilityDescribesMeasureNotation() throws {
     let model = try visualNotationModel()
     let layout = try makeNotationSystemFixture(
@@ -69,8 +100,8 @@ func grandStaffNotationAccessibilityDescribesMeasureNotation() throws {
         overlay: model.overlay,
         measureSpans: model.score.measures,
         context: model.context,
-        viewportWidthStaffSpaces: 52,
-        scrollTick: 960
+        sliceWidthStaffSpaces: 52,
+        sliceCenterTick: 960
     )
     let descriptor = GrandStaffNotationAccessibilityDescriptor.make(
         projection: model.projection,
@@ -114,16 +145,11 @@ private func visualSnapshot(
     differentiateWithoutColor: Bool
 ) throws -> VisualSnapshot {
     try requireBundledBravura()
-    let viewport = CGSize(width: 800, height: 320)
-    let presentation = GrandStaffNotationPresentationViewModel().makePresentation(
-        size: viewport,
-        lineSpacing: dynamicTypeSize.isAccessibilitySize ? 22 : 14,
-        score: try makeNotationScoreFixture(projection: model.projection, measureSpans: model.score.measures),
-        overlay: model.overlay,
-        context: model.context,
-        practiceHandMode: .both,
-        scrollTick: 960
-    )
+    let timeline = MusicXMLAttributeTimeline(timeSignatureEvents: model.score.timeSignatureEvents, keySignatureEvents: model.score.keySignatureEvents, clefEvents: model.score.clefEvents)
+    let plan = try GrandStaffNotationPaginationService().makePlan(score: makeNotationScoreFixture(projection: model.projection, measureSpans: model.score.measures, attributeTimeline: timeline))
+    let system = try #require(plan.pages.first?.systems.first)
+    let presentation = GrandStaffNotationPresentationViewModel().makePresentation(system: system, staffSpace: dynamicTypeSize.isAccessibilitySize ? 22 : 14, projection: model.projection, overlay: model.overlay, practiceHandMode: .both)
+    let viewport = presentation.canvasLayout.size
     let content = Canvas { context, _ in
         GrandStaffNotationRenderer().draw(
             presentation: presentation,
@@ -277,6 +303,6 @@ private func visualNotationModel() throws -> VisualNotationModel {
             activeEventIDs: [highlightedUpper.id, highlightedLower.id],
             activeTickRange: nil
         ),
-        context: GrandStaffNotationContext(keySignatureFifths: 1, timeSignatureText: "4/4")
+        context: GrandStaffNotationContext(treble: .init(clefSign: "G", clefLine: 2, fifths: 1, meter: "4/4"), bass: .init(clefSign: "F", clefLine: 4, fifths: 1, meter: "4/4"))
     )
 }

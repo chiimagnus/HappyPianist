@@ -23,6 +23,7 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
         case noteOn(midi: Int, velocity: UInt8)
         case advanceStep(index: Int)
         case advanceGuide(index: Int, guideID: Int)
+        case advancePosition
     }
 
     public struct Event: Equatable, Identifiable, Sendable {
@@ -78,6 +79,7 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
         let practiceHandMode: PracticeHandMode
         let activeRange: ActiveRangeSnapshot?
         let transportStartTick: Int?
+        let measureBoundaryTicks: [Int]
     }
 
     public static let empty = AutoplayPerformanceTimeline(events: [])
@@ -117,7 +119,8 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
         tempoMap: MusicXMLTempoMap,
         practiceHandMode: PracticeHandMode,
         activeRange: PracticeActiveRange? = nil,
-        transportStartTick: Int? = nil
+        transportStartTick: Int? = nil,
+        measureBoundaryTicks: [Int] = []
     ) -> AutoplayPerformanceTimeline {
         build(input: makeBuildInput(
             plan: plan,
@@ -126,7 +129,8 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
             tempoMap: tempoMap,
             practiceHandMode: practiceHandMode,
             activeRange: activeRange,
-            transportStartTick: transportStartTick
+            transportStartTick: transportStartTick,
+            measureBoundaryTicks: measureBoundaryTicks
         ))
     }
 
@@ -138,7 +142,8 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
         tempoMap: MusicXMLTempoMap,
         practiceHandMode: PracticeHandMode,
         activeRange: PracticeActiveRange? = nil,
-        transportStartTick: Int? = nil
+        transportStartTick: Int? = nil,
+        measureBoundaryTicks: [Int] = []
     ) async -> AutoplayPerformanceTimeline {
         let input = makeBuildInput(
             plan: plan,
@@ -147,7 +152,8 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
             tempoMap: tempoMap,
             practiceHandMode: practiceHandMode,
             activeRange: activeRange,
-            transportStartTick: transportStartTick
+            transportStartTick: transportStartTick,
+            measureBoundaryTicks: measureBoundaryTicks
         )
         let task = Task.detached(priority: .userInitiated) {
             build(input: input)
@@ -166,7 +172,8 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
         tempoMap: MusicXMLTempoMap,
         practiceHandMode: PracticeHandMode,
         activeRange: PracticeActiveRange?,
-        transportStartTick: Int?
+        transportStartTick: Int?,
+        measureBoundaryTicks: [Int]
     ) -> BuildInput {
         BuildInput(
             plan: plan,
@@ -181,7 +188,8 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
             activeRange: activeRange.map {
                 ActiveRangeSnapshot(stepRange: $0.stepRange, tickRange: $0.tickRange)
             },
-            transportStartTick: transportStartTick
+            transportStartTick: transportStartTick,
+            measureBoundaryTicks: measureBoundaryTicks
         )
     }
 
@@ -222,6 +230,11 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
         }
 
         let stateStartTick = transportStartTick ?? activeRange?.tickRange.lowerBound
+        for tick in Set(input.measureBoundaryTicks).sorted()
+            where (stateStartTick.map { tick >= $0 } ?? true)
+                && (activeRange.map { $0.tickRange.lowerBound <= tick && tick <= $0.tickRange.upperBound } ?? true) {
+            rawEvents.append(.init(tick: tick, priority: 6, sourceEventID: nil, kind: .advancePosition))
+        }
         let rangeStartState = stateStartTick.map {
             PerformanceRangeStateResolver().resolve(
                 plan: plan,

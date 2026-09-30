@@ -5,7 +5,8 @@ import Practice
 
 func makeNotationScoreFixture(
     projection: ScoreNotationProjection,
-    measureSpans: [MusicXMLMeasureSpan] = []
+    measureSpans: [MusicXMLMeasureSpan] = [],
+    attributeTimeline: MusicXMLAttributeTimeline? = nil
 ) throws -> GrandStaffNotationScoreLayout {
     let partIDs = Set(projection.sourceNotes.map { $0.id.partID }).union(measureSpans.map(\.partID)).sorted()
     let structuralPartID = measureSpans.first?.partID ?? partIDs.first ?? "P1"
@@ -18,7 +19,7 @@ func makeNotationScoreFixture(
     )
     return try GrandStaffNotationScoreLayoutService().makeLayout(input: GrandStaffNotationScoreInput(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "notation-fixture"),
-        projection: projection, measureSpans: measureSpans, facts: facts, attributeTimeline: nil
+        projection: projection, measureSpans: measureSpans, facts: facts, attributeTimeline: attributeTimeline
     ))
 }
 
@@ -27,14 +28,14 @@ func makeNotationSystemFixture(
     overlay: ScoreNotationProjection.Overlay = .empty,
     measureSpans: [MusicXMLMeasureSpan] = [],
     context: GrandStaffNotationContext? = nil,
-    viewportWidthStaffSpaces: Double = 36,
-    scrollTick: Double? = nil
+    sliceWidthStaffSpaces: Double = 36,
+    sliceCenterTick: Double? = nil
 ) throws -> GrandStaffNotationLayout {
     let score = try makeNotationScoreFixture(projection: projection, measureSpans: measureSpans)
-    let center = score.spacing.position(at: scrollTick ?? Double(projection.performedOccurrences.first?.writtenOnTick ?? 0))
+    let center = score.spacing.position(at: sliceCenterTick ?? Double(projection.performedOccurrences.first?.writtenOnTick ?? 0))
     return GrandStaffNotationSystemLayoutService().makeLayout(
         score: score,
-        xRange: (center - viewportWidthStaffSpaces / 2)...(center + viewportWidthStaffSpaces / 2),
-        overscan: 0.18, context: context, overlay: overlay
+        xRange: (center - sliceWidthStaffSpaces / 2)...(center + sliceWidthStaffSpaces / 2),
+        context: context, overlay: overlay
     )
 }

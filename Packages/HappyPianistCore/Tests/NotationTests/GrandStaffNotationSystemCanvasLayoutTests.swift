@@ -5,9 +5,7 @@ import CoreGraphics
 import Testing
 
 @Test
-func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
-    let size = CGSize(width: 800, height: 180)
-
+func systemCanvasKeepsExtremeNotesWithinInkBounds() {
     func makeItem(id: String, staffNumber: Int, staffStep: Int, xPosition: Double) -> GrandStaffNotationItem {
         GrandStaffNotationItem(
             occurrenceID: id,
@@ -43,44 +41,27 @@ func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
         makeItem(id: "bass-low", staffNumber: 2, staffStep: -18, xPosition: 0.5),
     ]
 
-    let layout = GrandStaffNotationViewportLayoutService().makeLayout(
-        size: size,
+    let layout = makeNotationCanvasFixture(
         items: items,
         context: GrandStaffNotationContext()
     )
 
-    #expect(layout.lineSpacing >= 8)
+    #expect(layout.lineSpacing == 14)
 
     for item in items {
         let y = layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
         #expect(y >= layout.noteHeight / 2)
-        #expect(y <= layout.requiredHeight - layout.noteHeight / 2)
+        #expect(y <= layout.size.height - layout.noteHeight / 2)
     }
 }
 
 @Test
-func viewportLayoutUsesClefLineWhenProvided() {
-    let size = CGSize(width: 760, height: 190)
-
-    let context = GrandStaffNotationContext(
-        trebleClefSymbol: "𝄞",
-        bassClefSymbol: "𝄢",
-        trebleClefSignToken: "G",
-        trebleClefLine: 2,
-        bassClefSignToken: "F",
-        bassClefLine: 4
-    )
-
-    let layout = GrandStaffNotationViewportLayoutService().makeLayout(
-        size: size,
-        items: [],
-        context: context
-    )
-
-    let trebleLine2Y = layout.yPosition(staffStep: 2, staffNumber: 1)
-    let bassLine4Y = layout.yPosition(staffStep: 6, staffNumber: 2)
-    #expect(abs(layout.trebleClefY - trebleLine2Y) < 0.0001)
-    #expect(abs(layout.bassClefY - bassLine4Y) < 0.0001)
+func systemCanvasUsesHeaderClefLine() throws {
+    let layout = makeNotationCanvasFixture(context: .init())
+    let treble = try #require(layout.header.glyphs.first { $0.token == .gClef })
+    let bass = try #require(layout.header.glyphs.first { $0.token == .fClef })
+    #expect(abs(layout.trebleBottomLineY + treble.point.y * layout.lineSpacing - layout.yPosition(staffStep: 2, staffNumber: 1)) < 0.0001)
+    #expect(abs(layout.trebleBottomLineY + bass.point.y * layout.lineSpacing - layout.yPosition(staffStep: 6, staffNumber: 2)) < 0.0001)
 }
 
 @Test
@@ -110,12 +91,10 @@ func crossStaffChordAndBeamKeepSourceIdentityInsteadOfHandRouting() throws {
     #expect(Set(notation.items.map(\.staffNumber)) == [1, 2])
     #expect(Set(notation.items.map(\.hand)) == [.left, .right])
 
-    let viewport = GrandStaffNotationViewportLayoutService().makeLayout(
-        size: CGSize(width: 800, height: 220),
+    let viewport = makeNotationCanvasFixture(
         items: notation.items,
         chords: notation.chords,
-        beams: notation.beams,
-        context: nil
+        beams: notation.beams
     )
     let upperStaffItem = try #require(notation.items.first { $0.staffNumber == 1 })
     let lowerStaffItem = try #require(notation.items.first { $0.staffNumber == 2 })
@@ -143,8 +122,8 @@ func repeatedPerformedOccurrencesKeepGeometryAndHighlightOnlyTheActiveOccurrence
             activeEventIDs: [repeatedEvent.id],
             activeTickRange: 900 ..< 1440
         ),
-        viewportWidthStaffSpaces: 12,
-        scrollTick: 960
+        sliceWidthStaffSpaces: 12,
+        sliceCenterTick: 960
     )
     let note = try #require(layout.items.first { $0.occurrenceID.hasSuffix("@1") })
     let rest = try #require(layout.rests.first { $0.id.hasSuffix("@1") })
@@ -168,8 +147,8 @@ func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() throws {
     )
     let layout = try makeNotationSystemFixture(
         projection: projection,
-        viewportWidthStaffSpaces: 60,
-        scrollTick: 480
+        sliceWidthStaffSpaces: 60,
+        sliceCenterTick: 480
     )
 
     #expect(projection.sourceNotes.count == 2)

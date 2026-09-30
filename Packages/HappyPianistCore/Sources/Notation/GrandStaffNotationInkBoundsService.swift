@@ -52,7 +52,7 @@ struct GrandStaffNotationInkBoundsService {
                 y: y(item.staffStep, item.staffNumber)
             )
         }
-        let itemsByID = Dictionary(uniqueKeysWithValues: notation.items.map { ($0.id, $0) })
+        let itemsByID = notation.spannerAnchors.merging(Dictionary(uniqueKeysWithValues: notation.items.map { ($0.id, $0) })) { _, local in local }
         let itemsByChord = Dictionary(grouping: notation.items, by: { $0.chordID ?? "" })
         let chordsByID = Dictionary(uniqueKeysWithValues: notation.chords.map { ($0.id, $0) })
         let beamed = Set(notation.beams.flatMap(\.chordIDs))
@@ -131,7 +131,7 @@ struct GrandStaffNotationInkBoundsService {
                 return CGPoint(x: x, y: y(above ? 8 : 0, staff))
             }
             let point = center(item)
-            return CGPoint(x: point.x, y: point.y + (above ? -0.45 : 0.45))
+            return CGPoint(x: x + item.noteheadXOffset * metrics.noteheadColumnWidth, y: point.y + (above ? -0.45 : 0.45))
         }
         func curve(_ id: String, _ startID: String?, _ endID: String?, _ startX: Double, _ endX: Double,
                    _ staff: Int, _ above: Bool, _ height: Double) {
@@ -187,7 +187,7 @@ struct GrandStaffNotationInkBoundsService {
                 add(mark.id, CGRect(x: mark.xPosition - 0.8, y: -4, width: 1.6, height: staffDistance + 4))
                 if let value = mark.text { text(mark.id, value, CGPoint(x: mark.xPosition, y: -5.3), size: 0.92) }
             case .endingStart:
-                let end = endings.first { $0.xPosition > mark.xPosition && ($0.kind == .endingStop || $0.kind == .endingDiscontinue) }?.xPosition
+                let end = endings.first { $0.staffNumber == mark.staffNumber && $0.xPosition > mark.xPosition && ($0.kind == .endingStop || $0.kind == .endingDiscontinue) }?.xPosition
                     ?? notation.barlines.map(\.xPosition).max() ?? mark.xPosition
                 let top = -8.5 - level
                 line(mark.id, CGPoint(x: mark.xPosition, y: top), CGPoint(x: end, y: top + 0.8), thickness: 0.1)
@@ -212,41 +212,14 @@ struct GrandStaffNotationInkBoundsService {
             }
         }
         for change in notation.attributeChanges {
-            var x = change.xPosition - 1
-            if let token = change.clefGlyphToken {
-                let defaultLine = token == .gClef ? 2 : token == .fClef ? 4 : 3
-                let step = (min(5, max(1, change.clefLine ?? defaultLine)) - 1) * 2
-                glyph(change.id, token, CGPoint(x: x, y: y(step, change.staffNumber)), scale: 0.78)
-                x += 1.7
-            }
-            if let fifths = change.keySignatureFifths {
-                let previous = change.previousKeySignatureFifths ?? 0
-                let counts = previous != 0 && previous != fifths ? [previous, fifths] : [fifths]
-                for count in counts {
-                    let token: GrandStaffGlyphToken = count == fifths
-                        ? (count > 0 ? .accidentalSharp : .accidentalFlat) : .accidentalNatural
-                    let positions: [Int] = change.staffNumber == 2
-                        ? (count > 0 ? [6, 3, 7, 4, 8, 5, 9] : [2, 5, 1, 4, 0, 3, -1])
-                        : (count > 0 ? [8, 5, 2, 6, 3, 7, 4] : [4, 7, 3, 6, 2, 5, 8])
-                    for step in positions.prefix(min(7, abs(count))) {
-                        let point = CGPoint(x: x, y: y(step, change.staffNumber))
-                        glyph(change.id, token, point, scale: 0.82)
-                        add(change.id, CGRect(x: x - 1, y: point.y - 2, width: 2, height: 4))
-                        x += 0.78
-                    }
-                    x += count == fifths ? 0.4 : 0.3
-                }
-            }
-            if let meter = change.timeSignatureText {
-                let width = Double(meter.split(separator: "/").map(\.count).max() ?? meter.count) * 1.8
-                add(change.id, CGRect(x: x, y: y(4, change.staffNumber) - 1.9, width: width, height: 3.8))
-            }
+            let signature = GrandStaffNotationSignatureLayout.inline(change, notation: notation, musicWidth: 1)
+            if !signature.bounds.isNull { add(change.id, signature.bounds) }
         }
         let minX = notation.barlines.map(\.xPosition).min() ?? 0
         let maxX = notation.barlines.map(\.xPosition).max() ?? minX
         let staffBounds = CGRect(x: minX, y: -4.065, width: maxX - minX, height: staffDistance + 4.13)
         return GrandStaffNotationInkLayout(
-            bounds: rectangles.values.reduce(staffBounds) { $0.union($1) }, boundsByElementID: rectangles
+            bounds: rectangles.values.reduce(staffBounds) { $0.union($1) }.insetBy(dx: -0.05, dy: -0.05), boundsByElementID: rectangles
         )
     }
 

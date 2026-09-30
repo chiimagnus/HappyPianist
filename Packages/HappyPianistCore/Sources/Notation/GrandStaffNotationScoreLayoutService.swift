@@ -108,9 +108,9 @@ struct GrandStaffNotationScoreLayoutService {
         let projection = input.projection
         guard input.facts.logicalInstrument.memberPartIDs.contains(input.facts.structuralPartID),
               input.measureSpans.allSatisfy({ $0.partID == input.facts.structuralPartID && $0.startTick < $0.endTick }),
-              projection.sourceNotes.allSatisfy({ input.facts.logicalInstrument.memberPartIDs.contains($0.id.partID) && (1...2).contains($0.staff) }),
+              projection.sourceNotes.allSatisfy({ input.facts.logicalInstrument.memberPartIDs.contains($0.id.partID) && (1...2).contains($0.staff) && (-7...7).contains($0.keySignature?.fifths ?? 0) && (1...5).contains($0.clef?.line ?? 2) }),
               projection.marks.allSatisfy({ $0.staff.map { (1...2).contains($0) } ?? true }),
-              projection.attributeChanges.allSatisfy({ (1...2).contains($0.staff) })
+              projection.attributeChanges.allSatisfy({ (1...2).contains($0.staff) && (-7...7).contains($0.keySignatureFifths ?? 0) && (-7...7).contains($0.previousKeySignatureFifths ?? 0) && (1...5).contains($0.clef?.line ?? 2) })
         else { throw ScoreLayoutError.inconsistentSourceFacts }
         let sourceNotesByID = Dictionary(uniqueKeysWithValues: projection.sourceNotes.map { ($0.id, $0) })
         let occurrences = projection.performedOccurrences.compactMap { occurrence -> LayoutOccurrence? in
@@ -999,14 +999,12 @@ struct GrandStaffNotationScoreLayoutService {
     private func attributeRightExtentsByTick(
         _ changes: [ScoreNotationProjection.AttributeChange]
     ) -> [Int: Double] {
-        Dictionary(grouping: changes, by: \.tick).mapValues { changesAtTick in
-            changesAtTick.map { change in
-                let clefWidth = change.clef == nil ? 0 : 1.7
-                let cancellationWidth = Double(abs(change.previousKeySignatureFifths ?? 0)) * 0.78
-                let keyWidth = Double(abs(change.keySignatureFifths ?? 0)) * 0.78
-                let meterWidth = change.meterText == nil ? 0 : 1.8
-                return max(1.1, clefWidth + cancellationWidth + keyWidth + meterWidth + 0.8)
-            }.max() ?? 1.1
+        let attributes = changes.map { change in
+            GrandStaffNotationAttributeChange(id: change.id, tick: change.tick, xPosition: 0, staffNumber: change.staff, clefSignToken: change.clef?.signToken, clefLine: change.clef?.line, keySignatureFifths: change.keySignatureFifths, previousKeySignatureFifths: change.previousKeySignatureFifths, timeSignatureText: change.meterText)
+        }
+        let notation = GrandStaffNotationLayout(items: [], chords: [], rests: [], ties: [], slurs: [], tuplets: [], barlines: [], beams: [], ledgerLines: [], marks: [], attributeChanges: attributes, context: nil)
+        return Dictionary(grouping: attributes, by: \.tick).mapValues { atTick in
+            atTick.map { GrandStaffNotationSignatureLayout.inline($0, notation: notation, musicWidth: 1).width }.max() ?? 1.1
         }
     }
 

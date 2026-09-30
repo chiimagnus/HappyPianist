@@ -13,7 +13,7 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - MusicXML/MXL 在解析或解包前验证普通文件、archive 路径、条目数、大小和压缩比。每个普通 note/rest 必须有标准 `MusicXMLNoteType`；非 grace note 必须有显式 duration；整小节 rest 的例外由语义字段决定。
 - `PracticePreparationService` 先生成唯一的 `ScorePerformancePlan`，再单向投影 steps、琴键引导、notation、时间线和 sequence。没有 steps 或 measure spans 的结果是 typed failure，不存在 legacy/fallback 练习模式。
 - preparation 将正式 logical instrument / structural part 事实接到 runtime。Notation 接收完整 projection、小节结构、attribute timeline 与这些来源事实；projection 已映射到显示 staff，不再重复 normalizer。
-- Notation owner 在非主 Actor 异步构建唯一的 staff-space 绝对布局，保留完整边界、source beam provenance、spanner 与墨迹边界；换谱/关闭取消任务并拒绝迟到 generation。tick、hand、active range 和 overlay 只更新局部 slice/presentation，不重建全谱；范围外内容变淡但不删除。高亮、VoiceOver 和辅助显示不写入 progress。
+- Notation owner 在非主 Actor 异步构建唯一的 staff-space 绝对布局与 canonical PagePlan，保留完整边界、source beam provenance、spanner 与墨迹边界；换谱/关闭取消任务并拒绝迟到 generation。所有 occurrence（含空休止）唯一分配到 system/page/spread；分谱表上下文按正式 original part/staff 查询。首/末边界、source beam 连通组与 continuation 使用原始来源，完整墨迹决定二维 fit。tick、hand、active range 和 overlay 只更新局部 presentation，不重建全谱；范围外内容变淡但不删除。高亮、VoiceOver 和辅助显示不写入 progress。Practice 以完整 score 驱动双页，放大阅读纵向显示同一分页；离散导航复用唯一 transport 的 scheduled tick（包含小节边界），休止期间不插值、不优先旧 guide。
 
 曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策，Reduce Motion 保留中央强调但取消透视旋转。
 

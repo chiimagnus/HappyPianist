@@ -177,7 +177,7 @@ private func assertFullTimelineContract(_ performance: CorpusPerformance) throws
             ExpectedTimelineEvent(sourceEventID: event.sourceEventID, tick: event.tick, kind: .noteOn(midi: midi, velocity: velocity))
         case let .noteOff(midi):
             ExpectedTimelineEvent(sourceEventID: event.sourceEventID, tick: event.tick, kind: .noteOff(midi: midi))
-        case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide:
+        case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide, .advancePosition:
             nil
         }
     }

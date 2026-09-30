@@ -40,8 +40,8 @@ private func notationFidelityModel() throws -> NotationFidelityModel {
     let layout = try makeNotationSystemFixture(
         projection: projection,
         measureSpans: score.measures,
-        viewportWidthStaffSpaces: 240,
-        scrollTick: Double(endTick) / 2
+        sliceWidthStaffSpaces: 240,
+        sliceCenterTick: Double(endTick) / 2
     )
     return NotationFidelityModel(projection: projection, layout: layout)
 }

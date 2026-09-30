@@ -174,22 +174,22 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
     await waitUntil("initial autoplay load") {
         playbackService.loadedSequences.count == 1
             && playbackService.playStarts.count == 1
-            && viewModel.autoplayTimingBaseTick == 0
+            && viewModel.stateStore.autoplayNotationTick == 0
     }
 
-    #expect(viewModel.autoplayTimingBaseTick != nil)
+    #expect(viewModel.stateStore.autoplayNotationTick != nil)
 
     viewModel.skip()
     await waitUntil("replacement autoplay load after skip") {
         playbackService.loadedSequences.count == 2
             && playbackService.playStarts.count == 2
             && viewModel.currentStepIndex == 1
-            && viewModel.autoplayTimingBaseTick == 480
+            && viewModel.stateStore.autoplayNotationTick == 480
     }
     await settleTaskQueue()
 
     #expect(viewModel.autoplayState == .playing)
-    #expect(viewModel.autoplayTimingBaseTick == 480)
+    #expect(viewModel.stateStore.autoplayNotationTick == 480)
     viewModel.shutdown()
 }
 
@@ -411,11 +411,11 @@ func skipAdvancesAndCompletesInStepsOnlyMode() {
     viewModel.skip()
     #expect(viewModel.currentStepIndex == 1)
     #expect(viewModel.state == .guiding(stepIndex: 1))
-    #expect(viewModel.notationViewportTick() == 1)
+    #expect(viewModel.notationNavigationTick() == 1)
 
     viewModel.skip()
     #expect(viewModel.state == .completed)
-    #expect(viewModel.notationViewportTick() == 1)
+    #expect(viewModel.notationNavigationTick() == 1)
 }
 
 @Test
@@ -1122,7 +1122,7 @@ func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
     await settleTaskQueue()
 
     #expect(viewModel.currentPianoHighlightGuide?.kind == .release)
-    #expect(viewModel.notationViewportTick() == 480)
+    #expect(viewModel.notationNavigationTick() == 480)
     #expect(await sleeper.callCount() == 1)
 
     await sleeper.resumeOldestPending()
@@ -1206,9 +1206,9 @@ func autoplayAdvancesHighlightGuidesByTick() {
         startTick: 0
     )
 
-    #expect(cursor.advance(toSeconds: 0).contains(.guide(index: 0, guideID: 1)))
+    #expect(cursor.advance(toSeconds: 0).map(\.event).contains(.guide(index: 0, guideID: 1)))
     #expect(cursor.advance(toSeconds: 0.124) == [])
-    #expect(cursor.advance(toSeconds: 0.125).contains(.guide(index: 1, guideID: 2)))
+    #expect(cursor.advance(toSeconds: 0.125).map(\.event).contains(.guide(index: 1, guideID: 2)))
 }
 
 @Test

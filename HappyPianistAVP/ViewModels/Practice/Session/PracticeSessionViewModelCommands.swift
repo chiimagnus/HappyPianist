@@ -23,11 +23,6 @@ extension PracticeSessionViewModel {
         return self.highlightGuides[currentHighlightGuideIndex]
     }
 
-    var notationMeasureSpans: [MusicXMLMeasureSpan] {
-        guard self.stateStore.isActiveRangeInvalid == false else { return [] }
-        return self.activeRange?.measureSpans ?? self.measureSpans
-    }
-
     var activeNotationOverlay: ScoreNotationProjection.Overlay {
         guard self.stateStore.isActiveRangeInvalid == false else { return .empty }
         let activeOccurrenceIDs = Set(
@@ -41,66 +36,6 @@ extension PracticeSessionViewModel {
             activeEventIDs: activeEventIDs,
             activeTickRange: self.activeRange?.tickRange
         )
-    }
-
-    var currentGrandStaffNotationContext: GrandStaffNotationContext? {
-        guard let attributeTimeline = self.attributeTimeline else { return nil }
-
-        let tick = self.currentPianoHighlightGuide?.tick ?? self.currentStep?.tick ?? 0
-
-        let trebleClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 1)
-        let trebleClef = trebleClefEvent.flatMap { Self.notationClefSymbol(for: $0) }
-            ?? GrandStaffGlyphToken.gClef.glyph
-        let trebleClefSignToken = trebleClefEvent?.signToken
-        let trebleClefLine = trebleClefEvent?.line
-
-        let bassClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 2)
-        let bassClef = bassClefEvent.flatMap { Self.notationClefSymbol(for: $0) }
-            ?? GrandStaffGlyphToken.fClef.glyph
-        let bassClefSignToken = bassClefEvent?.signToken
-        let bassClefLine = bassClefEvent?.line
-
-        let keySignatureEvent = attributeTimeline.keySignature(atTick: tick)
-        let keySignatureText = keySignatureEvent
-            .flatMap { Self.notationKeySignatureText(fifths: $0.fifths) }
-        let keySignatureFifths = keySignatureEvent?.fifths
-        let timeSignatureText = attributeTimeline.meter(atTick: tick)?.displayText
-
-        return GrandStaffNotationContext(
-            trebleClefSymbol: trebleClef,
-            bassClefSymbol: bassClef,
-            trebleClefSignToken: trebleClefSignToken,
-            trebleClefLine: trebleClefLine,
-            bassClefSignToken: bassClefSignToken,
-            bassClefLine: bassClefLine,
-            keySignatureText: keySignatureText,
-            keySignatureFifths: keySignatureFifths,
-            timeSignatureText: timeSignatureText
-        )
-    }
-
-    private static func notationClefSymbol(for event: MusicXMLClefEvent) -> String? {
-        guard let sign = event.signToken, sign.isEmpty == false else { return nil }
-        switch sign.uppercased() {
-        case "G":
-            return GrandStaffGlyphToken.gClef.glyph
-        case "F":
-            return GrandStaffGlyphToken.fClef.glyph
-        case "C":
-            return GrandStaffGlyphToken.cClef.glyph
-        default:
-            return nil
-        }
-    }
-
-    private static func notationKeySignatureText(fifths: Int) -> String? {
-        if fifths == 0 {
-            return nil
-        }
-        if fifths > 0 {
-            return String(repeating: GrandStaffGlyphToken.accidentalSharp.glyph, count: min(fifths, 7))
-        }
-        return String(repeating: GrandStaffGlyphToken.accidentalFlat.glyph, count: min(abs(fifths), 7))
     }
 
     var manualAdvanceMode: ManualAdvanceMode {
@@ -776,11 +711,7 @@ extension PracticeSessionViewModel {
         self.currentStepIndex = 0
         self.state = .idle
         self.autoplayTimeline = .empty
-        self.autoplayTimingBaseTick = nil
-        self.notationGuideScrollSchedule = []
-        self.notationGuideScrollScheduleBaseTick = 0
-        self.notationGuideScrollScheduleTaskGeneration = -1
-        self.notationGuideScrollScheduleTimelineEventCount = 0
+        self.stateStore.autoplayNotationTick = nil
 
         handPianoActivityGate.reset()
         self.handGateState = HandGateState(

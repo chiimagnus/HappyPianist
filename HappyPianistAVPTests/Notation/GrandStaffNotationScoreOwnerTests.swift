@@ -8,20 +8,19 @@ import Testing
 
 @Test
 @MainActor
-func notationOwnerBuildsOnceAcrossOverlayRangeHandTickAndViewportChanges() async throws {
+func notationOwnerBuildsOnceAcrossOverlayRangeHandTickAndHostChanges() async throws {
     let input = try notationOwnerFixture(revision: "stable").input
-    let owner = GrandStaffNotationScoreViewModel()
+    let owner = GrandStaffNotationPageViewModel()
     await owner.load(input)
     let score = try #require(owner.score)
     let original = score.notation
     for hand in [PracticeHandMode.both, .left, .right] {
         for tick in [0.0, 480.0] {
+            let plan = try #require(owner.plan)
+            let system = try #require(plan.pages.first?.systems.first)
             let presentation = GrandStaffNotationPresentationViewModel().makePresentation(
-                size: CGSize(width: tick == 0 ? 800 : 1100, height: 350),
-                lineSpacing: hand == .both ? 14 : 22,
-                score: score,
-                overlay: ScoreNotationProjection.Overlay(activeEventIDs: [], activeTickRange: 0..<480),
-                context: GrandStaffNotationContext(), practiceHandMode: hand, scrollTick: tick
+                system: system, staffSpace: tick == 0 ? 11 : 15, projection: input.projection,
+                overlay: ScoreNotationProjection.Overlay(activeEventIDs: [], activeTickRange: 0..<480), practiceHandMode: hand
             )
             #expect(!presentation.notationLayout.rests.isEmpty)
             await owner.load(input)
@@ -40,7 +39,7 @@ func notationOwnerRejectsLateScoreAndCloseCompletion() async throws {
     let scoreB = try notationOwnerFixture(revision: "b")
     let scoreC = try notationOwnerFixture(revision: "c")
     let builder = ControlledNotationScoreBuilder()
-    let owner = GrandStaffNotationScoreViewModel(build: { try await builder.build($0) })
+    let owner = GrandStaffNotationPageViewModel(build: { try await builder.build($0) })
     let first = Task { await owner.load(scoreA.input) }
     await TestAsyncWait.until("first notation build") { await builder.hasStarted("a") }
     let second = Task { await owner.load(scoreB.input) }
@@ -66,7 +65,7 @@ func notationOwnerRejectsLateScoreAndCloseCompletion() async throws {
 func notationOwnerCancellationDoesNotPublishAndFormalFactsChangeRebuilds() async throws {
     let score = try notationOwnerFixture(revision: "original")
     let builder = ControlledNotationScoreBuilder()
-    let owner = GrandStaffNotationScoreViewModel(build: { try await builder.build($0) })
+    let owner = GrandStaffNotationPageViewModel(build: { try await builder.build($0) })
     let request = Task { await owner.load(score.input) }
     await TestAsyncWait.until("cancellable notation build") { await builder.hasStarted("original") }
     request.cancel()
@@ -74,7 +73,7 @@ func notationOwnerCancellationDoesNotPublishAndFormalFactsChangeRebuilds() async
     await request.value
     #expect(owner.score == nil)
 
-    let liveOwner = GrandStaffNotationScoreViewModel()
+    let liveOwner = GrandStaffNotationPageViewModel()
     await liveOwner.load(score.input)
     let instrument = MusicXMLLogicalInstrument(
         id: "changed-formal-instrument", memberPartIDs: ["P1"], classification: .piano, evidence: []
@@ -101,7 +100,7 @@ func notationTestPreparationProvidesMatchingFormalPartsAndClearsFacts() async th
         identity: try #require(session.songIdentity), projection: try #require(session.notationProjection),
         measureSpans: session.measureSpans, facts: facts, attributeTimeline: session.attributeTimeline
     )
-    let owner = GrandStaffNotationScoreViewModel()
+    let owner = GrandStaffNotationPageViewModel()
     await owner.load(input)
     #expect(owner.score != nil)
     #expect(owner.failureMessage == nil)

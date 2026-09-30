@@ -33,15 +33,14 @@ struct GrandStaffNotationRenderer {
         _ presentation: GrandStaffNotationPresentation,
         in context: GraphicsContext
     ) {
-        let layout = presentation.viewportLayout
+        let layout = presentation.canvasLayout
         let practiceHandMode = presentation.practiceHandMode
-        var translatedContext = context
-        translatedContext.translateBy(x: 0, y: alignedToPixel(layout.canvasYOffset))
+        let translatedContext = context
         drawGrandStaffLines(in: translatedContext, layout: layout)
         drawContext(in: translatedContext, layout: layout)
         drawBarlines(presentation.notationLayout.barlines, in: translatedContext, layout: layout)
         drawAttributeChanges(
-            presentation.notationLayout.attributeChanges,
+            presentation.notationLayout,
             in: translatedContext,
             layout: layout
         )
@@ -77,7 +76,7 @@ struct GrandStaffNotationRenderer {
             practiceHandMode: practiceHandMode,
             layout: layout
         )
-        let itemsByID = Dictionary(uniqueKeysWithValues: presentation.notationLayout.items.map { ($0.id, $0) })
+        let itemsByID = presentation.notationLayout.spannerAnchors.merging(Dictionary(uniqueKeysWithValues: presentation.notationLayout.items.map { ($0.id, $0) })) { _, local in local }
         drawCurves(
             ties: presentation.notationLayout.ties,
             slurs: presentation.notationLayout.slurs,
@@ -106,7 +105,7 @@ struct GrandStaffNotationRenderer {
 
     private func drawGrandStaffLines(
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         let lineColor = Color.primary.opacity(0.22)
         let stroke = StrokeStyle(lineWidth: strokeWidth(engravingMetrics.staffLineThickness, layout: layout))
@@ -125,248 +124,31 @@ struct GrandStaffNotationRenderer {
         drawStaff(topLineY: layout.bassTopLineY)
     }
 
-    private func drawContext(
-        in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
-    ) {
-        let staffSpan = layout.bassBottomLineY - layout.trebleTopLineY
-        drawGlyph(
-            .brace,
-            baselineAt: CGPoint(x: layout.contextMinX, y: layout.bassBottomLineY),
-            centeredOnAdvance: false,
-            scale: Double(staffSpan / layout.lineSpacing) / 3.988,
-            color: .primary,
-            opacity: 0.7,
-            in: context,
-            layout: layout
-        )
-        guard let staffContext = layout.context else { return }
+    private func drawContext(in context: GraphicsContext, layout: GrandStaffNotationSystemCanvasLayoutService.Layout) {
+        drawGlyph(.brace, baselineAt: CGPoint(x: 0, y: layout.bassBottomLineY), centeredOnAdvance: false, scale: 12 / 3.988, color: .primary, opacity: 0.7, in: context, layout: layout)
+        drawSignature(layout.header, in: context, layout: layout)
+    }
 
-        let trebleKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
-        let bassKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 2)
-        let trebleClefFont = Font.custom("Bravura", size: layout.trebleClefFontSize)
-        let bassClefFont = Font.custom("Bravura", size: layout.bassClefFontSize)
-        let keySignatureFont = Font.custom("Bravura", size: layout.keySignatureFontSize)
-        let timeSignatureFont = Font.custom("Bravura", size: layout.timeSignatureFontSize)
-
-        context.draw(
-            Text(staffContext.trebleClefSymbol).font(trebleClefFont),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.trebleClefY),
-            anchor: .leading
-        )
-        context.draw(
-            Text(staffContext.bassClefSymbol).font(bassClefFont),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.bassClefY),
-            anchor: .leading
-        )
-
-        let keyMinX = layout.contextMinX + layout.lineSpacing * 3.1
-        let timeMinXBase = layout.contextMinX + layout.lineSpacing * 5.8
-
-        if let fifths = staffContext.keySignatureFifths, fifths != 0 {
-            let keyAdvanceTreble = drawKeySignature(
-                fifths: fifths,
-                staffNumber: 1,
-                xStart: keyMinX,
-                font: keySignatureFont,
-                in: context,
-                layout: layout
-            )
-            _ = drawKeySignature(
-                fifths: fifths,
-                staffNumber: 2,
-                xStart: keyMinX,
-                font: keySignatureFont,
-                in: context,
-                layout: layout
-            )
-
-            let timeMinX = max(timeMinXBase, keyMinX + keyAdvanceTreble + layout.lineSpacing * 0.8)
-            drawTimeSignature(
-                text: staffContext.timeSignatureText,
-                xStart: timeMinX,
-                centerY: trebleKeyCenterY,
-                font: timeSignatureFont,
-                verticalOffset: layout.lineSpacing * 0.78,
-                in: context
-            )
-            drawTimeSignature(
-                text: staffContext.timeSignatureText,
-                xStart: timeMinX,
-                centerY: bassKeyCenterY,
-                font: timeSignatureFont,
-                verticalOffset: layout.lineSpacing * 0.78,
-                in: context
-            )
-        } else {
-            drawTimeSignature(
-                text: staffContext.timeSignatureText,
-                xStart: timeMinXBase,
-                centerY: trebleKeyCenterY,
-                font: timeSignatureFont,
-                verticalOffset: layout.lineSpacing * 0.78,
-                in: context
-            )
-            drawTimeSignature(
-                text: staffContext.timeSignatureText,
-                xStart: timeMinXBase,
-                centerY: bassKeyCenterY,
-                font: timeSignatureFont,
-                verticalOffset: layout.lineSpacing * 0.78,
-                in: context
-            )
+    private func drawSignature(_ signature: GrandStaffNotationSignatureLayout, in context: GraphicsContext, layout: GrandStaffNotationSystemCanvasLayoutService.Layout, musicRelative: Bool = false) {
+        for glyph in signature.glyphs {
+            drawGlyph(glyph.token, baselineAt: CGPoint(x: (musicRelative ? layout.contentMinX : 0) + glyph.point.x * layout.lineSpacing, y: layout.trebleBottomLineY + glyph.point.y * layout.lineSpacing), centeredOnAdvance: false, scale: glyph.scale, color: .primary, opacity: 0.8, in: context, layout: layout)
+        }
+        for label in signature.labels {
+            context.draw(Text(label.text).font(.system(size: label.size * layout.lineSpacing)), at: CGPoint(x: (musicRelative ? layout.contentMinX : 0) + label.point.x * layout.lineSpacing, y: layout.trebleBottomLineY + label.point.y * layout.lineSpacing), anchor: .leading)
         }
     }
 
-    private func drawKeySignature(
-        fifths: Int,
-        staffNumber: Int,
-        xStart: CGFloat,
-        font: Font,
-        glyphOverride: GrandStaffGlyphToken? = nil,
-        in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
-    ) -> CGFloat {
-        let clamped = max(-7, min(7, fifths))
-        guard clamped != 0 else { return 0 }
-
-        let stepsTrebleSharps: [Int] = [8, 5, 2, 6, 3, 7, 4]
-        let stepsTrebleFlats: [Int] = [4, 7, 3, 6, 2, 5, 8]
-        let stepsBassSharps: [Int] = [6, 3, 7, 4, 8, 5, 9]
-        let stepsBassFlats: [Int] = [2, 5, 1, 4, 0, 3, -1]
-
-        let isSharp = clamped > 0
-        let count = abs(clamped)
-        let glyph = (glyphOverride ?? (isSharp ? .accidentalSharp : .accidentalFlat)).glyph
-        let steps: [Int] = if staffNumber >= 2 {
-            isSharp ? stepsBassSharps : stepsBassFlats
-        } else {
-            isSharp ? stepsTrebleSharps : stepsTrebleFlats
-        }
-
-        let xStride = layout.lineSpacing * 0.78
-        for i in 0 ..< min(count, steps.count) {
-            let y = layout.yPosition(staffStep: steps[i], staffNumber: staffNumber)
-            context.draw(
-                Text(glyph).font(font),
-                at: CGPoint(x: xStart + CGFloat(i) * xStride, y: y),
-                anchor: .leading
-            )
-        }
-        return CGFloat(min(count, steps.count)) * xStride
-    }
-
-    private func drawTimeSignature(
-        text: String?,
-        xStart: CGFloat,
-        centerY: CGFloat,
-        font: Font,
-        verticalOffset: CGFloat,
-        in context: GraphicsContext
-    ) {
-        guard let text, text.isEmpty == false else { return }
-
-        let parts = text.split(separator: "/")
-        guard parts.count == 2, let top = Int(parts[0]), let bottom = Int(parts[1]) else {
-            context.draw(Text(text).font(font), at: CGPoint(x: xStart, y: centerY), anchor: .leading)
-            return
-        }
-
-        func digitGlyph(_ digit: Int) -> String? {
-            GrandStaffGlyphToken.timeSignatureDigit(digit)?.glyph
-        }
-
-        func glyphString(for number: Int) -> String? {
-            let digits = String(number).compactMap { Int(String($0)) }
-            guard digits.isEmpty == false else { return nil }
-            let glyphs = digits.compactMap(digitGlyph)
-            guard glyphs.count == digits.count else { return nil }
-            return glyphs.joined()
-        }
-
-        guard let topGlyphs = glyphString(for: top), let bottomGlyphs = glyphString(for: bottom) else {
-            context.draw(Text(text).font(font), at: CGPoint(x: xStart, y: centerY), anchor: .leading)
-            return
-        }
-
-        context.draw(Text(topGlyphs).font(font), at: CGPoint(x: xStart, y: centerY - verticalOffset), anchor: .leading)
-        context.draw(Text(bottomGlyphs).font(font), at: CGPoint(x: xStart, y: centerY + verticalOffset), anchor: .leading)
-    }
-
-    private func drawAttributeChanges(
-        _ changes: [GrandStaffNotationAttributeChange],
-        in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
-    ) {
-        for change in changes {
-            var x = layout.xPosition(change.xPosition) - layout.lineSpacing
-            if let clef = change.clefGlyphToken {
-                let line = min(5, max(1, change.clefLine ?? defaultClefLine(clef)))
-                drawGlyph(
-                    clef,
-                    baselineAt: CGPoint(
-                        x: x,
-                        y: layout.yPosition(staffStep: (line - 1) * 2, staffNumber: change.staffNumber)
-                    ),
-                    centeredOnAdvance: false,
-                    scale: 0.78,
-                    color: .primary,
-                    opacity: 0.75,
-                    in: context,
-                    layout: layout
-                )
-                x += layout.lineSpacing * 1.7
-            }
-
-            if let fifths = change.keySignatureFifths {
-                let font = Font.custom("Bravura", size: layout.keySignatureFontSize * 0.82)
-                if let previous = change.previousKeySignatureFifths, previous != 0, previous != fifths {
-                    x += drawKeySignature(
-                        fifths: previous,
-                        staffNumber: change.staffNumber,
-                        xStart: x,
-                        font: font,
-                        glyphOverride: .accidentalNatural,
-                        in: context,
-                        layout: layout
-                    ) + layout.lineSpacing * 0.3
-                }
-                x += drawKeySignature(
-                    fifths: fifths,
-                    staffNumber: change.staffNumber,
-                    xStart: x,
-                    font: font,
-                    in: context,
-                    layout: layout
-                ) + layout.lineSpacing * 0.4
-            }
-
-            if let timeSignatureText = change.timeSignatureText {
-                drawTimeSignature(
-                    text: timeSignatureText,
-                    xStart: x,
-                    centerY: layout.yPosition(staffStep: 4, staffNumber: change.staffNumber),
-                    font: .custom("Bravura", size: layout.timeSignatureFontSize * 0.82),
-                    verticalOffset: layout.lineSpacing * 0.78,
-                    in: context
-                )
-            }
-        }
-    }
-
-    private func defaultClefLine(_ token: GrandStaffGlyphToken) -> Int {
-        switch token {
-        case .gClef: 2
-        case .fClef: 4
-        case .cClef: 3
-        default: 3
+    private func drawAttributeChanges(_ notation: GrandStaffNotationLayout, in context: GraphicsContext, layout: GrandStaffNotationSystemCanvasLayoutService.Layout) {
+        for change in notation.attributeChanges {
+            let signature = GrandStaffNotationSignatureLayout.inline(change, notation: notation, musicWidth: Double((layout.contentMaxX - layout.contentMinX) / layout.lineSpacing))
+            drawSignature(signature, in: context, layout: layout, musicRelative: true)
         }
     }
 
     private func drawMarks(
         _ marks: [GrandStaffNotationMark],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         drawEndings(marks, in: context, layout: layout)
         for mark in marks {
@@ -428,7 +210,7 @@ struct GrandStaffNotationRenderer {
     private func drawOrdinaryMark(
         _ mark: GrandStaffNotationMark,
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         let point = markPoint(mark, layout: layout)
         if let token = mark.glyphToken {
@@ -459,7 +241,7 @@ struct GrandStaffNotationRenderer {
 
     private func markPoint(
         _ mark: GrandStaffNotationMark,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) -> CGPoint {
         let x = layout.xPosition(mark.xPosition)
         let levelOffset = CGFloat(mark.collisionLevel) * layout.lineSpacing * 1.35
@@ -482,7 +264,7 @@ struct GrandStaffNotationRenderer {
     private func drawRepeat(
         _ mark: GrandStaffNotationMark,
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         let x = alignedToPixel(layout.xPosition(mark.xPosition))
         let isForward = mark.kind == .repeatForward
@@ -515,7 +297,7 @@ struct GrandStaffNotationRenderer {
         }
         if let text = mark.text {
             context.draw(
-                Text(text).font(.caption).foregroundStyle(Color.primary.opacity(0.65)),
+                Text(text).font(.system(size: layout.lineSpacing * 0.92)).foregroundStyle(Color.primary.opacity(0.65)),
                 at: CGPoint(x: x, y: layout.trebleTopLineY - layout.lineSpacing * 1.3),
                 anchor: .center
             )
@@ -525,7 +307,7 @@ struct GrandStaffNotationRenderer {
     private func drawEndings(
         _ marks: [GrandStaffNotationMark],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         let endings = marks.filter {
             $0.kind == .endingStart || $0.kind == .endingStop || $0.kind == .endingDiscontinue
@@ -533,13 +315,13 @@ struct GrandStaffNotationRenderer {
         for (index, mark) in endings.enumerated() where mark.kind == .endingStart {
             let startX = layout.xPosition(mark.xPosition)
             let next = endings.dropFirst(index + 1).first {
-                $0.kind == .endingStop || $0.kind == .endingDiscontinue
+                $0.staffNumber == mark.staffNumber && ($0.kind == .endingStop || $0.kind == .endingDiscontinue)
             }
             let context = rangeContext(forTicks: [mark.tick, next?.tick ?? mark.tick], in: context)
             let endX = next.map { layout.xPosition($0.xPosition) } ?? layout.contentMaxX
             let y = layout.trebleTopLineY - layout.lineSpacing * (4.5 + CGFloat(mark.collisionLevel) * 1.35)
             var path = Path()
-            path.move(to: CGPoint(x: startX, y: y + layout.lineSpacing * 0.8))
+            path.move(to: CGPoint(x: startX, y: y + (mark.continuesFromPrevious ? 0 : layout.lineSpacing * 0.8)))
             path.addLine(to: CGPoint(x: startX, y: y))
             path.addLine(to: CGPoint(x: endX, y: y))
             if next?.kind == .endingStop {
@@ -552,7 +334,7 @@ struct GrandStaffNotationRenderer {
             )
             if let text = mark.text {
                 context.draw(
-                    Text(text).font(.caption).bold().foregroundStyle(Color.primary.opacity(0.7)),
+                    Text(text).font(.system(size: layout.lineSpacing * 0.92)).bold().foregroundStyle(Color.primary.opacity(0.7)),
                     at: CGPoint(x: startX + layout.lineSpacing * 0.35, y: y + layout.lineSpacing * 0.15),
                     anchor: .topLeading
                 )
@@ -563,11 +345,11 @@ struct GrandStaffNotationRenderer {
     private func drawBarlines(
         _ barlines: [GrandStaffNotationBarline],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         guard barlines.isEmpty == false else { return }
 
-        let stroke = StrokeStyle(lineWidth: 1.2)
+        let stroke = StrokeStyle(lineWidth: strokeWidth(0.13, layout: layout))
         let topY = layout.trebleTopLineY
         let bottomY = layout.bassBottomLineY
 
@@ -584,7 +366,7 @@ struct GrandStaffNotationRenderer {
         _ items: [GrandStaffNotationItem],
         in context: GraphicsContext,
         practiceHandMode: PracticeHandMode,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         guard items.isEmpty == false else { return }
 
@@ -613,7 +395,7 @@ struct GrandStaffNotationRenderer {
         slurs: [GrandStaffNotationSlur],
         itemsByID: [String: GrandStaffNotationItem],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         for tie in ties {
             let context = rangeContext(forTicks: [tie.startTick, tie.endTick], in: context)
@@ -659,7 +441,7 @@ struct GrandStaffNotationRenderer {
         height: Double,
         itemsByID: [String: GrandStaffNotationItem],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         var start = curveEndpoint(
             occurrenceID: startOccurrenceID,
@@ -701,7 +483,7 @@ struct GrandStaffNotationRenderer {
         staffNumber: Int,
         isAbove: Bool,
         itemsByID: [String: GrandStaffNotationItem],
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) -> CGPoint {
         guard let occurrenceID, let item = itemsByID[occurrenceID] else {
             return CGPoint(
@@ -711,7 +493,7 @@ struct GrandStaffNotationRenderer {
         }
         let scale = engravingMetrics.glyphScale(isGrace: item.isGrace)
         return CGPoint(
-            x: layout.xPosition(item.xPosition) + item.noteheadXOffset * layout.noteheadColumnWidth * scale,
+            x: layout.xPosition(xPosition) + item.noteheadXOffset * layout.noteheadColumnWidth * scale,
             y: layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
                 + (isAbove ? -0.45 : 0.45) * layout.lineSpacing
         )
@@ -721,7 +503,7 @@ struct GrandStaffNotationRenderer {
         _ tuplets: [GrandStaffNotationTuplet],
         itemsByID: [String: GrandStaffNotationItem],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         for tuplet in tuplets {
             let context = rangeContext(forTicks: [tuplet.startTick, tuplet.endTick], in: context)
@@ -793,7 +575,7 @@ struct GrandStaffNotationRenderer {
     private func drawLedgerLines(
         _ ledgerLines: [GrandStaffNotationLedgerLine],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         for ledgerLine in ledgerLines {
             let context = rangeContext(forTicks: [ledgerLine.tick], in: context)
@@ -822,7 +604,7 @@ struct GrandStaffNotationRenderer {
     private func drawRests(
         _ rests: [GrandStaffNotationRest],
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         for rest in rests {
             let context = rangeContext(forTicks: [rest.tick], in: context)
@@ -884,7 +666,7 @@ struct GrandStaffNotationRenderer {
         itemsByChordID: [String: [GrandStaffNotationItem]],
         in context: GraphicsContext,
         practiceHandMode: PracticeHandMode,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         let stemStroke = StrokeStyle(
             lineWidth: strokeWidth(engravingMetrics.stemThickness, layout: layout),
@@ -932,7 +714,7 @@ struct GrandStaffNotationRenderer {
         itemsByChordID: [String: [GrandStaffNotationItem]],
         in context: GraphicsContext,
         practiceHandMode: PracticeHandMode,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         guard beams.isEmpty == false else { return }
 
@@ -978,7 +760,7 @@ struct GrandStaffNotationRenderer {
         scale: Double,
         in context: GraphicsContext,
         fadeScale: Double,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         drawGlyph(
             token,
@@ -994,7 +776,7 @@ struct GrandStaffNotationRenderer {
 
     private func noteCenters(
         for items: [GrandStaffNotationItem],
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) -> [String: CGPoint] {
         Dictionary(uniqueKeysWithValues: items.map { item in
             let scale = engravingMetrics.glyphScale(isGrace: item.isGrace)
@@ -1012,7 +794,7 @@ struct GrandStaffNotationRenderer {
         y: CGFloat,
         in context: GraphicsContext,
         fadeScale: Double,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         guard let noteheadToken = item.noteheadGlyphToken else { return }
         let baseOpacity: Double = item.isHighlighted ? 1.0 : 0.55
@@ -1073,7 +855,7 @@ struct GrandStaffNotationRenderer {
     private func drawHighlightIndicator(
         at center: CGPoint,
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         // ponytail: one outline serves every glyph; add glyph-specific shapes only if VoiceOver testing finds ambiguity.
         let radius = layout.lineSpacing * 0.72
@@ -1102,7 +884,7 @@ struct GrandStaffNotationRenderer {
         color: Color,
         opacity: Double,
         in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
+        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
     ) {
         let text = Text(token.glyph)
             .font(.custom("Bravura", fixedSize: layout.smuflFontSize * scale))
@@ -1144,7 +926,7 @@ struct GrandStaffNotationRenderer {
         return (value * displayScale).rounded() / displayScale
     }
 
-    private func strokeWidth(_ staffSpaces: Double, layout: GrandStaffNotationViewportLayoutService.Layout) -> CGFloat {
-        max(1 / max(displayScale, 1), layout.lineSpacing * staffSpaces)
+    private func strokeWidth(_ staffSpaces: Double, layout: GrandStaffNotationSystemCanvasLayoutService.Layout) -> CGFloat {
+        layout.lineSpacing * staffSpaces
     }
 }

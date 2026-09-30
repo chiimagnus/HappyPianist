@@ -3,6 +3,7 @@ import Foundation
 public enum AutoplayCursorEvent: Equatable, Sendable {
     case step(index: Int)
     case guide(index: Int, guideID: Int)
+    case position
 }
 
 public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
@@ -54,6 +55,8 @@ public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
                     tick: event.tick,
                     event: .guide(index: index, guideID: guideID)
                 ))
+            case .advancePosition:
+                cursorEvents.append(.init(timeSeconds: timeSeconds, tick: event.tick, event: .position))
             case .pauseSeconds, .noteOn, .noteOff, .controlChange, .tempo:
                 continue
             }
@@ -101,10 +104,10 @@ public struct AutoplayTimelineTimeCursor: Equatable {
         nextIndex >= scheduled.count
     }
 
-    public mutating func advance(toSeconds now: TimeInterval) -> [AutoplayCursorEvent] {
-        var emitted: [AutoplayCursorEvent] = []
+    public mutating func advance(toSeconds now: TimeInterval) -> [AutoplayTimelineTimeSchedule.ScheduledCursorEvent] {
+        var emitted: [AutoplayTimelineTimeSchedule.ScheduledCursorEvent] = []
         while nextIndex < scheduled.count, scheduled[nextIndex].timeSeconds <= now {
-            emitted.append(scheduled[nextIndex].event)
+            emitted.append(scheduled[nextIndex])
             nextIndex += 1
         }
         return emitted

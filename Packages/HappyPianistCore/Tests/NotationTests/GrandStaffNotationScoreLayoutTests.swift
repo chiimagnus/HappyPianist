@@ -125,6 +125,7 @@ func systemSliceKeepsRightEdgeClosingMarksOnPreviousMeasure() throws {
     #expect(slices[0].marks.contains { $0.kind == .endingStop })
     #expect(slices[0].marks.contains { $0.kind == .repeatBackward })
     #expect(!slices[1].marks.contains { $0.kind == .endingStop || $0.kind == .repeatBackward })
+    #expect(!slices[1].marks.contains { $0.kind == .endingStart })
     #expect(slices[1].marks.contains { $0.kind == .repeatForward })
 }
 

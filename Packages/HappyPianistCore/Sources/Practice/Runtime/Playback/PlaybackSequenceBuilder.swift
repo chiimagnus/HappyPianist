@@ -29,6 +29,8 @@ public actor PlaybackSequenceBuilder: PlaybackSequenceBuildingProtocol {
             leadInSeconds: leadInSeconds,
             endTick: endTick
         )
-        return try builder.buildSequence(from: schedule)
+        let timeSchedule = AutoplayTimelineTimeSchedule(timeline: timeline, tickToSeconds: { tempoMap.timeSeconds(atTick: $0) }, startTick: startTick, leadInSeconds: leadInSeconds)
+        let duration = timeSchedule.scheduledCursorEvents.filter { scheduled in endTick.map { scheduled.tick <= $0 } ?? true }.last?.timeSeconds ?? 0
+        return try builder.buildSequence(from: schedule, minimumDurationSeconds: duration)
     }
 }
