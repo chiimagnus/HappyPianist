@@ -80,7 +80,8 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 - Swift/Python state-projection golden parity 已通过；Stage A corpus/manifest 已按产品 projection 重建；
 - `make build:simulator` 已通过；完整 Simulator suite 复跑为 1018 passed / 11 failed / 0 skipped，11 个失败均与 P0 前基线一致，集中在 hand motion/rig、local sampler 与 demonstration hands；Companion/AIPerformance 无新增失败；
 - Qwen 已切换为本地 NF4 4-bit；固定 120-case Stage A 完成，延迟仅记录，当前主要质量缺口是 `settled_end.finished` 仍低于 0.55 且 120-case 没有触发 `respond`；
-- 服务级 Qwen → Aria → MIDI E2E 已在 Windows RTX 4060 完成固定 60-case 双跑：两轮 Qwen action 完全一致且都与 Stage A reference 0 mismatch；每轮 11 次 Aria 生成全部成功，生成 MIDI 全部通过重新解析与 note-on/off 配平。该证据不等于 visionOS 产品实时性。
+- 服务级 Qwen → Aria → MIDI E2E 已在 Windows RTX 4060 完成固定 60-case 双跑：两轮 Qwen action 完全一致且都与 Stage A reference 0 mismatch；每轮 11 次 Aria 生成全部成功，生成 MIDI 全部通过重新解析与 note-on/off 配平。该证据不等于 visionOS 产品实时性；
+- P3 Aria true-streaming probe 已 No-Go：11 个真实 generating cases 中，增量 decoder 与最终 tokenizer 11/11 对齐，但只有 8/11 在完整生成前出现无需回滚的 `<T>` segment commit boundary；安全 commit 中位约 820.9ms，350ms 内仅 2/11，且只有 1/11 含 note。当前不实现 streaming transport，继续保留单一 HTTP full-response Aria 路径。
 
 验证边界与完整测试证据见[测试](testing.md)。
 
@@ -90,7 +91,7 @@ MAESTRO / POP909 没有“用户在等 AI”“AI 应该回应”等人工 turn-
 
 1. **继续处理 Qwen 的语义质量缺口。** 4-bit Stage A 已固定，延迟不再阻塞；后续重点是 `settled_end` 与 `respond` 可达性，不改样本或阈值来“过测试”。
 2. **保留已经通过的服务级 Qwen → Aria → MIDI E2E。** 固定 60-case 双跑是服务链技术证据，不替代产品真机验证。
-3. **再解决生成实时性。** Aria 目前仍偏向整段生成；真正的实时陪伴需要更短 generation latency 或真正的增量生成/播放。
+3. **若继续攻生成实时性，先改 upstream 生成不变量，而不是先改网络。** 当前 P3 已证明“完整 event 很早”但“安全 commit window 太晚”；只有当 sampler 能可证明保证 onset/order（并重新验证音乐质量），或换成原生支持增量 commit boundary 的模型/tokenizer，才重新开启 true streaming。
 4. **有 Vision Pro 真机条件时再做局域网产品验证。** 真机网络与实际 playback timing 单独记录，不用 localhost 结果替代。
 
 ## 什么时候才换路线
