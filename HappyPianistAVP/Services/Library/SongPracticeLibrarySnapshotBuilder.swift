@@ -98,7 +98,7 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
                 )
             )
         } ?? .metadataUnavailable
-        let resumeSourceMeasureID = currentProgress?.resumePoint?.occurrenceID.sourceMeasureID
+        let resumeOccurrenceID = currentProgress?.resumePoint?.occurrenceID
 
         return .overview(SongPracticeLibraryOverview(
             identity: identity,
@@ -112,7 +112,7 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
             measureProgress: measureProgress,
             scoreRevision: metadata?.scoreRevision,
             sourceMeasureStates: sourceStates,
-            resumeSourceMeasureID: resumeSourceMeasureID,
+            resumeOccurrenceID: resumeOccurrenceID,
             focusMeasures: SongPracticeFocusMeasureBuilder().build(from: currentProgress)
         ))
     }

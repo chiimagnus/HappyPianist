@@ -592,7 +592,10 @@ final class SongLibraryViewModel {
         guard !importState.isActive, !isMusicXMLImporterPresented,
               let entry = entries.first(where: { $0.id == selectedEntryID }) else { return }
         let identity = SongPracticeLibrarySelectionIdentity(songID: entry.id, scoreFileVersionID: entry.scoreFileVersionID)
-        scorePreview.open(identity) { [weak self] in
+        scorePreview.open(identity, overview: { [weak self] in
+            if case let .overview(overview) = self?.practiceSnapshotState { return overview }
+            return nil
+        }) { [weak self] in
             guard let self else { return false }
             return !importState.isActive && !isMusicXMLImporterPresented && isCurrentSnapshot(identity)
         }

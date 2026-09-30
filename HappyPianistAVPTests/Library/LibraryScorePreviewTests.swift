@@ -62,7 +62,7 @@ func resolvedNewFileVersionIsRejectedBeforePreparation() async throws {
     replacement.scoreFileVersionID = UUID()
     let preparation = PreviewPreparation()
     let preview = makePreview(entries: [replacement], preparation: preparation)
-    preview.open(previewIdentity(entry), isCurrent: { true })
+    preview.open(previewIdentity(entry), overview: { nil }, isCurrent: { true })
     await TestAsyncWait.until("version rejected") { !preview.isOpen }
     #expect(await preparation.requests.isEmpty)
     #expect(preview.prepared == nil && preview.pageOwner.plan == nil)
@@ -100,11 +100,12 @@ func rapidPreviewReplacementCannotPublishOlderScore(olderFails: Bool) async thro
     let second = previewEntry("Second")
     let preparation = PreviewPreparation(held: true, failFirst: olderFails)
     let preview = makePreview(entries: [first, second], preparation: preparation)
-    preview.open(previewIdentity(first), isCurrent: { true })
+    preview.open(previewIdentity(first), overview: { nil }, isCurrent: { true })
     await TestAsyncWait.until("first held request") { await preparation.isHeld }
-    preview.open(previewIdentity(second), isCurrent: { true })
+    preview.open(previewIdentity(second), overview: { nil }, isCurrent: { true })
     await ready(preview)
     #expect(preview.pageOwner.plan?.input.identity.songID == second.id)
+    #expect(preview.targetSpreadIndex == 0)
     await preparation.release()
     await TestAsyncWait.until("older preparation returned") { await preparation.returnedCount == 2 }
     #expect(preview.identity == previewIdentity(second))
@@ -119,7 +120,7 @@ func previewClosedDuringResolutionDoesNotPrepareReturnedFile() async throws {
     let resolver = HeldPreviewResolver(entry: entry)
     let preparation = PreviewPreparation()
     let preview = LibraryScorePreviewViewModel(resolver: resolver, preparationService: preparation, diagnosticsReporter: PreviewDiagnostics())
-    preview.open(previewIdentity(entry), isCurrent: { true })
+    preview.open(previewIdentity(entry), overview: { nil }, isCurrent: { true })
     await TestAsyncWait.until("held resolver") { await resolver.isHeld }
     preview.close()
     await resolver.release()
@@ -135,12 +136,12 @@ func failedPreviewCanRetryWithoutRetainingPreparedScore() async throws {
     let preparation = PreviewPreparation(failFirst: true)
     let diagnostics = PreviewDiagnostics()
     let preview = makePreview(entries: [entry], preparation: preparation, diagnostics: diagnostics)
-    preview.open(previewIdentity(entry), isCurrent: { true })
+    preview.open(previewIdentity(entry), overview: { nil }, isCurrent: { true })
     await TestAsyncWait.until("preview failed") { if case .failure = preview.state { return true }; return false }
     #expect(preview.prepared == nil && preview.pageOwner.plan == nil)
     await TestAsyncWait.until("safe failure diagnostic") { await !diagnostics.events.isEmpty }
     #expect(await diagnostics.events.allSatisfy { !$0.reason.contains("/Users/") && !$0.reason.contains("<score-partwise>") })
-    preview.open(previewIdentity(entry), isCurrent: { true })
+    preview.open(previewIdentity(entry), overview: { nil }, isCurrent: { true })
     await ready(preview)
     #expect(await preparation.requests.count == 2)
     preview.close()
@@ -199,7 +200,7 @@ func previewAnnotationsRequireExactSelectionAndRevisionAndIncludeRests() async t
     let first = try #require(prepared.measureSpans.first)
     let rest = try #require(prepared.measureSpans.last)
     func overview(revision: String?, states: [PracticeSourceMeasureID: SongPracticeSourceMeasureState]) -> SongPracticeLibraryOverview {
-        .init(identity: previewIdentity(entry), status: .learning, sessionSummary: .init(latestPracticeEndedAt: nil, totalActiveDurationMilliseconds: 1000, sessionCount: 1, streak: nil), measureProgress: .available(.init(stableSourceMeasureCount: 1, learningSourceMeasureCount: 1, unpracticedSourceMeasureCount: 0)), scoreRevision: revision, sourceMeasureStates: states, resumeSourceMeasureID: rest.sourceMeasureID, focusMeasures: [.init(sourceMeasureID: rest.sourceMeasureID, reason: .learning)])
+        .init(identity: previewIdentity(entry), status: .learning, sessionSummary: .init(latestPracticeEndedAt: nil, totalActiveDurationMilliseconds: 1000, sessionCount: 1, streak: nil), measureProgress: .available(.init(stableSourceMeasureCount: 1, learningSourceMeasureCount: 1, unpracticedSourceMeasureCount: 0)), scoreRevision: revision, sourceMeasureStates: states, resumeOccurrenceID: rest.occurrenceID, focusMeasures: [.init(sourceMeasureID: rest.sourceMeasureID, reason: .learning)])
     }
     let annotations = LibraryScorePreviewViewModel.annotations(overview: overview(revision: prepared.identity.scoreRevision, states: [first.sourceMeasureID: .stable, rest.sourceMeasureID: .learning]), plan: plan, selection: previewIdentity(entry))
     #expect(annotations.count == 2)
@@ -217,6 +218,56 @@ func previewAnnotationsRequireExactSelectionAndRevisionAndIncludeRests() async t
 @MainActor
 private func ready(_ preview: LibraryScorePreviewViewModel) async {
     await TestAsyncWait.until("ready score preview") { if case .ready = preview.state { return true }; return false }
+}
+
+@Test(arguments: ["matching", "missing", "revision", "version", "song", "foreignOccurrence", "focusOnly"])
+@MainActor
+func previewInitialNavigationUsesOnlyExactCurrentResume(policy: String) async throws {
+    let entry = previewEntry("Navigation")
+    let url = URL.temporaryDirectory.appending(path: "\(UUID()).musicxml")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let bars = (1...160).map { index in
+        "<measure number=\"\(index)\">\(index == 1 ? "<attributes><divisions>1</divisions><staves>2</staves></attributes>" : "")<note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><staff>1</staff></note></measure>"
+    }.joined()
+    try Data("<score-partwise><part-list><score-part id=\"P1\"><part-name>Piano</part-name></score-part></part-list><part id=\"P1\">\(bars)</part></score-partwise>".utf8).write(to: url)
+    let prepared = try await PracticePreparationService(diagnosticsReporter: PreviewDiagnostics()).prepare(songID: entry.id, from: url, file: .init(fileName: entry.displayName, storedURL: url, importedAt: entry.importedAt), options: .practice)
+    let last = try #require(prepared.measureSpans.last)
+    let identity = previewIdentity(entry)
+    let overview = SongPracticeLibraryOverview(identity: policy == "version" ? .init(songID: entry.id, scoreFileVersionID: UUID()) : policy == "song" ? .init(songID: UUID(), scoreFileVersionID: entry.scoreFileVersionID) : identity, status: .learning, sessionSummary: .init(latestPracticeEndedAt: nil, totalActiveDurationMilliseconds: 1000, sessionCount: 1, streak: nil), measureProgress: .available(.init(stableSourceMeasureCount: 0, learningSourceMeasureCount: 0, unpracticedSourceMeasureCount: 160)), scoreRevision: policy == "revision" ? "old" : prepared.identity.scoreRevision, sourceMeasureStates: [:], resumeOccurrenceID: policy == "focusOnly" ? nil : policy == "foreignOccurrence" ? .init(sourceMeasureID: last.sourceMeasureID, occurrenceIndex: 99) : last.occurrenceID, focusMeasures: [.init(sourceMeasureID: last.sourceMeasureID, reason: .learning)])
+    let preparation = PreviewPreparation(prepared: prepared)
+    let preview = makePreview(entries: [entry], preparation: preparation)
+    let library = SongLibraryViewModelTestHarness.make(index: SongLibraryIndex(entries: [entry], lastSelectedEntryID: entry.id), scorePreview: preview)
+    var currentOverview: SongPracticeLibraryOverview? = policy == "missing" ? nil : overview
+    var overviewReads = 0
+    preview.open(identity, overview: { overviewReads += 1; return currentOverview }, isCurrent: { true })
+    await ready(preview)
+    let plan = try #require(preview.pageOwner.plan)
+    #expect(plan.spreadCount > 2)
+    #expect(preview.targetSpreadIndex == (policy == "matching" ? plan.spreadCount - 1 : 0))
+    if policy == "foreignOccurrence" {
+        #expect(LibraryScorePreviewViewModel.annotations(overview: overview, plan: plan, selection: identity).allSatisfy { !$0.isResume })
+    }
+    for _ in 0..<plan.spreadCount + 2 { preview.turn(forward: false) }
+    #expect(preview.targetSpreadIndex == 0 && !preview.canTurnBackward)
+    await library.didTapListen(entryID: entry.id)
+    for _ in 0..<plan.spreadCount + 2 { preview.turn(forward: true) }
+    #expect(preview.targetSpreadIndex == plan.spreadCount - 1 && !preview.canTurnForward)
+    #expect(library.isListeningPlaying(entryID: entry.id))
+    let browse = preview.targetSpreadIndex
+    currentOverview = overview
+    #expect(preview.targetSpreadIndex == browse)
+    #expect(overviewReads == 1)
+    preview.close()
+    #expect(preview.targetSpreadIndex == 0 && preview.pageOwner.plan == nil)
+    preview.turn(forward: true)
+    #expect(preview.targetSpreadIndex == 0)
+    preview.open(identity, overview: { overview }, isCurrent: { true })
+    await ready(preview)
+    #expect(preview.targetSpreadIndex == (policy == "matching" || policy == "missing" ? plan.spreadCount - 1 : 0))
+    #expect(await preparation.requests.count == 2)
+    #expect(library.isListeningPlaying(entryID: entry.id))
+    library.stopListening()
+    preview.close()
 }
 
 private func previewEntry(_ name: String) -> SongLibraryEntry {
@@ -258,13 +309,14 @@ private actor PreviewPreparation: PracticePreparationServiceProtocol {
     private var continuation: CheckedContinuation<Void, Never>?
     private let held: Bool
     private let failFirst: Bool
+    private let prepared: PreparedPractice?
     private(set) var requests: [UUID] = []
     private(set) var options: [PracticePreparationOptions] = []
     private(set) var files: [ImportedMusicXMLFile] = []
     private(set) var returnedCount = 0
     var isHeld: Bool { continuation != nil }
 
-    init(held: Bool = false, failFirst: Bool = false) { self.held = held; self.failFirst = failFirst }
+    init(held: Bool = false, failFirst: Bool = false, prepared: PreparedPractice? = nil) { self.held = held; self.failFirst = failFirst; self.prepared = prepared }
 
     func prepare(songID: UUID, from: URL, file: ImportedMusicXMLFile, options: PracticePreparationOptions) async throws -> PreparedPractice {
         requests.append(songID)
@@ -274,6 +326,7 @@ private actor PreviewPreparation: PracticePreparationServiceProtocol {
         if first && held { await withCheckedContinuation { continuation = $0 } }
         returnedCount += 1
         if first && failFirst { throw PracticePreparationError.xmlParseFailed(line: 1, column: 1, reason: "/Users/private/<score-partwise>") }
+        if let prepared { return prepared }
         return makeTestPreparedPractice(identity: PracticeSongIdentity(songID: songID, scoreRevision: "preview-test"), file: file)
     }
     func release() { continuation?.resume(); continuation = nil }

@@ -69,7 +69,7 @@ func overviewUsesSessionsWhenCurrentMetadataIsUnavailable() async throws {
     #expect(overview.sessionSummary.sessionCount == 1)
     #expect(overview.sessionSummary.totalActiveDurationMilliseconds == 45000)
     #expect(overview.measureProgress == .metadataUnavailable)
-    #expect(overview.resumeSourceMeasureID == nil)
+    #expect(overview.resumeOccurrenceID == nil)
     #expect(overview.focusMeasures.isEmpty)
     #expect(overview.scoreRevision == nil)
     #expect(overview.sourceMeasureStates.isEmpty)
@@ -230,7 +230,7 @@ func overviewIsolatesResumeProgressAndFocusToCurrentRevision() async throws {
     }
 
     #expect(overview.sessionSummary.sessionCount == 2)
-    #expect(overview.resumeSourceMeasureID == currentSource)
+    #expect(overview.resumeOccurrenceID == current.resumePoint?.occurrenceID)
     #expect(overview.focusMeasures == [SongPracticeFocusMeasure(
         sourceMeasureID: currentSource,
         reason: .failedAttempts(3)
@@ -247,7 +247,7 @@ func overviewKeepsCurrentRevisionResumeBeforeTheDestinationMeasureHasFacts() asy
         resumePoint: PracticeResumePoint(
             occurrenceID: PracticeMeasureOccurrenceID(
                 sourceMeasureID: resumeSource,
-                occurrenceIndex: 0
+                occurrenceIndex: 2
             ),
             stepIndex: 4,
             updatedAt: Date(timeIntervalSince1970: 30)
@@ -275,7 +275,7 @@ func overviewKeepsCurrentRevisionResumeBeforeTheDestinationMeasureHasFacts() asy
         return
     }
 
-    #expect(overview.resumeSourceMeasureID == resumeSource)
+    #expect(overview.resumeOccurrenceID == current.resumePoint?.occurrenceID)
 }
 
 @Test
@@ -320,7 +320,7 @@ func replacementKeepsStableSongSessionsWithoutLeakingOldRevisionFacts() async th
 
     #expect(overview.sessionSummary.sessionCount == 1)
     #expect(overview.measureProgress == .metadataUnavailable)
-    #expect(overview.resumeSourceMeasureID == nil)
+    #expect(overview.resumeOccurrenceID == nil)
     #expect(overview.focusMeasures.isEmpty)
 }
 

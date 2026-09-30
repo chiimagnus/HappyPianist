@@ -23,6 +23,7 @@ final class LibraryScorePreviewViewModel {
     private(set) var state: State = .idle
     private(set) var identity: SongPracticeLibrarySelectionIdentity?
     private(set) var prepared: PreparedPractice?
+    private(set) var targetSpreadIndex = 0
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var task: Task<Void, Never>?
 
@@ -45,11 +46,29 @@ final class LibraryScorePreviewViewModel {
             case .learning: .learning
             case nil: .unpracticed
             }
-            return GrandStaffNotationMeasureAnnotation(occurrenceID: span.occurrenceID, state: state, isResume: overview.resumeSourceMeasureID == span.sourceMeasureID, isFocus: focusIDs.contains(span.sourceMeasureID))
+            return GrandStaffNotationMeasureAnnotation(occurrenceID: span.occurrenceID, state: state, isResume: overview.resumeOccurrenceID == span.occurrenceID, isFocus: focusIDs.contains(span.sourceMeasureID))
         }
     }
 
-    func open(_ identity: SongPracticeLibrarySelectionIdentity, isCurrent: @escaping @MainActor () -> Bool) {
+    static func initialTarget(overview: SongPracticeLibraryOverview?, plan: GrandStaffNotationPagePlan, selection: SongPracticeLibrarySelectionIdentity) -> Int {
+        guard let overview, overview.identity == selection,
+              selection.songID == plan.input.identity.songID,
+              overview.scoreRevision == plan.input.identity.scoreRevision,
+              let occurrence = overview.resumeOccurrenceID,
+              let target = plan.spreadIndex(containing: occurrence) else { return 0 }
+        return target
+    }
+
+    var canTurnBackward: Bool { if case .ready = state { return targetSpreadIndex > 0 }; return false }
+    var canTurnForward: Bool { if case .ready = state, let plan = pageOwner.plan { return targetSpreadIndex + 1 < plan.spreadCount }; return false }
+
+    func turn(forward: Bool) {
+        guard case .ready = state, let plan = pageOwner.plan,
+              plan.input.identity == prepared?.identity else { return }
+        targetSpreadIndex = min(max(targetSpreadIndex + (forward ? 1 : -1), 0), plan.spreadCount - 1)
+    }
+
+    func open(_ identity: SongPracticeLibrarySelectionIdentity, overview: @escaping @MainActor () -> SongPracticeLibraryOverview?, isCurrent: @escaping @MainActor () -> Bool) {
         close()
         guard isCurrent() else { return }
         self.identity = identity
@@ -87,9 +106,10 @@ final class LibraryScorePreviewViewModel {
                     attributeTimeline: prepared.attributeTimeline
                 ))
                 guard accepts(requestGeneration, isCurrent: isCurrent) else { return }
-                guard pageOwner.plan != nil else {
+                guard let plan = pageOwner.plan else {
                     throw PracticePreparationError.unexpected(stage: "libraryScorePagination", reason: pageOwner.failureMessage ?? "No page plan")
                 }
+                targetSpreadIndex = Self.initialTarget(overview: overview(), plan: plan, selection: identity)
                 state = .ready
                 task = nil
             } catch {
@@ -118,6 +138,7 @@ final class LibraryScorePreviewViewModel {
         task = nil
         identity = nil
         prepared = nil
+        targetSpreadIndex = 0
         pageOwner.clear()
         state = .idle
     }

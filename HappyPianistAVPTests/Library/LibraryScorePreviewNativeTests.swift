@@ -43,9 +43,17 @@ func productionLibraryOpensRealSpreadAndReturnsToSameFolioInExistingWindow() asy
     #expect(library.currentListeningEntryID == nil)
     controller.view.layoutIfNeeded()
     try await Task.sleep(for: .seconds(1))
+    #expect(library.scorePreview.targetSpreadIndex == 0)
+    library.scorePreview.turn(forward: true)
+    #expect(library.scorePreview.targetSpreadIndex == 1)
+    try await Task.sleep(for: .seconds(1))
+    library.scorePreview.turn(forward: false)
+    #expect(library.scorePreview.targetSpreadIndex == 0)
+    try await Task.sleep(for: .seconds(1))
     lifecycle.phase = .inactive
     await TestAsyncWait.until("inactive scene closes actual preview") { !library.scorePreview.isOpen }
     #expect(library.scorePreview.prepared == nil && library.scorePreview.pageOwner.plan == nil)
+    #expect(library.scorePreview.targetSpreadIndex == 0)
     lifecycle.phase = .active
     try await Task.sleep(for: .milliseconds(200))
     #expect(!library.scorePreview.isOpen)
@@ -59,6 +67,7 @@ func productionLibraryOpensRealSpreadAndReturnsToSameFolioInExistingWindow() asy
     let reopened = try #require(library.scorePreview.pageOwner.plan)
     let plansMatch = reopened == plan
     #expect(plansMatch)
+    #expect(library.scorePreview.targetSpreadIndex == 0)
 }
 
 @MainActor

@@ -63,7 +63,7 @@ struct SongPracticeLibraryOverview: Equatable {
     let measureProgress: SongPracticeMeasureProgressState
     let scoreRevision: String?
     let sourceMeasureStates: [PracticeSourceMeasureID: SongPracticeSourceMeasureState]
-    let resumeSourceMeasureID: PracticeSourceMeasureID?
+    let resumeOccurrenceID: PracticeMeasureOccurrenceID?
     let focusMeasures: [SongPracticeFocusMeasure]
 
 }
