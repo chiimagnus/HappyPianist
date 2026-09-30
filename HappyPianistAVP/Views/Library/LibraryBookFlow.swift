@@ -1,9 +1,9 @@
 import SwiftUI
 import Library
 
-private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
+private let libraryBookFlowCoordinateSpace = "LibraryBookFlow"
 
-struct LibraryRecordCarousel: View {
+struct LibraryBookFlow: View {
     private static let animation = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
 
     let entries: [SongLibraryEntry]
@@ -41,8 +41,9 @@ struct LibraryRecordCarousel: View {
         self.onImmediateDelete = onImmediateDelete
     }
 
+    @ScaledMetric(relativeTo: .body) private var itemWidth: CGFloat = 200
     @State private var scrollTargetID: UUID?
-    @State private var crateWidth: CGFloat = 0
+    @State private var viewportWidth: CGFloat = 0
     @State private var liftOffset: CGFloat = 0
     @State private var downwardDragOffset: CGFloat = 0
     @State private var hasVerticalDragIntent = false
@@ -55,7 +56,7 @@ struct LibraryRecordCarousel: View {
     }
 
     private var scrollContentMargin: CGFloat {
-        max(0, (crateWidth - LibraryRecordLayout.diameter) / 2)
+        max(0, (viewportWidth - itemWidth) / 2)
     }
 
     var body: some View {
@@ -63,7 +64,7 @@ struct LibraryRecordCarousel: View {
         let selectedEntry = entries.indices.contains(selectedIndex) ? entries[selectedIndex] : nil
         ZStack {
             LibraryImportLiftView(liftOffset: liftOffset)
-                .offset(y: LibraryRecordLayout.diameter / 2 - 74)
+                .offset(y: itemWidth * 1.4 / 2 - 74)
                 .zIndex(1)
 
             LibraryDeleteHoldView(
@@ -72,13 +73,13 @@ struct LibraryRecordCarousel: View {
                 isBundled: selectedEntry?.isBundled == true,
                 allowsDestructiveActions: allowsDestructiveActions
             )
-            .offset(y: 74 - LibraryRecordLayout.diameter / 2)
+            .offset(y: 74 - itemWidth * 1.4 / 2)
             .zIndex(1)
 
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 24) {
                     ForEach(entries.enumerated(), id: \.element.id) { index, entry in
-                        LibraryRecordScrollItemView(
+                        LibraryBookFlowItemView(
                             entry: entry,
                             index: index,
                             selectedEntryID: selectedEntryID,
@@ -86,8 +87,9 @@ struct LibraryRecordCarousel: View {
                             isPlaying: isPlaying,
                             reduceMotion: reduceMotion,
                             verticalOffset: downwardDragOffset - liftOffset,
-                            crateWidth: crateWidth,
-                            onTap: handleRecordTap
+                            viewportWidth: viewportWidth,
+                            itemWidth: itemWidth,
+                            onTap: handleFolioConfirm
                         )
                     }
                 }
@@ -97,18 +99,15 @@ struct LibraryRecordCarousel: View {
             .scrollTargetBehavior(.viewAligned(anchor: .center))
             .scrollPosition(id: $scrollTargetID, anchor: .center)
             .contentMargins(.horizontal, scrollContentMargin, for: .scrollContent)
-            .coordinateSpace(name: libraryRecordScrollCoordinateSpace)
+            .coordinateSpace(name: libraryBookFlowCoordinateSpace)
             .onScrollPhaseChange { _, newPhase, _ in
                 guard newPhase == .idle else { return }
                 commitSettledScrollSelection()
             }
 
-            TurntableTonearmView(isPlaying: isPlaying, reduceMotion: reduceMotion)
-                .zIndex(30)
-
             VStack {
                 Spacer()
-                Text("↑ 上拽唱片导入乐谱")
+                Text("↑ 上拽导入乐谱")
                     .font(.caption)
                     .foregroundStyle(Color.primary.opacity(0.45))
                     .padding(.bottom, 54)
@@ -123,7 +122,7 @@ struct LibraryRecordCarousel: View {
         )
         .contentShape(.rect)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { _, width in
-            crateWidth = width
+            viewportWidth = width
         }
         .simultaneousGesture(verticalDragGesture)
         .task(id: deletionHoldEntryID) {
@@ -165,7 +164,7 @@ struct LibraryRecordCarousel: View {
             synchronizeScrollTarget(with: selectedEntryID)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("唱片架，左右滚动选曲")
+        .accessibilityLabel("乐谱库，左右滚动选曲")
         .accessibilityAction(named: "删除曲目") {
             guard let selectedEntry,
                   selectedEntry.isBundled != true,
@@ -201,16 +200,16 @@ struct LibraryRecordCarousel: View {
                 if value.translation.height < 0 {
                     cancelDeletionHold()
                     downwardDragOffset = 0
-                    liftOffset = min(-value.translation.height, LibraryCrateDragConfiguration.maximumOffset)
+                    liftOffset = min(-value.translation.height, LibraryBookFlowDragConfiguration.maximumOffset)
                 } else {
                     liftOffset = 0
-                    downwardDragOffset = min(value.translation.height, LibraryCrateDragConfiguration.maximumOffset)
+                    downwardDragOffset = min(value.translation.height, LibraryBookFlowDragConfiguration.maximumOffset)
                     updateDeletionHold(for: value.translation.height)
                 }
             }
             .onEnded { _ in
                 if hasVerticalDragIntent,
-                   liftOffset >= LibraryCrateDragConfiguration.trigger,
+                   liftOffset >= LibraryBookFlowDragConfiguration.trigger,
                    didDeleteDuringDrag == false
                 {
                     onImportMusicXML()
@@ -249,8 +248,8 @@ struct LibraryRecordCarousel: View {
         deletionHoldStartedAt = nil
     }
 
-    private func handleRecordTap(entryID: UUID) {
-        switch LibraryRecordScrollSelectionDecision.action(
+    private func handleFolioConfirm(entryID: UUID) {
+        switch LibraryBookFlowSelectionDecision.action(
             forTappedEntryID: entryID,
             selectedEntryID: selectedEntryID
         ) {
@@ -274,7 +273,7 @@ struct LibraryRecordCarousel: View {
     }
 
     private func commitSettledScrollSelection() {
-        guard let entryID = LibraryRecordScrollSelectionDecision.selectionToCommit(
+        guard let entryID = LibraryBookFlowSelectionDecision.selectionToCommit(
             scrollTargetID: scrollTargetID,
             selectedEntryID: selectedEntryID
         ), entries.contains(where: { $0.id == entryID })
@@ -296,7 +295,8 @@ struct LibraryRecordCarousel: View {
     }
 }
 
-private struct LibraryRecordScrollItemView: View {
+private struct LibraryBookFlowItemView: View {
+    @State private var centerDistance: CGFloat = 0
     let entry: SongLibraryEntry
     let index: Int
     let selectedEntryID: UUID?
@@ -304,7 +304,8 @@ private struct LibraryRecordScrollItemView: View {
     let isPlaying: Bool
     let reduceMotion: Bool
     let verticalOffset: CGFloat
-    let crateWidth: CGFloat
+    let viewportWidth: CGFloat
+    let itemWidth: CGFloat
     let onTap: (UUID) -> Void
 
     private var isSelected: Bool {
@@ -316,63 +317,55 @@ private struct LibraryRecordScrollItemView: View {
     }
 
     var body: some View {
-        Button {
-            onTap(entry.id)
-        } label: {
-            VinylRecordView(
-                labelColor: trackPresentation.labelColor,
-                isPlaying: isSelected && playingEntryID == entry.id && isPlaying,
-                reduceMotion: reduceMotion
-            )
-        }
-        .buttonStyle(.plain)
-        #if os(visionOS)
-        .hoverEffect()
-        #endif
-        .frame(
-            width: LibraryRecordLayout.diameter,
-            height: LibraryRecordLayout.diameter
+        let presentation = LibraryBookFlowPresentation(
+            centerDistance: centerDistance,
+            itemExtent: itemWidth,
+            reduceMotion: reduceMotion
         )
-        .visualEffect { content, geometry in
-            let centerDistance = geometry.frame(in: .named(libraryRecordScrollCoordinateSpace)).midX
-                - crateWidth / 2
-            let presentation = LibraryRecordScrollPresentation(centerDistance: centerDistance)
-            return content
-                .scaleEffect(presentation.scale)
-                .opacity(presentation.opacity)
-                .saturation(presentation.saturation)
+        ZStack {
+            Button {
+                onTap(entry.id)
+            } label: {
+                LibraryScoreFolioView(
+                    presentation: trackPresentation,
+                    isPlaying: playingEntryID == entry.id && isPlaying
+                )
+            }
+            .buttonStyle(.plain)
+            .hoverEffect()
+            .perspectiveRotationEffect(.degrees(presentation.rotationDegrees), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
+            .scaleEffect(presentation.scale)
+            .opacity(presentation.opacity)
+            .offset(x: presentation.horizontalOffset)
+            .offset(y: isSelected ? verticalOffset : 0)
+            .accessibilityLabel(trackPresentation.title)
+            .accessibilityHint(isSelected ? "播放或暂停当前曲目" : "选中这首曲目")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
-        .offset(y: isSelected ? verticalOffset : 0)
-        .zIndex(isSelected ? 1 : 0)
-        .accessibilityLabel(trackPresentation.title)
-        .accessibilityHint(isSelected ? "播放或暂停当前曲目" : "选中这首曲目")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .frame(
+            width: itemWidth,
+            height: itemWidth * 1.4
+        )
+        .onGeometryChange(for: CGFloat.self, of: {
+            $0.frame(in: .named(libraryBookFlowCoordinateSpace)).midX - viewportWidth / 2
+        }) { distance in
+            guard viewportWidth > 0 else { return }
+            centerDistance = distance
+        }
+        .zIndex(presentation.depthPriority)
     }
 }
 
-struct LibraryRecordScrollPresentation: Equatable {
-    let scale: CGFloat
-    let opacity: Double
-    let saturation: Double
-
-    init(centerDistance: CGFloat) {
-        let normalizedDistance = min(abs(centerDistance) / LibraryRecordLayout.diameter, 2)
-        scale = max(0.64, 1 - normalizedDistance * 0.18)
-        opacity = Double(max(0.42, 1 - normalizedDistance * 0.22))
-        saturation = Double(max(0.72, 1 - normalizedDistance * 0.11))
-    }
-}
-
-enum LibraryRecordScrollTapAction: Equatable {
+enum LibraryBookFlowTapAction: Equatable {
     case togglePlayback
     case selectEntry
 }
 
-enum LibraryRecordScrollSelectionDecision {
+enum LibraryBookFlowSelectionDecision {
     static func action(
         forTappedEntryID entryID: UUID,
         selectedEntryID: UUID?
-    ) -> LibraryRecordScrollTapAction {
+    ) -> LibraryBookFlowTapAction {
         entryID == selectedEntryID ? .togglePlayback : .selectEntry
     }
 
@@ -385,11 +378,11 @@ enum LibraryRecordScrollSelectionDecision {
     }
 }
 
-#Preview("正在播放的唱片架") {
-    LibraryRecordCarousel(
-        entries: LibraryCratePreviewFixture.entries,
-        selectedEntryID: LibraryCratePreviewFixture.entries[1].id,
-        playingEntryID: LibraryCratePreviewFixture.entries[1].id,
+#Preview("正在播放的乐谱库") {
+    LibraryBookFlow(
+        entries: LibraryBookFlowPreviewFixture.entries,
+        selectedEntryID: LibraryBookFlowPreviewFixture.entries[1].id,
+        playingEntryID: LibraryBookFlowPreviewFixture.entries[1].id,
         isPlaying: true,
         reduceMotion: false,
         allowsDestructiveActions: true,
@@ -401,7 +394,7 @@ enum LibraryRecordScrollSelectionDecision {
     .frame(width: 1140, height: 500)
 }
 
-private enum LibraryCratePreviewFixture {
+private enum LibraryBookFlowPreviewFixture {
     static let entries = [
         entry(named: "Bohemian Rhapsody"),
         entry(named: "Despacito"),

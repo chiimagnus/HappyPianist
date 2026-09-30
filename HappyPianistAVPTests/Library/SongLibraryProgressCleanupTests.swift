@@ -83,6 +83,41 @@ func deletingSongRemovesSessionsProgressAndMetadataFromTheSharedRepository() asy
 
 @Test
 @MainActor
+func deletingBundledSongNeverMutatesIndexHistoryOrFiles() async throws {
+    let entry = SongLibraryEntry(
+        id: UUID(),
+        displayName: "Bundled Song",
+        musicXMLFileName: "bundled.musicxml",
+        scoreFileVersionID: UUID(),
+        importedAt: .now,
+        audioFileName: "bundled.mp3",
+        isBundled: true
+    )
+    let index = SongLibraryIndex(entries: [], lastSelectedEntryID: entry.id)
+    let indexStore = DeletionIndexStore(index: index)
+    let repository = RecordingProgressRepository()
+    let fileStore = DeletionRecordingFileStore()
+    let viewModel = SongLibraryViewModelTestHarness.make(
+        index: index,
+        indexStore: indexStore,
+        fileStore: fileStore,
+        bundledEntries: [entry],
+        practiceProgressRepository: repository
+    )
+
+    await viewModel.deleteEntry(entryID: entry.id)
+
+    #expect(viewModel.entries == [entry])
+    #expect(viewModel.selectedEntryID == entry.id)
+    #expect(try await indexStore.load() == index)
+    #expect(await repository.removedSongIDs.isEmpty)
+    #expect(await fileStore.deletedScoreNames.isEmpty)
+    #expect(await fileStore.deletedAudioNames.isEmpty)
+    #expect(viewModel.errorMessage == "内置曲目无法删除。")
+}
+
+@Test
+@MainActor
 func deletingSongBestEffortRemovesPracticeProgress() async {
     let songID = UUID()
     let entry = SongLibraryEntry(

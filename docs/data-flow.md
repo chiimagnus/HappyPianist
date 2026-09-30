@@ -14,6 +14,8 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - `PracticePreparationService` 先生成唯一的 `ScorePerformancePlan`，再单向投影 steps、琴键引导、notation、时间线和 sequence。没有 steps 或 measure spans 的结果是 typed failure，不存在 legacy/fallback 练习模式。
 - Notation 只接收 projection、overlay、measure spans 与 context；高亮、VoiceOver 和辅助显示是派生表现，不写入 progress。
 
+曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策，Reduce Motion 保留中央强调但取消透视旋转。
+
 ## 会话与输入
 
 ```text

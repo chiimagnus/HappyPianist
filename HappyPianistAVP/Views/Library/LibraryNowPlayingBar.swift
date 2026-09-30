@@ -46,7 +46,7 @@ struct LibraryNowPlayingBar: View {
 
     var body: some View {
         HStack(spacing: 18) {
-            Image(systemName: isPlaying ? "record.circle.fill" : "record.circle")
+            Image(systemName: isPlaying ? "waveform" : "music.note")
                 .font(.title2)
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)

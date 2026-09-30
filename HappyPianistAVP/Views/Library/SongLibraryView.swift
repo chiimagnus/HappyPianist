@@ -34,9 +34,7 @@ struct SongLibraryView: View {
         }
         let selectedIsPlaying =
             selectedEntry.map { viewModel.isListeningPlaying(entryID: $0.id) } ?? false
-        let selectedDuration = resolvedDuration(
-            presentation: selectedPresentation, selectedEntry: selectedEntry
-        )
+        let selectedDuration = resolvedDuration(selectedEntry: selectedEntry)
         let selectedCurrentTime = resolvedCurrentTime(selectedEntry: selectedEntry)
         let selectedProgress = selectedDuration > 0 ? selectedCurrentTime / selectedDuration : 0
         let requiresAudioImport =
@@ -59,7 +57,7 @@ struct SongLibraryView: View {
             if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
             } else if selectedEntry != nil, selectedPresentation != nil {
-                LibraryRecordCarousel(
+                LibraryBookFlow(
                     entries: entries,
                     selectedEntryID: viewModel.selectedEntryID,
                     playingEntryID: viewModel.currentListeningEntryID,
@@ -252,7 +250,6 @@ struct SongLibraryView: View {
     }
 
     private func resolvedDuration(
-        presentation: SongLibraryTrackPresentation?,
         selectedEntry: SongLibraryEntry?
     ) -> TimeInterval {
         if let selectedEntry,
@@ -261,7 +258,7 @@ struct SongLibraryView: View {
         {
             return viewModel.listeningDuration
         }
-        return presentation?.knownDuration ?? 0
+        return 0
     }
 
     private var pendingImport: SongLibraryPendingImport? {
@@ -472,10 +469,10 @@ private struct SongLibraryEmptyView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("乐曲库为空", systemImage: "record.circle")
+            Label("乐曲库为空", systemImage: "books.vertical")
                 .foregroundStyle(.primary)
         } description: {
-            Text("导入 MusicXML 后，曲谱会以黑胶唱片的形式出现在这里。")
+            Text("导入 MusicXML 后，曲谱会以乐谱册的形式出现在这里。")
                 .foregroundStyle(.secondary)
         } actions: {
             Button("导入 MusicXML", systemImage: "plus", action: onImport)

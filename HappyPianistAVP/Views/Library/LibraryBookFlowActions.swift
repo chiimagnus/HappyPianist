@@ -4,8 +4,8 @@ struct LibraryImportLiftView: View {
     let liftOffset: CGFloat
 
     var body: some View {
-        let progress = LibraryCrateDragConfiguration.progress(for: liftOffset)
-        let isArmed = liftOffset >= LibraryCrateDragConfiguration.trigger
+        let progress = LibraryBookFlowDragConfiguration.progress(for: liftOffset)
+        let isArmed = liftOffset >= LibraryBookFlowDragConfiguration.trigger
 
         Label("导入 MusicXML", systemImage: "plus")
             .font(.subheadline)
@@ -58,7 +58,7 @@ struct LibraryDeleteHoldView: View {
                 isBundled
                     ? "内置曲目不能删除"
                     : allowsDestructiveActions
-                    ? isHolding ? "继续按住删除" : "下拽唱片删除"
+                    ? isHolding ? "继续按住删除" : "下拽删除乐谱"
                     : "导入期间不能删除",
                 systemImage: "trash"
             )
@@ -94,7 +94,7 @@ struct LibraryDeleteHoldView: View {
     }
 }
 
-enum LibraryCrateDragConfiguration {
+enum LibraryBookFlowDragConfiguration {
     static let maximumOffset: CGFloat = 72
     static let trigger: CGFloat = 44
 
@@ -113,7 +113,7 @@ enum LibraryDeletionHoldPolicy {
     static let durationSeconds = 2.0
 
     static func progress(for downwardDragTranslation: CGFloat) -> CGFloat {
-        LibraryCrateDragConfiguration.progress(for: downwardDragTranslation)
+        LibraryBookFlowDragConfiguration.progress(for: downwardDragTranslation)
     }
 
     static func isArmed(
@@ -123,6 +123,6 @@ enum LibraryDeletionHoldPolicy {
     ) -> Bool {
         isBundled == false
             && allowsDestructiveActions
-            && downwardDragTranslation >= LibraryCrateDragConfiguration.trigger
+            && downwardDragTranslation >= LibraryBookFlowDragConfiguration.trigger
     }
 }
