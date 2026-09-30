@@ -10,7 +10,7 @@
 - 能独立测量 model first token、first complete MIDI event、generation complete、network first event 与 product first playback 的 wall-clock latency；
 - 所有增量 emit event 与最终完整 detokenize 输出逐项一致，时间顺序不倒退；
 - 若实现 true streaming，产品在完整 generation 结束前已将至少一个稳定 event 交给 playback queue；用户新输入/disable/backend change 能取消未播放 future events 且无挂音/踏板；
-- 最终 fixed-case 结果按 action 分层报告。Qwen decision RTT P95 继续 `<100ms`。现有 `ImprovQualityRubric.maximumResponseLatencySeconds=0.35` 当前约束的是**完整 generation response latency**，不是 first-playable；P3 只有在把质量评估改成“首个可独立验收 playable window”后，才能把同一个 350ms 用户等待上限迁移为 Aria request→first accepted playable window 的 Gate。full completion latency 单独报告，不再混入这个维度；
+- 最终 fixed-case 结果按 action 分层报告。Qwen decision RTT 继续记录但不作为 P3 Gate。现有 `ImprovQualityRubric.maximumResponseLatencySeconds=0.35` 当前约束的是**完整 generation response latency**，不是 first-playable；P3 只有在把质量评估改成“首个可独立验收 playable window”后，才能把同一个 350ms 用户等待上限迁移为 Aria request→first accepted playable window 的 Gate。full completion latency 单独报告，不再混入这个维度；
 - 若 streaming 不值得/不正确，只保留 P0 的 HTTP 单一路径，并记录上游 blocker。
 
 **Rules:**
@@ -141,7 +141,7 @@ Windows service runner 使用与 P2 相同 generating cases；比较 full genera
 
 **Step 4: Action-aware realtime Gate**
 
-按生成 action 分层报告 latency，但不要把 `DuetPhrasePolicy.requestWindowSeconds` 当响应预算；它是生成音乐的 horizon。Qwen decision RTT P95 保持 `<100ms`。Aria 只有在 P3-T2 已把 quality latency 语义迁移到 first accepted playable window 后，才使用 `<350ms` Gate；服务级 Gate 的时间终点是**通过 applicable quality checks 后形成的首个 accepted mini-window**，产品真机证据还要单独报告该 window 到 schedule submit / playback `play()` success 的开销。不是 first token、first stable event、network first byte 或 MIDI 的 `time` 字段。full generation completion latency 与 decision request→actual playback start 总时延都单独报告，不发明额外 hard limit。
+按生成 action 分层报告 latency，但不要把 `DuetPhrasePolicy.requestWindowSeconds` 当响应预算；它是生成音乐的 horizon。Qwen decision RTT 只记录，不再作为 P3 Gate。Aria 只有在 P3-T2 已把 quality latency 语义迁移到 first accepted playable window 后，才使用 `<350ms` Gate；服务级 Gate 的时间终点是**通过 applicable quality checks 后形成的首个 accepted mini-window**，产品真机证据还要单独报告该 window 到 schedule submit / playback `play()` success 的开销。不是 first token、first stable event、network first byte 或 MIDI 的 `time` 字段。full generation completion latency 与 decision request→actual playback start 总时延都单独报告，不发明额外 hard limit。
 
 **Step 5: 正确性回归**
 

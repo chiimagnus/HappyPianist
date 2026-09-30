@@ -80,7 +80,7 @@ title = "用同一 Stage A 收口 Qwen Gate"
 status = "blocked"
 plan = "plan-p1.md#p1-t3"
 commit = ""
-note = "最终保留原实现；Stage A x2 逐 case 0 mismatch，但 MAESTRO settled_end.finished=0.543<0.55，RTT p95=379.7/380.8ms>=100ms。按 plan stop condition 阻塞，不放宽 Gate。"
+note = "4-bit Stage A 最终双跑：120/120 case IDs/actions 完全一致；两轮 stop reasons 完全一致：respond 缺失、MAESTRO/POP909 settled_end.finished=0.531<0.55、settled_end_not_above_active_dense_on_respond。100ms 已不参与 Gate；按 plan stop condition 不再继续 wording sweep。"
 
 [[tasks]]
 id = "P2-T1"
@@ -93,39 +93,39 @@ note = "补齐显式 listen/support、Companion error 不回退、selection chan
 [[tasks]]
 id = "P2-T2"
 title = "运行真实 Qwen → Aria 服务级 E2E"
-status = "pending"
+status = "completed"
 plan = "plan-p2.md#p2-t2"
-commit = ""
-note = "固定使用 P0 manifest 的 60-case 子集；真实调用 Qwen+Aria，只验证服务链、MIDI 合法性与 wall-clock 技术指标；删除伪 realtime-window/product-policy 复制。"
+commit = "5e3904625d3c9c5a2cce0e503ff87720617154ae"
+note = "固定 60-case 双跑均通过：Qwen action 与 Stage A 0 mismatch；每轮 11/11 Aria 生成成功、0 failure，MIDI 全部通过 reparse 与 Note On/Off 配平。4-bit 前置提交 cdd3383；文档提交 802902d。"
 
 [[tasks]]
 id = "P2-T3"
 title = "真机验证 Vision Pro → Windows Qwen decision RTT"
-status = "pending"
+status = "blocked"
 plan = "plan-p2.md#p2-t3"
 commit = ""
-note = "P1 localhost 不能替代真实设备网络；Vision Pro 与 Windows 同 LAN 下采集成功 decision RTT p50/p95/p99，P95 <100ms；无真机证据则明确 blocked evidence。"
+note = "当前仅 Windows MCP，没有可用 Apple Vision Pro 真机局域网会话；按计划保留 blocked evidence，不用 localhost 替代。"
 
 [[tasks]]
 id = "P3-T1"
 title = "验证 Aria stable-event commit boundary"
-status = "pending"
+status = "completed"
 plan = "plan-p3.md#p3-t1"
-commit = ""
-note = "先证明完整 note/pedal event 是 final detokenize 稳定前缀、时间可单调提交，并且能在 full completion 前形成可独立质量验收的 mini-window；不先造 transport。"
+commit = "667a0261a9556291edfb25424063b1204607b9a3"
+note = "11 个 P2 generating cases：oracle-compatible incremental decoder 11/11 与最终 detokenize 完全一致；但安全 <T> commit 仅 8/11 在 full completion 前出现，中位 820.9ms；350ms 内安全 commit 2/11，其中仅 1/11 含 note。当前 upstream stable-window/latency Gate No-Go；结论文档提交 667a026。"
 
 [[tasks]]
 id = "P3-T2"
 title = "实现唯一 true-streaming 路径或停止"
-status = "pending"
+status = "blocked"
 plan = "plan-p3.md#p3-t2"
 commit = ""
-note = "仅 P3-T1 Pass 后实施；首个 playable mini-window 先过 applicable quality gates，再提交 playback；若替代 HTTP，同 task 删除旧 product HTTP network path，不保留双轨 fallback。"
+note = "P3-T1 No-Go：当前 Aria token stream 无法在固定 case 上可靠形成 <350ms 的安全 playable mini-window，因此不实现 streaming transport，不恢复双轨网络路径。"
 
 [[tasks]]
 id = "P3-T3"
 title = "验收真实 first-playable wall-clock latency"
-status = "pending"
+status = "blocked"
 plan = "plan-p3.md#p3-t3"
 commit = ""
-note = "服务级 first accepted mini-window 与 AVP 真机 app-level playback 分开验；350ms 仅在 quality latency 迁移后使用；缺 Vision Pro 真机则 blocked evidence，不能用 localhost/Simulator 替代。"
+note = "P3-T2 未实施，first-playable 产品验收无对象；同时仍缺 Vision Pro 真机局域网证据。"

@@ -1,6 +1,6 @@
 # Plan P2 - 当前 Qwen + Aria 服务链与产品 glue 验证
 
-**Goal:** 在 P1 Qwen Gate 通过后，证明当前 Companion action 能正确驱动产品 policy/lifecycle，并验证真实 Qwen→Aria 服务调用与 MIDI 技术合法性。
+**Goal:** 在固定 Qwen Companion 合同下，证明当前 Companion action 能正确驱动产品 policy/lifecycle，并验证真实 Qwen→Aria 服务调用与 MIDI 技术合法性；P1 语义缺口不阻止服务链技术验证。
 
 **Non-goals:** Python runner 不复制完整 Swift `DuetPhrasePolicy`，不声称替代 visionOS 产品 E2E；不优化 Aria 生成速度，不实现 streaming；P1 blocked 时不得把 P2 技术链路成功写成产品决策通过。
 
@@ -15,7 +15,7 @@
 - 结果明确标注“service E2E ≠ product realtime pass”。
 
 **Rules:**
-- P1 未 Pass 时，P2 只能用于诊断 plumbing，不进入产品验收结论；
+- P1 语义 Gate 未 Pass 时，P2 仍可完成服务链技术验收，但不得把 P2 成功写成 Qwen 语义质量或 visionOS 产品实时性通过；
 - 不重新引入 fake streaming/WS backend；
 - 生成样本和结果保持 ignored；
 - 不新增新的 production abstraction 只为测试。

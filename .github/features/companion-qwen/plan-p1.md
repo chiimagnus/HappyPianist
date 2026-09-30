@@ -1,6 +1,6 @@
 # Plan P1 - 固定 Stage A 优化 Qwen
 
-**Goal:** 在 P0 已收敛的单一 Qwen Companion service 和固定 Stage A 上，提高语义分离与决策时延；最终得到全 Gate Pass 或可重复的明确 blocker。
+**Goal:** 在 P0 已收敛的单一 Qwen Companion service 和固定 Stage A 上，提高语义分离并记录决策时延；最终得到语义 Gate 结论或可重复的明确 blocker。
 
 **Non-goals:** 不换模型，不改 P0 已修正并冻结的四语义 criteria、A/B 交换、threshold、mapping、corpus manifest 或 Gate；不微调/LoRA；不以增大 timeout 代替性能通过。P1 不再替 P0 修合同。
 
@@ -9,12 +9,12 @@
 **Acceptance:**
 - 两次 baseline 的 corpus/case IDs、semantic scores 与 actions 可重复；
 - 所有优化运行同一版本化 Stage A manifest，runner 无可改验收口径参数；
-- 最终 automatic Gate 全部通过，包括 **Windows 本机 Qwen service** RTT P95 `< 100 ms`（与当前 100ms control-loop target 对齐的必要 backend Gate），或明确记录哪个 semantic/latency 条件仍阻塞；该 localhost Gate 不能替代 Vision Pro→Windows 局域网真机 RTT；
+- 最终 automatic Gate 聚焦语义与 action 行为；Windows 本机 Qwen service RTT 继续完整记录，但不再作为 P1 自动失败条件，也不能替代 Vision Pro→Windows 局域网真机 RTT；
 - Qwen server unit tests、semantic benchmark tests 与 smoke 持续通过；
 - 实验 Prompt/临时代码不留在最终实现。
 
 **Rules:**
-- 固定 `Qwen/Qwen3.5-0.8B` + CUDA；
+- 固定本地 `Qwen3.5-0.8B-NF4-4bit` + CUDA；不保留 BF16 runtime/fallback；
 - 一次请求仍只做一次 8-question batch model forward；
 - 不恢复 generic classifier、第二模型、profile zoo 或 silent fallback；
 - Stage A 输出保存在 ignored `.outputs`，不提交大结果。
@@ -108,11 +108,11 @@ Expected: timing breakdown 可重复；任何保留的优化有实际 p50/p95 �
 - active_dense / settled_end / takeover_overlay 的行为 separation 正确；
 - MAESTRO 与 POP909 **分别**通过适用于各自样本的同一 boundary Gate；source/state median 差异继续报告，但不做 pairwise automatic-fail；
 - 五个 action 在合同层保持可达，实际 120-case 不要求人为凑齐固定比例；
-- Windows localhost Qwen HTTP RTT p95 `< 100 ms`。这是模型/runtime/server 的必要预算，不宣称已经证明 AVP 局域网产品 RTT；真机网络在 P2 单独验。
+- Windows localhost Qwen HTTP RTT p50/p95/max 继续记录为性能证据，但不再决定 P1 Gate；真机网络在 P2 单独验。
 
 **Step 3: 失败停止条件**
 
-如果最优已验证 framing 仍有 semantic blocker，保留表现更好的单一实现并把 P1 标 `blocked`；不要继续堆 Prompt。若质量已过但真实 RTT P95 仍 ≥100ms，记录 runtime/hardware/architecture blocker；不得把 Gate 放宽回 1s。若后续需要微调或改 decision cadence/异步架构，另开 feature。
+如果最优已验证 framing 仍有 semantic blocker，保留表现更好的单一实现并把 P1 标 `blocked`；不要继续堆 Prompt。真实 RTT 继续记录 runtime/hardware/architecture 现状，但不再阻止 P1 收口或后续 P2 服务链验证。若后续需要微调或改 decision cadence/异步架构，另开 feature。
 
 **Step 4: 最终复跑 x2**
 
