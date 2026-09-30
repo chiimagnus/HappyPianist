@@ -1,42 +1,43 @@
 version = 1
-current_task_id = ""
+current_task_id = "P2-T3"
 
 [[tasks]]
 id = "P1-T1"
 title = "建立 Book Flow 呈现模型"
-status = "pending"
+status = "completed"
 plan = "plan-p1.md#p1-t1"
-commit = ""
-note = ""
+commit = "44de200db167e0f5630f864384b9e592df382453"
+note = "53/53 实际曲库定向测试与 build 通过；geometry/RMotion 与生产 consumer 同一原子提交，见 audit-p1。"
 
 [[tasks]]
 id = "P1-T2"
 title = "用 Book Flow 替换唱片曲库并清理旧唱片语义"
-status = "pending"
+status = "completed"
 plan = "plan-p1.md#p1-t2"
-commit = ""
-note = ""
+commit = "44de200db167e0f5630f864384b9e592df382453"
+note = "旧唱片路径删除，53/53 实际测试与 build 通过；用户确认现有 AVP 上滚动/选曲/倾斜/邻册点击正常，audit-p1 Go。"
 
 [[tasks]]
 id = "P2-T1"
 title = "拆分 score-level engraving 与 system slice"
-status = "pending"
+status = "completed"
 plan = "plan-p2.md#p2-t1"
-commit = ""
-note = ""
+commit = "fad08f07804767374717425061053626b1f021d6"
+note = "绝对 score/slice/异步 owner/正式映射已接入；72/72 定向 AVP、245/245 package 与 build 通过；旧 service 删除。扩大集复现一项先存示范手失败，见 plan-p2 证据。"
 
 [[tasks]]
 id = "P2-T2"
 title = "验证 canonical 分页几何与双页可读性"
-status = "pending"
+status = "completed"
 plan = "plan-p2.md#p2-t2"
 commit = ""
-note = ""
+no_commit_reason = "本地几何探索，无永久生产代码；实验已退出 target"
+note = "十一谱、1240×1160 native geometry、双页/放大截图；两轮各1/1 passed，补采轮signal kill如实记录。"
 
 [[tasks]]
 id = "P2-T3"
 title = "交付分页双页谱并接入 Practice、同步删除旧路径"
-status = "pending"
+status = "in_progress"
 plan = "plan-p2.md#p2-t3"
 commit = ""
 note = ""

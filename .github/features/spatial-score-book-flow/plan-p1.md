@@ -22,6 +22,8 @@
 
 **Phase acceptance:** Window 中核心曲库已经是 Book Flow；导入/删除/试听/选择仍正常；production 不再依赖 Vinyl/Turntable/Record/Crate 核心视觉语义。
 
+**本轮提交调整：** T1 的呈现模型与 T2 的唯一 consumer 替换已在同一工作树形成完整改动；两任务共同验证后作为一个原子提交入库，保留各自 ID、验收与相同提交 SHA。不为拆分提交临时恢复已删除的唱片 UI。真实滚动/选曲/邻册点击由用户在现有 AVP Simulator 手动确认；自动化工具当前无法获取 Device Hub 的精确窗口身份，不把截图当作滚动证据。
+
 ---
 
 ## P1-T1 建立 Book Flow 纯值呈现模型

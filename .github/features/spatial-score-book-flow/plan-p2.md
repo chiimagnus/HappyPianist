@@ -53,6 +53,7 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 
 1. 先建立无 overlay/active-range/scrollTick/像素依赖的 immutable absolute score layout；x 使用 staff-space。保留 notes/rests、accidental、chord/stem/beam/ledger、attribute/marks、已配对 spanners、所有真实 measure boundary 和完整 ink extents。
 2. 输入包含完整 projection/measure spans 及明确的 original part/staff → displayed grand-staff 映射。沿用 `PreparedPractice.scoreContext.logicalInstrument` 和 structural part 事实，不复制 normalizer 或从首个 note 猜；空休止 system 也必须有上下文。
+   本轮进一步核对：`ScoreNotationProjection.init` 已消费 logical instrument 的 `grandStaffPartAssignments`，其 SourceNote.staff、marks 与 attributeChanges 已是显示谱表编号，不能再次映射。正式 instrument/structuralPart facts 从 preparation 接到 runtime/notation，供身份、完整小节边界与 local context 查询使用；不会新增第二个 normalizer。
 3. 使用 spacing 的独立 `barlinePositionsByTick` / `attributePositionsByTick` / `rhythmicPositionsByTick`。不把 `position(at:)` 的末端节奏 clamp 当成真实小节终点；首小节起点不得延续旧 viewport 的丢弃策略。
 4. Beam 数据保留 source vs meter-derived provenance 和完整 source group membership，不解析 id 字符串判断来源。explicit beam 跨 staff/measure 的语义不能被 viewport clipping 掩盖。
 5. System slice 接受明确的 absolute x/tick 区间与局部 context，再映射到 renderer 的局部坐标；应用 highlight、剪切 spanner 并产生 continuation。范围只 dim 非活动内容，不删除小节结构或改变系统高度。
@@ -73,6 +74,16 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 **Gate:** Notation package tests + AVP notation/glyph/a11y tests + `make build:simulator`；package 测试不能替代 Apple target。
 
 **原子提交:** `refactor: P2-T1 - 拆分并接入谱面绝对布局`
+
+### T1 本轮取证
+
+- 旧 service / caller 迁移后，Notation 58 项通过（`/tmp/happy-p2-t1-full-notation2.log`）；新增完整边界、rest-only、split-part 正式映射、跨小节 source beam provenance、右边缘 closing marks、墨迹/极端谱字与缩放不变回归。
+- AVP 初轮 23 项真实测试：22 passed，只有 standard visual hash 不同（`.build/TestResults/ScoreLayout-P2-T1-1790782500.xcresult`）。失败后的诊断收集另超时 600s，不等于测试未运行。
+- 临时 parity 实验只在测试中移除新增加的首小节边线；标准图逐像素 hash 恢复为原 `026e009a…`。含首边线的 hash 为 `1e5476dd…`，可访问图仍是 `708c390b…`。实际检查导出 PNG；未盲刷 golden。实验 6/6（`.build/TestResults/ScoreLayout-P2-T1-parity-1790784122.xcresult`）；实验代码已当场删除。
+- 完整墨迹包含 notes/rest/dots/accidentals、ledger、stem/flag/beam、曲线/嵌套 tuplets、marks/inline attributes。beam 的 canonical bounds 与 renderer 复用同一 geometry；glyph metrics 由仓库 Bravura.otf 的 CoreText bbox 实测补齐。曲线采用包含控制点的保守包围盒，文字使用 CoreText shaping；不是固定 8-beam padding。
+- 正式 Gate 仍待删除实验后的实际测试与最终 build，以上记录不代替任务 completed。
+- 最新 package 全量 245/245（`/tmp/happy-p2-t1-full-package.log`）；正式 AVP 扩大集 72 项已运行，71 passed / 1 failed（`.build/TestResults/ScoreLayout-P2-T1-final-1790784471.xcresult`），失败为 `pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart()` 的 `rejectedOccurrenceIDs.isEmpty`。历史 `.build/TestResults/HappyPianistAVP-Simulator.xcresult`（1022 passed / 11 failed）含同 ID/同断言失败；本任务没有改 clip builder/rig/contact pipeline。保留已知失败，不把扩大集冒称全绿。
+- Gate：增加 synthetic source/structural part 一致性回归后，72/72 定向 AVP tests passed / 0 skipped（`.build/TestResults/ScoreLayout-P2-T1-gate-1790784934.xcresult`，`/tmp/happy-p2-t1-gate-test.log`）。此集不含刚刚实际复现的先存示范手失败。`make build:simulator SIMULATOR_ID=28DABA38-C30B-44B1-9C2B-65D50F7FCC55` passed（`/tmp/happy-p2-t1-final-build.log`）。旧 service / alias scan 为零；source facts 不再折叠非法第三 staff。T1 可进入提交。
 
 ---
 
@@ -108,6 +119,15 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 
 在本节追加实验输入、实际 host 尺寸、canonical 参数、像素/放大结果与未解决样例；不要改 `docs/testing.md` 写未经运行的通过。
 T3 必须等待本实验成立；本 task 没有永久代码，因此无强制 Git 提交，feature 文档按忽略规则不入库。
+
+### T2 实测结论
+
+- 使用正式 preparation `.practice` 与 T1 renderer：四首 bundled（Bohemian Rhapsody、Despacito、Awesome、Under Pressure）与七个 fixture，共十一谱。实验源码留在本目录 `geometry-experiment.swift`，已从测试 target 删除。
+- 冻结 canonical 参数：page 52×73.5 staff-spaces，margin 3，system 可用宽 46/高 61.5，system gap 3，spread gutter 2。系统数按完整墨迹贪心装箱，不固定三行；source beam 连通组不切开，超宽/超高 system 二维 fit 并独占页。
+- 四首真实谱为 45/30/9/34 页，首页各三系统；fixture 含纯休止、双 part、7 升/降、极端音高、跨小节显式 beam、40 层 nested tuplets。1180px 双页最小 staff spacing 为 5.87px（40 音 beam）；放大同一页到 1180px 后 11.96px，实际 PNG 音头/beam 完整、未裁剪。40 层高系统二维 fit 后 9.54px/放大 19.44px。不存在任意大输入的有限像素可读性保证，放大阅读保留完整系统并可调整宿主尺寸。
+- 普通 spread 等比缩放，accessibility Dynamic Type 或显式放大把同一 spread 的两页纵向排列并纵向阅读；不是重新分页/单页产品模式。控制文字随 Dynamic Type，谱字没有旧 8…22 clamp。
+- 实际 AVP 现有设备窗口 `1240×1160`（已读取 native bounds），1180px 谱面与原 88 键同时可见。Practice min 1240×1160；Library preview min 1240×1000（无需键盘）。截图 `/tmp/happy-p2-t2-native-normal-captured.png`、`/tmp/happy-p2-t2-native-enlarged-captured.png` 已查看；放大截图保留键盘，谱面纵向阅读。
+- 实际测试：首轮 1/1 passed `.build/TestResults/ScoreGeometry-P2-T2-1790785854.xcresult`；native geometry 1/1 passed `.build/TestResults/ScoreGeometry-P2-T2-native-1790787027.xcresult`。补采截图轮 `.build/TestResults/ScoreGeometry-P2-T2-capture-1790787169.xcresult` 在截图导出后进程 signal kill，不能称该轮通过；前两轮与实际尺寸/两模式截图构成几何证据。临时 UIKit root/size 操作只用于实验，不进入生产。
 
 ---
 
@@ -290,5 +310,5 @@ Host：
 - 测试证据遵守仓库 `docs/testing.md` 与根/AVP `AGENTS.md`：Apple 集成必须真实 `xcodebuild test`；build-for-testing 或 macOS package 通过不是同一证据。只记录本轮实际执行结果，不复用旧 audit/旧计划里的通过声明。
 - 本机 package：`swift test --package-path Packages/HappyPianistCore --triple arm64-apple-macosx26.0`。换机器核对架构/系统后选有效 triple，不硬编码进 Package platforms。
 - 先 `swift test list` / Xcode test enumeration 再筛实际函数/suite；文件名不一定是 suite。确保实际运行非零个期望测试。
-- `make test:simulator` 会结束时 shutdown 指定 device并删旧 result bundle；用本轮专用 destination 与唯一报告路径，不能打断用户已启动的 Simulator 或覆盖其报告。必要时直接 xcodebuild test，使用已确认适用的 destination/超时/函数 IDs。
+- 用户于本轮明确要求仅使用现有 Apple Vision Pro `28DABA38-C30B-44B1-9C2B-65D50F7FCC55`，不新建设备。直接 `xcodebuild test`，保留唯一 result bundle 路径、超时和 discovered IDs；不要使用会 shutdown device / 删除旧报告的默认 Make test 收尾。
 - ImageRenderer golden 的 font registration、OS/SDK与实际 pixel哈希必须核对；变更说明源于分页事实，不盲刷 golden。
