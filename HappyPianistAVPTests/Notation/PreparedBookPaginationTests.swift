@@ -1,9 +1,12 @@
 import AVFAudio
 import Foundation
+import Library
 import MusicXML
 @testable import Notation
 import Practice
+import SwiftUI
 import Testing
+import UIKit
 @testable import HappyPianistAVP
 
 @Test
@@ -75,6 +78,102 @@ func preparedAutoplayRestBoundariesDriveBookInsteadOfStaleGuideAndPauseHolds() a
     session.setAutoplayEnabled(false)
     #expect(session.stateStore.autoplayNotationTick == nil)
     #expect(session.notationNavigationTick() == session.currentStep?.tick)
+}
+
+@Test(arguments: [ManualAdvanceMode.step, .measure])
+@MainActor
+func preparedBookPassageRetryInvalidationAndReplacementKeepFullPagination(mode: ManualAdvanceMode) async throws {
+    let prepared = try await preparedBookFixture()
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper())
+    defer { session.shutdown() }
+    installBook(prepared, into: session)
+    session.stateStore.activeManualAdvanceMode = mode
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let original = try #require(owner.plan)
+    session.startGuidingIfReady()
+    session.skip()
+    #expect(original.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == original.spreadCount - 1)
+    let spans = prepared.measureSpans
+    for boundaries in [(0, 30), (96, 127), (0, 127)] {
+        session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: spans[boundaries.0].occurrenceID, end: spans[boundaries.1].occurrenceID))
+        _ = session.applyPendingRoundConfiguration()
+        #expect(session.activeNotationOverlay.activeTickRange == spans[boundaries.0].startTick..<spans[boundaries.1].endTick)
+        #expect(session.measureSpans == spans)
+        #expect(original.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == (boundaries.0 == 96 ? original.spreadCount - 1 : 0))
+        await owner.load(try bookInput(session))
+        #expect(owner.plan == original)
+        #expect(owner.buildCount == 1)
+    }
+    session.retryMeasure(spans[0].sourceMeasureID)
+    #expect(original.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
+    session.skip()
+    #expect(session.state == .completed)
+    #expect(session.notationNavigationTick() == prepared.steps[0].tick)
+    let missing = PracticeMeasureOccurrenceID(sourceMeasureID: .init(partID: "missing", sourceMeasureIndex: 0, sourceNumberToken: "1"), occurrenceIndex: 0)
+    session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: missing, end: missing))
+    _ = session.applyPendingRoundConfiguration()
+    #expect(session.stateStore.isActiveRangeInvalid)
+    #expect(session.notationNavigationTick() == nil)
+    #expect(session.activeNotationOverlay == .empty)
+    session.resetSession()
+    #expect(session.notationProjection == nil && session.notationScoreFacts == nil)
+    #expect(session.notationNavigationTick() == nil)
+    owner.clear()
+    let replacement = try await preparedBookFixture()
+    installBook(replacement, into: session)
+    await owner.load(try bookInput(session))
+    #expect(owner.plan?.input.identity == replacement.identity)
+    #expect(owner.plan?.pages.map(\.id) == original.pages.map(\.id))
+    #expect(owner.buildCount == 2)
+}
+
+@Test(arguments: ["saved", "failed", "cancelled"])
+@MainActor
+func preparedBookResumeAndReturnPreserveNavigationAndActualProgress(outcome: String) async throws {
+    let prepared = try await preparedBookFixture()
+    let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let repository = FilePracticeProgressRepository(paths: paths)
+    let configuration = PracticeRoundConfiguration(passage: try #require(PracticePassage(start: prepared.measureSpans[0].occurrenceID, end: prepared.measureSpans[127].occurrenceID)), handMode: .both, tempoScale: 0.8, loopEnabled: false, requiredSuccesses: 2)
+    let progress = SongPracticeProgress(identity: prepared.identity, activeConfiguration: configuration, resumePoint: .init(occurrenceID: prepared.measureSpans[127].occurrenceID, stepIndex: 1, updatedAt: .now), updatedAt: .now)
+    try await repository.upsert(progress)
+    let sessionRepository = outcome == "failed" ? FilePracticeProgressRepository(paths: paths, writeDocument: { _, _ in throw CocoaError(.fileWriteOutOfSpace) }) : repository
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper(), progressCoordinator: PracticeProgressCoordinator(repository: sessionRepository, checkpointDelay: .seconds(60)))
+    defer { session.shutdown() }
+    installBook(prepared, into: session)
+    await session.applyLaunchRestorePolicy(.exactAvailable)
+    #expect(session.state == .ready && session.isRestoredSessionPaused)
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let plan = try #require(owner.plan)
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
+    session.startGuidingIfReady()
+    #expect(session.currentStepIndex == 1)
+    session.moveToStep(0, shouldPlaySound: false)
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
+    if outcome == "cancelled" {
+        #expect(await session.suspendAndFlushProgress() == .saved)
+        session.resumeAfterSuspension()
+        #expect(session.state == .ready && session.isRestoredSessionPaused && !session.hasShutdown)
+    } else {
+        let result = await session.flushAndShutdown()
+        if outcome == "failed" {
+            if case .failed = result {} else { Issue.record("Expected actual persistence failure") }
+            #expect(session.state == .ready && !session.hasShutdown)
+            #expect(session.songIdentity == prepared.identity)
+        } else {
+            #expect(result == .saved && session.hasShutdown)
+        }
+    }
+    #expect(session.sessionProgress?.measureFacts == progress.measureFacts)
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
+    await owner.load(try bookInput(session))
+    #expect(owner.plan == plan && owner.buildCount == 1)
+    let persisted = try #require(await repository.progress(for: prepared.identity))
+    #expect(persisted.resumePoint?.stepIndex == (outcome == "failed" ? 1 : 0))
+    #expect(persisted.measureFacts == progress.measureFacts)
 }
 
 @Test
@@ -162,6 +261,76 @@ private func installBook(_ prepared: PreparedPractice, into session: PracticeSes
 @MainActor
 private func bookInput(_ session: PracticeSessionViewModel) throws -> GrandStaffNotationScoreInput {
     GrandStaffNotationScoreInput(identity: try #require(session.songIdentity), projection: try #require(session.notationProjection), measureSpans: session.measureSpans, facts: try #require(session.notationScoreFacts), attributeTimeline: session.attributeTimeline)
+}
+
+@Test
+@MainActor
+func nativePreparedBookShowsManualResumeAndRestTransportInExistingWindow() async throws {
+    let prepared = try await preparedBookFixture()
+    let playback = BookTransportTestPlayback()
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper(), sequencerPlaybackService: playback)
+    installBook(prepared, into: session)
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let plan = try #require(owner.plan)
+    let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+    let window = try #require(scene.windows.first { $0.isKeyWindow })
+    let original = window.rootViewController
+    let size = window.bounds.size
+    let minimum = scene.sizeRestrictions?.minimumSize
+    let maximum = scene.sizeRestrictions?.maximumSize
+    defer {
+        session.shutdown()
+        window.rootViewController = original
+        scene.requestGeometryUpdate(.Vision(size: size, minimumSize: minimum, maximumSize: maximum))
+    }
+    scene.requestGeometryUpdate(.Vision(size: CGSize(width: 1240, height: 1000), minimumSize: CGSize(width: 1240, height: 1000), maximumSize: CGSize(width: 1240, height: 1000)))
+    let controller = UIHostingController(rootView: PreparedBookNativeRoot(session: session))
+    window.rootViewController = controller
+    await TestAsyncWait.until("existing practice book window") { window.bounds.width >= 1239 && window.bounds.height >= 999 }
+    session.startGuidingIfReady()
+    session.skip()
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
+    try await Task.sleep(for: .seconds(1))
+    _ = await session.suspendAndFlushProgress()
+    session.resumeAfterSuspension()
+    #expect(session.state == .ready && session.isRestoredSessionPaused)
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
+    try await Task.sleep(for: .seconds(1))
+    session.retryMeasure(prepared.measureSpans[0].sourceMeasureID)
+    session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: prepared.measureSpans[0].occurrenceID, end: prepared.measureSpans[127].occurrenceID))
+    _ = session.applyPendingRoundConfiguration()
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
+    try await Task.sleep(for: .seconds(1))
+    session.setAutoplayEnabled(true)
+    session.startGuidingIfReady()
+    await TestAsyncWait.until("native book autoplay started") { playback.sequence != nil }
+    let rest = try #require(plan.pages.first { $0.index >= 2 }?.measures.first?.span)
+    playback.seconds = session.tempoMap.timeSeconds(atTick: rest.startTick) - session.tempoMap.timeSeconds(atTick: prepared.steps[0].tick) + session.autoplayTimingLeadInSeconds + 0.001
+    await TestAsyncWait.until("native rest page") { session.notationNavigationTick() == rest.startTick }
+    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 1)
+    try await Task.sleep(for: .seconds(1))
+    await session.pauseAutoplayPlayback()
+    let paused = session.notationNavigationTick()
+    playback.seconds += 10
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(session.notationNavigationTick() == paused)
+    session.clearPreparedSong()
+    #expect(session.notationNavigationTick() == nil && session.notationProjection == nil)
+    try await Task.sleep(for: .seconds(1))
+}
+
+private struct PreparedBookNativeRoot: View {
+    @Bindable var session: PracticeSessionViewModel
+
+    var body: some View {
+        if let identity = session.songIdentity, let projection = session.notationProjection, let facts = session.notationScoreFacts {
+            GrandStaffNotationBookView(input: .init(identity: identity, projection: projection, measureSpans: session.measureSpans, facts: facts, attributeTimeline: session.attributeTimeline), navigationTick: session.notationNavigationTick(), overlay: session.activeNotationOverlay, practiceHandMode: session.practiceHandMode)
+                .padding(30)
+        } else {
+            ContentUnavailableView("没有已准备曲谱", systemImage: "music.note")
+        }
+    }
 }
 
 @MainActor
