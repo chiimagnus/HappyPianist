@@ -13,7 +13,7 @@ struct LibraryBookFlow: View {
     let reduceMotion: Bool
     let allowsDestructiveActions: Bool
     let onSelectEntry: (UUID) -> Void
-    let onTogglePlayback: (UUID) -> Void
+    let onConfirmFolio: (UUID) -> Void
     let onImportMusicXML: () -> Void
     let onImmediateDelete: (UUID) -> Void
 
@@ -25,7 +25,7 @@ struct LibraryBookFlow: View {
         reduceMotion: Bool,
         allowsDestructiveActions: Bool,
         onSelectEntry: @escaping (UUID) -> Void,
-        onTogglePlayback: @escaping (UUID) -> Void,
+        onConfirmFolio: @escaping (UUID) -> Void,
         onImportMusicXML: @escaping () -> Void,
         onImmediateDelete: @escaping (UUID) -> Void
     ) {
@@ -36,7 +36,7 @@ struct LibraryBookFlow: View {
         self.reduceMotion = reduceMotion
         self.allowsDestructiveActions = allowsDestructiveActions
         self.onSelectEntry = onSelectEntry
-        self.onTogglePlayback = onTogglePlayback
+        self.onConfirmFolio = onConfirmFolio
         self.onImportMusicXML = onImportMusicXML
         self.onImmediateDelete = onImmediateDelete
     }
@@ -249,15 +249,7 @@ struct LibraryBookFlow: View {
     }
 
     private func handleFolioConfirm(entryID: UUID) {
-        switch LibraryBookFlowSelectionDecision.action(
-            forTappedEntryID: entryID,
-            selectedEntryID: selectedEntryID
-        ) {
-        case .togglePlayback:
-            onTogglePlayback(entryID)
-        case .selectEntry:
-            select(entryID: entryID)
-        }
+        onConfirmFolio(entryID)
     }
 
     private func select(index: Int) {
@@ -339,7 +331,7 @@ private struct LibraryBookFlowItemView: View {
             .offset(x: presentation.horizontalOffset)
             .offset(y: isSelected ? verticalOffset : 0)
             .accessibilityLabel(trackPresentation.title)
-            .accessibilityHint(isSelected ? "播放或暂停当前曲目" : "选中这首曲目")
+            .accessibilityHint(isSelected ? "打开曲谱预览" : "选中这首曲目")
             .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
         .frame(
@@ -356,19 +348,7 @@ private struct LibraryBookFlowItemView: View {
     }
 }
 
-enum LibraryBookFlowTapAction: Equatable {
-    case togglePlayback
-    case selectEntry
-}
-
 enum LibraryBookFlowSelectionDecision {
-    static func action(
-        forTappedEntryID entryID: UUID,
-        selectedEntryID: UUID?
-    ) -> LibraryBookFlowTapAction {
-        entryID == selectedEntryID ? .togglePlayback : .selectEntry
-    }
-
     static func selectionToCommit(
         scrollTargetID: UUID?,
         selectedEntryID: UUID?
@@ -387,7 +367,7 @@ enum LibraryBookFlowSelectionDecision {
         reduceMotion: false,
         allowsDestructiveActions: true,
         onSelectEntry: { _ in },
-        onTogglePlayback: { _ in },
+        onConfirmFolio: { _ in },
         onImportMusicXML: {},
         onImmediateDelete: { _ in }
     )

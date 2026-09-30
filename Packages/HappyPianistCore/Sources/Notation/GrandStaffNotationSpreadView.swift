@@ -6,14 +6,16 @@ public struct GrandStaffNotationSpreadView: View {
     let targetIndex: Int
     let overlay: ScoreNotationProjection.Overlay
     let practiceHandMode: PracticeHandMode
+    let annotations: [GrandStaffNotationMeasureAnnotation]
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var enlarged = false
 
-    public init(plan: GrandStaffNotationPagePlan, targetIndex: Int, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both) {
+    public init(plan: GrandStaffNotationPagePlan, targetIndex: Int, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both, annotations: [GrandStaffNotationMeasureAnnotation] = []) {
         self.plan = plan
         self.targetIndex = targetIndex
         self.overlay = overlay
         self.practiceHandMode = practiceHandMode
+        self.annotations = annotations
     }
 
     public var body: some View {
@@ -25,14 +27,14 @@ public struct GrandStaffNotationSpreadView: View {
                     ScrollView(.vertical) {
                         VStack(spacing: plan.geometry.gutter * geometry.size.width / plan.geometry.width) {
                             ForEach(targetIndex * 2..<min(targetIndex * 2 + 2, plan.pages.count), id: \.self) { index in
-                                GrandStaffNotationPageView(plan: plan, index: index, staffSpace: geometry.size.width / plan.geometry.width, overlay: overlay, practiceHandMode: practiceHandMode)
+                                GrandStaffNotationPageView(plan: plan, index: index, staffSpace: geometry.size.width / plan.geometry.width, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
                             }
                         }
                     }
                 } else {
                     HStack(spacing: plan.geometry.gutter * staffSpace) {
-                        GrandStaffNotationPageView(plan: plan, index: targetIndex * 2, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode)
-                        GrandStaffNotationPageView(plan: plan, index: targetIndex * 2 + 1, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode)
+                        GrandStaffNotationPageView(plan: plan, index: targetIndex * 2, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
+                        GrandStaffNotationPageView(plan: plan, index: targetIndex * 2 + 1, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }

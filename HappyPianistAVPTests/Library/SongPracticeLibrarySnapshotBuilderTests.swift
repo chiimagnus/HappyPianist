@@ -71,6 +71,8 @@ func overviewUsesSessionsWhenCurrentMetadataIsUnavailable() async throws {
     #expect(overview.measureProgress == .metadataUnavailable)
     #expect(overview.resumeSourceMeasureID == nil)
     #expect(overview.focusMeasures.isEmpty)
+    #expect(overview.scoreRevision == nil)
+    #expect(overview.sourceMeasureStates.isEmpty)
 }
 
 @Test
@@ -109,6 +111,9 @@ func overviewMergesCurrentRevisionHandsAndCompletesThreeWayTotal() async throws 
         unpracticedSourceMeasureCount: 1
     )))
     #expect(overview.status == .learning)
+    #expect(overview.scoreRevision == revision)
+    #expect(overview.sourceMeasureStates.values.filter { $0 == .stable }.count == 2)
+    #expect(overview.sourceMeasureStates.values.filter { $0 == .learning }.count == 2)
 }
 
 @Test
@@ -138,6 +143,22 @@ func overviewStatusIsStableOnlyWhenEveryCurrentMeasureIsStable() async throws {
     }
 
     #expect(overview.status == .stable)
+}
+
+@Test
+func overviewDoesNotTreatUnobservedZeroAttemptFactsAsLearningOrStable() async throws {
+    let entry = makeSnapshotEntry()
+    let progress = makeSnapshotProgress(songID: entry.id, revision: "current", facts: [
+        MeasurePracticeFacts(sourceMeasureID: snapshotSource(0), handMode: .both, state: .pitchStepStable),
+        MeasurePracticeFacts(sourceMeasureID: snapshotSource(1), handMode: .both, state: .learning),
+    ])
+    guard case let .overview(overview) = try await buildSnapshot(entry: entry, history: PracticeSongHistory(songID: entry.id, progresses: [progress], scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current", total: 2)], sessions: [makeSnapshotSession(songID: entry.id, revision: "current")])) else {
+        Issue.record("Expected overview")
+        return
+    }
+    #expect(overview.sourceMeasureStates.isEmpty)
+    #expect(overview.measureProgress == .available(.init(stableSourceMeasureCount: 0, learningSourceMeasureCount: 0, unpracticedSourceMeasureCount: 2)))
+    #expect(overview.focusMeasures.isEmpty)
 }
 
 @Test

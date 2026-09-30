@@ -19,6 +19,7 @@ enum SongLibraryViewModelTestHarness {
         snapshotSleeper: (any SleeperProtocol)? = nil,
         snapshotSettleDelay: Duration = .zero,
         audioPlayer: (any SongAudioPlayerProtocol)? = nil,
+        scorePreview: LibraryScorePreviewViewModel? = nil,
         bootstrapLoader: (any SongLibraryBootstrapLoading)? = nil,
         deferInitialLoad: Bool = false
     ) -> SongLibraryViewModel {
@@ -36,6 +37,11 @@ enum SongLibraryViewModelTestHarness {
             audioImportService: NoopAudioImportService(),
             bundledProvider: resolvedBundledProvider,
             audioPlayer: audioPlayer ?? NoopSongAudioPlayer(),
+            scorePreview: scorePreview ?? LibraryScorePreviewViewModel(
+                resolver: SongLibraryEntryResolver(indexStore: resolvedIndexStore, bundledProvider: resolvedBundledProvider, fileStore: resolvedFileStore),
+                preparationService: PracticePreparationService(diagnosticsReporter: diagnosticsReporter ?? NoopLibraryDiagnosticsReporter()),
+                diagnosticsReporter: diagnosticsReporter ?? NoopLibraryDiagnosticsReporter()
+            ),
             practiceProgressRepository: practiceProgressRepository ?? InMemoryPracticeProgressRepository(),
             practiceProgressRecovery: practiceProgressRecovery,
             diagnosticsReporter: diagnosticsReporter ?? NoopLibraryDiagnosticsReporter(),

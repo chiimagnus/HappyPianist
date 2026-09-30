@@ -218,8 +218,11 @@ struct GrandStaffNotationInkBoundsService {
         let minX = notation.barlines.map(\.xPosition).min() ?? 0
         let maxX = notation.barlines.map(\.xPosition).max() ?? minX
         let staffBounds = CGRect(x: minX, y: -4.065, width: maxX - minX, height: staffDistance + 4.13)
+        let edges = rectangles.values.reduce((minX: staffBounds.minX, minY: staffBounds.minY, maxX: staffBounds.maxX, maxY: staffBounds.maxY)) { edges, rectangle in
+            (min(edges.minX, rectangle.minX), min(edges.minY, rectangle.minY), max(edges.maxX, rectangle.maxX), max(edges.maxY, rectangle.maxY))
+        }
         return GrandStaffNotationInkLayout(
-            bounds: rectangles.values.reduce(staffBounds) { $0.union($1) }.insetBy(dx: -0.05, dy: -0.05), boundsByElementID: rectangles
+            bounds: CGRect(x: edges.minX, y: edges.minY, width: edges.maxX - edges.minX, height: edges.maxY - edges.minY).insetBy(dx: -0.05, dy: -0.05), boundsByElementID: rectangles
         )
     }
 

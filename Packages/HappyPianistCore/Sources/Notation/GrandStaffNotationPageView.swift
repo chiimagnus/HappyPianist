@@ -7,6 +7,7 @@ struct GrandStaffNotationPageView: View {
     let staffSpace: Double
     let overlay: ScoreNotationProjection.Overlay
     let practiceHandMode: PracticeHandMode
+    var annotations: [GrandStaffNotationMeasureAnnotation] = []
 
     var body: some View {
         let geometry = plan.geometry
@@ -38,6 +39,25 @@ struct GrandStaffNotationPageView: View {
             }
         }
         .foregroundStyle(.black)
+        .overlay(alignment: .topLeading) {
+            if let page {
+                ForEach(page.measures, id: \.span.id) { measure in
+                    if let annotation = annotations.first(where: { $0.occurrenceID == measure.span.occurrenceID }) {
+                        HStack(spacing: 0.3 * staffSpace) {
+                            Image(systemName: annotation.state.symbol)
+                            if annotation.isResume { Image(systemName: "bookmark") }
+                            if annotation.isFocus { Image(systemName: "scope") }
+                        }
+                        .font(.system(size: staffSpace))
+                        .foregroundStyle(.black)
+                        .frame(width: measure.rect.width * staffSpace, alignment: .leading)
+                        .position(x: measure.rect.midX * staffSpace, y: (measure.rect.minY - 0.8) * staffSpace)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(annotation.label)
+                    }
+                }
+            }
+        }
         .background(Color(red: 0.98, green: 0.965, blue: 0.92))
         .environment(\.colorScheme, .light)
         .environment(\.layoutDirection, .leftToRight)

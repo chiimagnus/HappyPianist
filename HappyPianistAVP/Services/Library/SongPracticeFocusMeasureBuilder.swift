@@ -40,12 +40,7 @@ struct SongPracticeFocusMeasureBuilder {
         sourceMeasureID: PracticeSourceMeasureID,
         facts: [MeasurePracticeFacts]
     ) -> Candidate? {
-        let stableHands = Set(facts.filter { $0.state == .pitchStepStable }.map(\.handMode))
-        guard stableHands.contains(.both) == false,
-              (stableHands.contains(.left) && stableHands.contains(.right)) == false
-        else {
-            return nil
-        }
+        guard SongPracticeMeasureFactOrder.sourceState(facts) == .learning else { return nil }
         let issueFact = facts
             .filter { $0.recentIssue != nil }
             .sorted(by: SongPracticeMeasureFactOrder.comesFirst)
@@ -77,6 +72,11 @@ struct SongPracticeFocusMeasureBuilder {
 }
 
 enum SongPracticeMeasureFactOrder {
+    static func sourceState(_ facts: [MeasurePracticeFacts]) -> SongPracticeSourceMeasureState {
+        let stableHands = Set(facts.filter { $0.state == .pitchStepStable }.map(\.handMode))
+        return stableHands.contains(.both) || (stableHands.contains(.left) && stableHands.contains(.right)) ? .stable : .learning
+    }
+
     static func uniqueRealFacts(in facts: [MeasurePracticeFacts]) -> [MeasurePracticeFacts] {
         Dictionary(grouping: facts.filter(hasRealAttempt)) {
             MeasureHandIdentity(sourceMeasureID: $0.sourceMeasureID, handMode: $0.handMode)

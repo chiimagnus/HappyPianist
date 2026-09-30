@@ -16,7 +16,6 @@ struct SongLibraryView: View {
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingImportConfirmationID: UUID?
     @State private var isDiagnosticsPresented = false
-    @State private var libraryViewHeight = LibraryWindowLayout.idealHeight
 
     private var audioImporterTypes: [UTType] {
         let types = AudioImportService.supportedFileExtensions.compactMap {
@@ -54,7 +53,9 @@ struct SongLibraryView: View {
                 .padding()
             }
 
-            if entries.isEmpty {
+            if viewModel.scorePreview.isOpen {
+                LibraryScorePreviewView(library: viewModel, title: selectedPresentation?.title ?? "曲谱")
+            } else if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
             } else if selectedEntry != nil, selectedPresentation != nil {
                 LibraryBookFlow(
@@ -65,19 +66,15 @@ struct SongLibraryView: View {
                     reduceMotion: reduceMotion,
                     allowsDestructiveActions: viewModel.importState.isActive == false,
                     onSelectEntry: viewModel.selectEntry,
-                    onTogglePlayback: togglePlayback,
+                    onConfirmFolio: viewModel.confirmFolio,
                     onImportMusicXML: viewModel.didTapImportMusicXML,
                     onImmediateDelete: deleteWithoutConfirmation
                 )
             }
         }
         .frame(
-            minWidth: 780,
-            idealWidth: 1140,
-            maxWidth: 1240,
-            minHeight: LibraryWindowLayout.minimumHeight,
-            idealHeight: LibraryWindowLayout.idealHeight,
-            maxHeight: LibraryWindowLayout.maximumHeight
+            minWidth: 1240,
+            minHeight: 1000
         )
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
@@ -114,9 +111,6 @@ struct SongLibraryView: View {
                 }
             }
         }
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
-            libraryViewHeight = height
-        }
         .safeAreaInset(edge: .top) {
             if viewModel.importState.isActive {
                 LibraryImportStatusView(
@@ -143,25 +137,6 @@ struct SongLibraryView: View {
                 .padding(.horizontal)
             }
         }
-        .ornament(
-            visibility: viewModel.practiceSnapshotState == nil ? .hidden : .visible,
-            attachmentAnchor: .scene(.trailing),
-            contentAlignment: .leading
-        ) {
-            if let state = viewModel.practiceSnapshotState {
-                LibraryPracticeProgressOrnamentView(
-                    state: state,
-                    height: libraryViewHeight,
-                    onRetry: viewModel.retrySelectedPracticeSnapshot,
-                    onConfirmedReset: {
-                        Task { @MainActor in
-                            await viewModel.recoverCorruptedSelectedPracticeHistory()
-                        }
-                    }
-                )
-                .glassBackgroundEffect()
-            }
-        }
         .sheet(isPresented: $isDiagnosticsPresented) {
             DiagnosticsView(viewModel: diagnosticsViewModel)
         }
@@ -175,6 +150,7 @@ struct SongLibraryView: View {
             await viewModel.loadLibrary()
         }
         .onDisappear {
+            viewModel.scorePreview.close()
             viewModel.stopListening()
             Task { @MainActor in
                 await viewModel.cancelAllImports()
@@ -353,12 +329,6 @@ struct SongLibraryView: View {
     }
 }
 
-private enum LibraryWindowLayout {
-    static let minimumHeight: CGFloat = 620
-    static let idealHeight: CGFloat = 720
-    static let maximumHeight: CGFloat = 860
-}
-
 private struct LibraryImportStatusView: View {
     let state: SongLibraryImportState
     let onReviewConflict: (UUID) -> Void
@@ -484,5 +454,5 @@ private struct SongLibraryEmptyView: View {
 
 #Preview("空乐曲库") {
     SongLibraryEmptyView(onImport: {})
-        .frame(width: 1140, height: LibraryWindowLayout.idealHeight)
+        .frame(width: 1240, height: 1000)
 }

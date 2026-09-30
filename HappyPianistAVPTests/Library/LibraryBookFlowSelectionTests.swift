@@ -38,21 +38,3 @@ func unchangedOrProgrammaticScrollTargetDoesNotCommitAgain() {
         ) == nil
     )
 }
-
-@Test
-func centerTapTogglesPlaybackAndNeighborTapSelects() {
-    let selectedEntryID = UUID()
-
-    #expect(
-        LibraryBookFlowSelectionDecision.action(
-            forTappedEntryID: selectedEntryID,
-            selectedEntryID: selectedEntryID
-        ) == .togglePlayback
-    )
-    #expect(
-        LibraryBookFlowSelectionDecision.action(
-            forTappedEntryID: UUID(),
-            selectedEntryID: selectedEntryID
-        ) == .selectEntry
-    )
-}

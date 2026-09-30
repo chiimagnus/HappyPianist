@@ -72,6 +72,24 @@ func sourceBeamComponentCannotBeSplitAndOversizedSystemOwnsPage() throws {
 }
 
 @Test
+func paginationIsExactlyRepeatableForDenseLedgerInk() throws {
+    let measures = (1...16).map { index in
+        let attributes = index == 1 ? "<attributes><divisions>1</divisions><staves>2</staves><key><fifths>-3</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time></attributes>" : ""
+        let notes = [2, 3, 4, 6].enumerated().map { offset, octave in
+            "<note><pitch><step>\(offset.isMultiple(of: 2) ? "C" : "G")</step><octave>\(octave)</octave></pitch><duration>1</duration><type>quarter</type><staff>2</staff></note>"
+        }.joined()
+        return "<measure number=\"\(index)\">\(attributes)\(notes)</measure>"
+    }.joined()
+    let score = try paginationFixture(count: 16, measures: measures)
+    let expected = try GrandStaffNotationPaginationService().makePlan(score: score)
+    for _ in 0..<30 {
+        let actual = try GrandStaffNotationPaginationService().makePlan(score: score)
+        let matches = actual == expected
+        #expect(matches)
+    }
+}
+
+@Test
 func localStaffContextAndSignatureInkUseSameClefAndSevenKeyGeometry() throws {
     let score = try paginationFixture(count: 1, measures: """
     <measure number="1"><attributes><divisions>1</divisions><staves>2</staves>

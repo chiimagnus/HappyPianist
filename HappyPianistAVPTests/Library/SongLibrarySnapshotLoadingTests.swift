@@ -225,7 +225,7 @@ func confirmedCorruptionResetReloadsOnlyAfterRecoverySucceeds() async throws {
         $0 == corruptedUnavailable(for: entry, canReset: true)
     }
 
-    await viewModel.recoverCorruptedSelectedPracticeHistory()
+    await viewModel.recoverCorruptedSelectedPracticeHistory(expectedIdentity: selectionIdentity(entry))
 
     try await waitForSnapshotState(viewModel) {
         $0 == .invitation(selectionIdentity(entry))
@@ -255,7 +255,7 @@ func failedCorruptionResetKeepsUnavailableAndDoesNotPublishInvitation() async th
         $0 == corruptedUnavailable(for: entry, canReset: true)
     }
 
-    await viewModel.recoverCorruptedSelectedPracticeHistory()
+    await viewModel.recoverCorruptedSelectedPracticeHistory(expectedIdentity: selectionIdentity(entry))
 
     #expect(viewModel.practiceSnapshotState == corruptedUnavailable(for: entry, canReset: true))
     #expect(await repository.recoveryCount == 1)
@@ -293,7 +293,7 @@ func completedResetCannotResurrectASelectionThatChangedDuringRecovery() async th
         $0 == corruptedUnavailable(for: first, canReset: true)
     }
 
-    let recoveryTask = Task { await viewModel.recoverCorruptedSelectedPracticeHistory() }
+    let recoveryTask = Task { await viewModel.recoverCorruptedSelectedPracticeHistory(expectedIdentity: selectionIdentity(first)) }
     await repository.waitForRecovery()
     viewModel.selectEntry(second.id)
     try await waitForSnapshotState(viewModel) {

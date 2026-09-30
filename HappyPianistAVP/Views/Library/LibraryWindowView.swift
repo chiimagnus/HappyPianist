@@ -41,8 +41,11 @@ struct LibraryWindowRootView: View {
             }
         )
         .onChange(of: scenePhase) {
-            guard scenePhase == .active else { return }
-            songLibraryViewModel.refreshSelectedPracticeSnapshot()
+            if scenePhase == .active {
+                songLibraryViewModel.refreshSelectedPracticeSnapshot()
+            } else {
+                songLibraryViewModel.scorePreview.close()
+            }
         }
         .onAppear {
             songLibraryViewModel.refreshSelectedPracticeSnapshot()

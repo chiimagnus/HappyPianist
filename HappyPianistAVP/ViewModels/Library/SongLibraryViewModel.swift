@@ -7,13 +7,16 @@ import Practice
 @MainActor
 @Observable
 final class SongLibraryViewModel {
+    let scorePreview: LibraryScorePreviewViewModel
     private let indexStore: SongLibraryIndexStoreProtocol
     private let importTransactionService: any SongLibraryImportTransactionServicing
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
     private let bundledProvider: BundledSongLibraryProviderProtocol
     private let bootstrapLoader: any SongLibraryBootstrapLoading
-    private var bundledEntries: [SongLibraryEntry]
+    private var bundledEntries: [SongLibraryEntry] {
+        didSet { invalidatePreviewIfSelectionChanged() }
+    }
     private let audioPlaybackController: SongAudioPlaybackStateController
     private let practiceProgressRepository: any PracticeProgressRepositoryProtocol
     private let practiceProgressRecovery: (any PracticeProgressRecoveryProtocol)?
@@ -40,7 +43,9 @@ final class SongLibraryViewModel {
     private var desiredPersistedSelection: UUID?
     private var persistedSelection: UUID?
 
-    var index: SongLibraryIndex = .empty
+    var index: SongLibraryIndex = .empty {
+        didSet { invalidatePreviewIfSelectionChanged() }
+    }
     var errorMessage: String?
     var currentListeningEntryID: UUID?
     var isCurrentListeningPlaying = false
@@ -48,7 +53,9 @@ final class SongLibraryViewModel {
     var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
     private(set) var importState: SongLibraryImportState = .idle
-    private(set) var selectedEntryID: UUID?
+    private(set) var selectedEntryID: UUID? {
+        didSet { invalidatePreviewIfSelectionChanged() }
+    }
     private(set) var practiceSnapshotState: SongPracticeLibraryPresentationState?
 
     init(
@@ -58,6 +65,7 @@ final class SongLibraryViewModel {
         audioImportService: AudioImportServiceProtocol,
         bundledProvider: BundledSongLibraryProviderProtocol,
         audioPlayer: SongAudioPlayerProtocol,
+        scorePreview: LibraryScorePreviewViewModel,
         practiceProgressRepository: any PracticeProgressRepositoryProtocol,
         practiceProgressRecovery: (any PracticeProgressRecoveryProtocol)? = nil,
         diagnosticsReporter: any DiagnosticsReporting,
@@ -70,6 +78,7 @@ final class SongLibraryViewModel {
         selectionPersistenceDelay: Duration = .milliseconds(200)
     ) {
         self.indexStore = indexStore
+        self.scorePreview = scorePreview
         self.importTransactionService = importTransactionService
         self.fileStore = fileStore
         self.audioImportService = audioImportService
@@ -106,6 +115,7 @@ final class SongLibraryViewModel {
     }
 
     func loadLibrary() async {
+        scorePreview.close()
         guard let snapshot = await bootstrapLoader.load() else { return }
         index = snapshot.index
         bundledEntries = snapshot.bundledEntries
@@ -130,8 +140,9 @@ final class SongLibraryViewModel {
         }
     }
 
-    func recoverCorruptedSelectedPracticeHistory() async {
+    func recoverCorruptedSelectedPracticeHistory(expectedIdentity: SongPracticeLibrarySelectionIdentity) async {
         guard case let .unavailable(unavailable) = practiceSnapshotState,
+              unavailable.identity == expectedIdentity,
               unavailable.reason == .corrupted,
               unavailable.recoveryOptions == .retryAndConfirmedBackupReset,
               isCurrentSnapshot(unavailable.identity),
@@ -314,11 +325,13 @@ final class SongLibraryViewModel {
 
     func didTapImportMusicXML() {
         guard importState.isActive == false else { return }
+        scorePreview.close()
         isMusicXMLImporterPresented = true
     }
 
     func importMusicXML(from selectedURLs: [URL]) async {
         guard selectedURLs.isEmpty == false, importState.isActive == false else { return }
+        scorePreview.close()
         importQueueGeneration += 1
         let generation = importQueueGeneration
         importState = .staging(count: selectedURLs.count)
@@ -566,6 +579,29 @@ final class SongLibraryViewModel {
         scheduleSnapshotLoad()
     }
 
+    func confirmFolio(_ entryID: UUID) {
+        guard !importState.isActive, !isMusicXMLImporterPresented else { return }
+        if selectedEntryID != entryID {
+            selectEntry(entryID)
+        } else {
+            openSelectedScore()
+        }
+    }
+
+    func openSelectedScore() {
+        guard !importState.isActive, !isMusicXMLImporterPresented,
+              let entry = entries.first(where: { $0.id == selectedEntryID }) else { return }
+        let identity = SongPracticeLibrarySelectionIdentity(songID: entry.id, scoreFileVersionID: entry.scoreFileVersionID)
+        scorePreview.open(identity) { [weak self] in
+            guard let self else { return false }
+            return !importState.isActive && !isMusicXMLImporterPresented && isCurrentSnapshot(identity)
+        }
+    }
+
+    private func invalidatePreviewIfSelectionChanged() {
+        if let identity = scorePreview.identity, !isCurrentSnapshot(identity) { scorePreview.close() }
+    }
+
     func deleteEntry(entryID: UUID) async {
         guard importState.isActive == false else {
             errorMessage = "曲谱导入完成或取消后才能删除曲目。"
@@ -578,6 +614,7 @@ final class SongLibraryViewModel {
         guard index.entries.contains(where: { $0.id == entryID }) else {
             return
         }
+        if scorePreview.identity?.songID == entryID { scorePreview.close() }
         if currentListeningEntryID == entryID {
             stopListening()
         }

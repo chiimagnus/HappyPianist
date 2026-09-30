@@ -2,7 +2,7 @@ import Foundation
 import MusicXML
 import Practice
 
-struct SongPracticeLibrarySelectionIdentity: Equatable {
+struct SongPracticeLibrarySelectionIdentity: Equatable, Sendable {
     let songID: UUID
     let scoreFileVersionID: UUID
 }
@@ -61,8 +61,16 @@ struct SongPracticeLibraryOverview: Equatable {
     let status: SongPracticeLibraryOverviewStatus
     let sessionSummary: SongPracticeSessionSummary
     let measureProgress: SongPracticeMeasureProgressState
+    let scoreRevision: String?
+    let sourceMeasureStates: [PracticeSourceMeasureID: SongPracticeSourceMeasureState]
     let resumeSourceMeasureID: PracticeSourceMeasureID?
     let focusMeasures: [SongPracticeFocusMeasure]
+
+}
+
+enum SongPracticeSourceMeasureState: Equatable {
+    case stable
+    case learning
 }
 
 struct SongPracticeLibraryUnavailable: Equatable {

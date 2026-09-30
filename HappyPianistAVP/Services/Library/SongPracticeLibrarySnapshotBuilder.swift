@@ -88,10 +88,12 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
         let uniqueCurrentFacts = SongPracticeMeasureFactOrder.uniqueRealFacts(
             in: currentProgress?.measureFacts ?? []
         )
+        let sourceStates = Dictionary(grouping: uniqueCurrentFacts, by: \.sourceMeasureID)
+            .mapValues(SongPracticeMeasureFactOrder.sourceState)
         let measureProgress = metadata.map { metadata in
             SongPracticeMeasureProgressState.available(
                 deriveMeasureProgress(
-                    facts: uniqueCurrentFacts,
+                    states: sourceStates,
                     totalSourceMeasureCount: metadata.totalSourceMeasureCount
                 )
             )
@@ -108,6 +110,8 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
                 viewingTimeZone: viewingTimeZone
             ),
             measureProgress: measureProgress,
+            scoreRevision: metadata?.scoreRevision,
+            sourceMeasureStates: sourceStates,
             resumeSourceMeasureID: resumeSourceMeasureID,
             focusMeasures: SongPracticeFocusMeasureBuilder().build(from: currentProgress)
         ))
@@ -137,21 +141,13 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
     }
 
     private nonisolated func deriveMeasureProgress(
-        facts: [MeasurePracticeFacts],
+        states: [PracticeSourceMeasureID: SongPracticeSourceMeasureState],
         totalSourceMeasureCount: Int
     ) -> SongPracticeMeasureProgress {
-        let sourceGroups = Dictionary(grouping: facts, by: \.sourceMeasureID)
-        let stableSourceIDs = Set(sourceGroups.compactMap { sourceID, facts in
-            let stableHands = Set(facts.filter { $0.state == .pitchStepStable }.map(\.handMode))
-            return stableHands.contains(.both) || (stableHands.contains(.left) && stableHands.contains(.right))
-                ? sourceID
-                : nil
-        })
-        let learningSourceIDs = Set(sourceGroups.keys).subtracting(stableSourceIDs)
-        let stableCount = min(totalSourceMeasureCount, stableSourceIDs.count)
+        let stableCount = min(totalSourceMeasureCount, states.values.filter { $0 == .stable }.count)
         let learningCount = min(
             max(0, totalSourceMeasureCount - stableCount),
-            learningSourceIDs.count
+            states.values.filter { $0 == .learning }.count
         )
         return SongPracticeMeasureProgress(
             stableSourceMeasureCount: stableCount,

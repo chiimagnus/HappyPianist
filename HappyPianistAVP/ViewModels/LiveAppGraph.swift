@@ -225,6 +225,7 @@ struct LiveAppGraph {
             audioImportService: audioImportService,
             bundledProvider: bundledSongLibraryProvider,
             audioPlayer: songAudioPlayer,
+            scorePreview: LibraryScorePreviewViewModel(resolver: songLibraryEntryResolver, preparationService: practicePreparationService, diagnosticsReporter: diagnosticsReporter),
             practiceProgressRepository: progressRepository,
             practiceProgressRecovery: progressRepository,
             diagnosticsReporter: diagnosticsReporter,
