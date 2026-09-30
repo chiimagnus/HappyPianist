@@ -67,11 +67,13 @@ Current `AIPerformanceService.State` only exposes:
 It does **not** expose the current validated CompanionAction.
 
 Current `DuetAIPlaybackQueue` knows:
-- requestGeneration；
+- `requestGeneration`；
 - preparing/playing transitions；
 - the exact point after `service.play()` succeeds；
 
 but its callback exposes only a phase, not playback identity/start time.
+
+Important source fact: `AIPerformanceService.generateContinuousWindow()` currently passes `phraseGenerationAtRequest` into `submitWindow(... requestGeneration:)`. That value is a **staleness/cancellation generation**, not a unique accepted playback-window ID；multiple consecutive accepted windows may share the same generation. P6-T1 must not reuse it as presentation identity.
 
 ### Files
 
@@ -90,27 +92,25 @@ It must expose enough to build one immutable presentation fact:
 
 ```text
 CompanionPlaybackPresentation
-- requestGeneration / window identity
+- windowID                 // unique per accepted queue window
 - CompanionAction
 - shifted schedule
 - playbackStartedAtUptimeSeconds
 ```
 
-The queue should publish the actual start timestamp only after the playback service crosses the successful `play()` boundary.
+Keep existing `requestGeneration` only for stale-request/cancellation rules. `DuetAIPlaybackQueue` mints a separate monotonic/unique `windowID` for every accepted `WindowItem` and stores the validated `CompanionAction` atomically beside that window's **shifted** schedule. After the playback service crosses the successful `play()` boundary and the window is still current, the queue publishes the immutable presentation above.
 
-Do not use submit time as playback start.
+Do not use submit time as playback start. Do not derive `windowID` from phrase/request generation.
 
 Do not add a visual timer independent of audio playback.
 
 ### Action ownership
 
-`AIPerformanceService` retains the validated `CompanionDecision.action` associated with each accepted request generation until:
-- that window starts；
-- it is replaced while still pending；
-- it is invalidated/yielded；
-- service disables/resets。
+Do **not** add an `AIPerformanceService` dictionary that maps request generation → action. The queue already owns pending/current playback windows, so the validated `CompanionAction` travels into the accepted `WindowItem` at submission time and is published atomically with that exact window's schedule/start time.
 
-Keep only bounded current/pending identities; no unbounded history dictionary.
+`AIPerformanceService` may separately expose the latest validated semantic action needed while no audio window is playing (`listen/yield` etc.), but the action for a playing window comes from `CompanionPlaybackPresentation`, never from a parallel lookup table.
+
+Keep only the queue's bounded current/pending window facts; no unbounded history dictionary or duplicate presentation owner.
 
 Expose in State:
 - current validated companion action for idle/listen/yield behavior；
@@ -145,9 +145,10 @@ Do not pass raw backend/model strings into spatial attachments.
 - validated action appears in state；
 - listen -> no playback presentation；
 - support/sparse/respond accepted window retains correct action；
-- playing event has correct request generation；
+- every accepted queue window receives a distinct `windowID` even when two windows share the same `requestGeneration/phraseGeneration`；
+- playing event carries that exact window's action + shifted schedule atomically；
 - start timestamp is published only after play boundary；
-- pending replacement cannot make wrong action drive the playing window；
+- pending replacement cannot make wrong action/schedule drive the playing window；
 - yield clears current playing presentation；
 - disable/reset clears action/playback state；
 - old virtual-performer property names absent after migration。
@@ -194,7 +195,9 @@ This pipeline:
 - validates contact error / collision / joint velocity；
 - already produces exact keyboard-local hand root/joint motion。
 
-Current AI schedule is `[PracticeSequencerMIDIEvent]` and contains note-on/note-off timing but no staff/hand/finger metadata.
+Current AI schedule is `[PracticeSequencerMIDIEvent]` and contains note-on/note-off timing but no staff/hand/finger metadata. `ImprovScheduleBuilder` currently creates AI note-on/note-off events with `sourceEventID == nil`；pairing repeated/overlapping same-pitch notes later by MIDI/order would therefore be ambiguous.
+
+Current score Demonstration hand timing is also **autoplay-only**: `PracticePlaybackControlService.pianoDemonstrationTransportTiming()` returns a transport only while autoplay is playing. `replayCurrentUnit()` instead uses `PracticeManualReplayService`, which plays the correct current-unit audio but currently publishes no hand-motion transport/contact timing. Therefore P6-T4 cannot truthfully reuse Replay for one-shot Companion Demonstration until T2 makes Manual Replay feed the same neutral hand-motion timing path.
 
 ### Files
 
@@ -208,6 +211,8 @@ Expected:
 - Remove: `PianoDemonstrationHandsTiming` wrapper；its `.manual/.transportPending` cases do not drive samples and should not survive as a compatibility shell
 - Refactor: `PianoHandMotionPlayer` so its core sampler accepts neutral clip set + contact timeline + playback seconds
 - Rename: `PracticePlaybackControlService.pianoDemonstrationTransportTiming()` / `onPianoDemonstrationContactTimelineChange` to neutral hand-motion transport/contact names
+- Update: `HappyPianistAVP/Services/Practice/Playback/PracticeManualReplayService.swift` so the **existing** manual replay engine publishes the same neutral hand-motion transport/contact timing from the timeline/sequence it already builds；do not add another playback engine or timer
+- Update: `HappyPianistAVP/Services/Practice/AI/ImprovScheduleBuilder.swift` so each generated AI note occurrence receives one deterministic non-nil `sourceEventID` shared by its note-on/note-off pair；update backend/schedule tests directly, with no fallback for old nil IDs on the new Companion-hand path
 - Rename Session fields/tasks/accessors such as `pianoDemonstrationFingeringPlan*` / `pianoDemonstrationMotionClipSet*` to neutral hand-motion names in this task；update tests directly
 - Rename reusable geometry helpers `PianoDemonstrationHandRootPlanner` / `PianoDemonstrationHandSkeleton` to neutral `PianoHand...` names and move them with the pure motion kernel in this task because AI motion planning consumes the same geometry；do not defer these core files/aliases to renderer cleanup
 - Update: Demonstration playback path to the same generic types in this task
@@ -218,11 +223,12 @@ Expected:
 Convert one accepted playback presentation schedule into deterministic contacts.
 
 Rules:
-1. pair noteOn/noteOff by MIDI/event order；
-2. use the **shifted schedule that audio actually plays**；
-3. create stable occurrence IDs scoped to playback request generation；
-4. control changes are ignored for finger contact generation but remain audio facts；
-5. unmatched/invalid note timing is rejected explicitly and diagnosed, not fabricated。
+1. `ImprovScheduleBuilder` stamps each generated note occurrence with one deterministic `sourceEventID` on both note-on and note-off before sorting；
+2. Companion contact building pairs strictly by `sourceEventID` and validates matching MIDI + monotonic timing；missing/duplicate/mismatched IDs are rejected explicitly rather than falling back to ambiguous same-MIDI FIFO/order pairing；
+3. use the **shifted schedule that audio actually plays**；
+4. create stable contact occurrence IDs scoped to P6-T1 `windowID + sourceEventID`；do not scope them only to phrase/request generation；
+5. control changes are ignored for finger contact generation but remain audio facts；
+6. unmatched/invalid note timing is rejected explicitly and diagnosed, not fabricated.
 
 ### Hand assignment
 
@@ -249,14 +255,16 @@ Rename the metadata concept to a neutral source revision/identity in this task i
 
 Likewise, replace demonstration-only clip-set/plan/transport/contact-callback/session-field naming with neutral hand-motion names.
 
-The old `PianoDemonstrationHandsTiming` wrapper is deleted, not aliased. For Demonstration, the presentation layer obtains the current neutral transport timing when autoplay/replay is actually active, resolves `playbackSeconds`, then calls the shared sampler. `manual/transportPending` simply means there is no active sampled motion yet；do not preserve empty enum cases solely for old call shape.
+The old `PianoDemonstrationHandsTiming` wrapper is deleted, not aliased. Replace it with one neutral transport snapshot/projection that represents an **actually playing** hand-motion source. Autoplay continues publishing through `PracticePlaybackControlService`; `PracticeManualReplayService` publishes the same minimal transport facts for current-unit Replay after its real `service.play(fromSeconds: 0)` succeeds and clears them on stop/reset/replacement. The presentation layer resolves `playbackSeconds` from whichever existing transport owns playback, then calls the shared sampler. There are no empty `.manual/.transportPending` compatibility cases.
 
 Do not leave deprecated demonstration aliases.
 
 ### Timing
 
 Demonstration:
-- continues using its actual autoplay transport playback position。
+- autoplay uses its existing actual autoplay transport position；
+- one-shot/current-unit Demonstration uses the **existing Manual Replay** transport position published above, so Replay audio and hand motion share one playback engine/clock；
+- stopping/replacing Manual Replay clears its hand-motion generation immediately so late samples cannot animate stale clips。
 
 AI:
 - playback seconds = current monotonic time - P6-T1 `playbackStartedAtUptimeSeconds`；
@@ -279,7 +287,8 @@ For Demonstration, preserve the current invariant:
 
 ### Tests
 
-- noteOn/off pairing；
+- `ImprovScheduleBuilder` emits matching stable `sourceEventID` for note-on/off, including overlapping repeated notes of the same MIDI pitch；
+- missing/duplicate/mismatched AI source IDs are rejected instead of order-paired；
 - one-sided high register -> right hand；
 - one-sided low register -> left hand；
 - two-register schedule -> deterministic split；
@@ -287,7 +296,8 @@ For Demonstration, preserve the current invariant:
 - build cancellation/generation；
 - AI playback seconds align with actual playback start；
 - rejected contacts do not appear in clip coverage；
-- existing Demonstration motion/transport tests migrate to the neutral names and still pass；
+- autoplay Demonstration motion/transport tests migrate to the neutral names and still pass；
+- Manual Replay publishes neutral hand-motion timing only after real playback starts, follows `currentSeconds`, and clears on stop/reset/replacement；one-shot Demonstration can therefore use `replayCurrentUnit()` without a second playback engine；
 - full symbol scan has no reusable-core `PianoDemonstrationFingeringPlan`, `PianoDemonstrationMotionClipSet`, `PianoDemonstrationTransportTiming`, `PianoDemonstrationHandsTiming`, `PianoDemonstrationHandRootPlanner`, `PianoDemonstrationHandSkeleton`, `pianoDemonstrationTransportTiming`, or `onPianoDemonstrationContactTimelineChange` references after T2；renderer/rig/settings/asset identity names intentionally remain only until T3/T4。
 
 ### Gate
@@ -323,7 +333,8 @@ Expected:
   - `Packages/RealityKitContent/.../xiaocheng.usdz`
   - tests serving only those deleted renderers
 - Rename the packaged hand assets + generator to the final Companion identity in this task (for example `CompanionHandLeft/Right.usdc` and a neutral/Companion generator script), update the loader/tests, and delete the old `PianoDemonstrationHand*` asset names；do not ship duplicate old/new assets
-- Keep `PianoDemonstrationHandsSettings.swift` temporarily in this task only as the existing Demonstration trigger source; P6-T4 removes it in the same task that replaces the persistent toggle with the one-shot spatial Demonstration action
+- Delete in this same task: `PianoDemonstrationHandsSettings.swift`, its `@AppStorage` key/bindings in `ImmersiveView` / `PracticeStepView` / `PracticeSettingsView`, and tests that exist only for the persistent old “演示手” toggle；do not keep an obsolete trigger merely to make the intermediate commit look feature-complete
+- Update the affected Practice Window views only enough to remove that dead persistent control; P6-T4 later adds the new one-shot spatial Demonstration action through the clean semantic Companion API
 - By the end of T3, `HappyPianistAVP/Services/Practice/DemonstrationHands/` has no production files and the directory is removed；there are no forwarding wrappers/import shims from old paths
 
 ### One-pair architecture
@@ -357,7 +368,7 @@ At any instant, choose one motion source:
 4. yield -> withdraw pose；
 5. no Companion feature active -> hidden。
 
-P6-T3 may temporarily consume the existing persistent Demonstration setting only to keep this intermediate commit functional while the renderer is replaced. It must not create a new setting or compatibility alias. P6-T4 removes that persistent toggle in the same task that introduces the explicit one-shot spatial Demonstration action.
+P6-T3 does **not** keep the existing persistent Demonstration setting. If the new controller needs Demonstration state for resolver/renderer tests before T4 exposes UI, use only an in-memory ephemeral semantic intent (for example `demonstrating(motion)`) owned by the existing Practice/Companion presentation path. It is not persisted, has no AppStorage key, and may have no user-facing trigger in this intermediate commit. P6-T4 adds the real one-shot spatial action.
 
 If product logic can produce an ambiguous state, resolve it in one pure presentation resolver and test it; do not let RealityView layer decide ad hoc.
 
@@ -420,7 +431,7 @@ Rename renderer/product-facing/runtime asset strings that are owned by this task
 
 The product action “Demonstration / 示范” remains a valid **mode/action name**；only reusable hand infrastructure stops pretending it belongs exclusively to the old persistent Demonstration renderer.
 
-The old persistent “演示手” setting label/key remains only until P6-T4 replaces that whole control with one-shot Companion Demonstration. Do not add aliases or new persistent keys.
+Delete the old persistent “演示手” setting label/key in **T3**, together with its renderer migration. Do not add aliases or a replacement persistent key；the future Demonstration is an ephemeral one-shot action, not a setting.
 
 `HappyPianistAVP/AGENTS.md` must be rewritten with the new source reality, not just one renamed class:
 - remove the old `HandVisualization + LowLevelMesh` Neon rendering rule；
@@ -442,7 +453,7 @@ The old persistent “演示手” setting label/key remains only until P6-T4 re
 - reset/suspend cancels load and prevents late reattach；
 - Reduce Motion；
 - no Neon/VirtualPerformer/Xiaocheng production refs；
-- no old `PianoDemonstrationHand*` rig/asset/generator/entity/diagnostic identity remains after migration, except the still-temporary `PianoDemonstrationHandsSettings` trigger that T4 deletes。
+- no old `PianoDemonstrationHand*` rig/asset/generator/entity/diagnostic identity and no `PianoDemonstrationHandsSettings` / old AppStorage key remain after migration。
 
 ### Gate
 
@@ -499,13 +510,13 @@ Only include high-frequency actions backed by the existing Practice transport/se
 
 - Next / advance；
 - Replay current unit audio；
-- **Companion 示范当前片段**：one-shot action that starts the existing current-unit replay/transport with an explicit Demonstration presentation intent；
+- **Companion 示范当前片段**：one-shot action that calls the existing `replayCurrentUnit()` / `PracticeManualReplayService` audio path and sets one ephemeral Demonstration presentation intent；P6-T2 has already made that same Manual Replay publish neutral hand-motion transport timing；
 - Autoplay toggle；
 - Companion duet enable/disable；
 - Recording start/stop + tiny status；
 - **结束练习 / 返回曲库**：调用现有 Practice return lifecycle，最终进入当前 `PracticeWindowReturnCoordinator` 的保存/失败重试/明确放弃流程。
 
-The Demonstration action must not create a second playback engine. It reuses the existing Practice replay/autoplay transport facts that already feed `PianoKeyContactTimeline`; only the presentation intent is new and ephemeral. When that transport stops/resets/replaces, Demonstration intent clears automatically.
+The Demonstration action must not create a second playback engine. It reuses the existing **Manual Replay** engine for current-unit audio and the neutral Manual-Replay hand-motion transport added in P6-T2；Autoplay keeps its own existing transport. Only the presentation intent is new and ephemeral. When Manual Replay stops/resets/replaces, Demonstration intent clears automatically.
 
 ### Transport-mode exclusivity
 
@@ -541,9 +552,8 @@ Keep complex/low-frequency controls in the auxiliary Practice Window:
 - diagnostics/debug-only controls。
 
 Refactor labels/state in this same task:
-- remove the persistent `PianoDemonstrationHandsSettings` toggle and its AppStorage key；
-- delete `PianoDemonstrationHandsSettings.swift` after all callers migrate；
-- expose the one-shot “Companion 示范当前片段” action in spatial controls instead；
+- the persistent `PianoDemonstrationHandsSettings` toggle/AppStorage/file were already deleted in P6-T3；do not recreate any persistent Demonstration setting；
+- expose the one-shot “Companion 示范当前片段” action in spatial controls through the clean ephemeral presentation intent；
 - remove “AI 即兴演奏（虚拟演奏家）” wording；
 - use Companion duet behavior terminology。
 
@@ -622,7 +632,7 @@ Spatial controls call existing `ARGuideViewModel/PracticeSessionViewModel` actio
 - spatial Next/Replay/Autoplay call existing commands and render state from the Session owner, with no duplicate View-local autoplay truth；
 - Companion Duet / Autoplay / one-shot Demonstration transitions enforce the explicit exclusivity rule and Companion Off stays available while AI is active；
 - spatial Finish/Return enters the existing `PracticeWindowReturnCoordinator` path and preserves save failure / retry / discard semantics；
-- one-shot Companion Demonstration starts the existing replay transport and clears its presentation intent on stop/reset/replacement；
+- one-shot Companion Demonstration starts the existing `replayCurrentUnit()` Manual Replay transport, drives hands from P6-T2's matching neutral timing, and clears its presentation intent on stop/reset/replacement；
 - Companion toggle uses `isCompanionDuetEnabled`；
 - recording state/action；
 - `PracticeSettingsView` no longer duplicates recording start/stop after the spatial control takes ownership；
@@ -645,9 +655,9 @@ Spatial controls call existing `ARGuideViewModel/PracticeSessionViewModel` actio
 
 ---
 
-## P6-T5 收口 Reality-first Practice 生命周期、返回路径与真实设备验收
+## P6-T5 验证 Reality-first Practice 全链路、P6 teardown 与真实设备体验
 
-**Goal:** 把 P4–P6 串成一条完整产品路径，并只清理 P6 本阶段产生的临时实现。
+**Goal:** 把 P4–P6 串起来做最终验证；不把 P4/P5/P6 前面任务应当完成的替换或清理拖到这里。T5 只补 P6 自己的 teardown/可访问性/真实设备证据，并回归 P5 已完成的返回生命周期。
 
 ### End-to-end target
 
@@ -669,15 +679,15 @@ Auxiliary Library Window
 
 ### Lifecycle
 
-Verify/complete:
+Verify；以下返回语义必须已经由 P5-T3 实现，T5 只做端到端回归，不在这里第一次重构它：
 
 - opening Library -> world tracking；
 - entering calibration -> existing calibration requirements；
 - entering Practice -> existing selected-mode tracking requirements；
 - leaving Practice -> flush progress before any spatial ownership change, preserving current save/abort/discard semantics；
-- **successful spatial return does not call the old unconditional `closeImmersive` path**: after save/finalize succeeds, switch the already-open shared ImmersiveSpace to `.library`, reconcile world-only tracking, tear down Guide/Companion/KeyboardScoreRoot, restore Spatial Library root, then dismiss the Practice Window；
-- refactor `PracticeWindowReturnCoordinator`'s hard-coded `closeImmersive` step into one presentation-completion closure that can either switch-to-library (spatial return) or close (true system/non-spatial exit) without changing save ordering；
-- `PracticeWindowRootView.onDisappear` / `PracticeSystemCloseCoordinator` must recognize a completed spatial return and **must not close the ImmersiveSpace a second time**；
+- **successful spatial return uses the P5-T3 presentation-completion path rather than old unconditional `closeImmersive`**: after save/finalize succeeds, switch the already-open shared ImmersiveSpace to `.library`, reconcile world-only tracking, tear down Guide/Companion/KeyboardScoreRoot, restore Spatial Library root, then dismiss the Practice Window；
+- `PracticeWindowReturnCoordinator` is already neutralized by P5-T3；T5 verifies its save ordering and does not add another return coordinator/flag；
+- `PracticeWindowRootView.onDisappear` / `PracticeSystemCloseCoordinator` honor the P5-T3 return fact and **must not close the restored Library ImmersiveSpace a second time**；
 - save failure/abort keeps Practice active and does not switch to Library；
 - immersive close/background -> cancel spatial/hand tasks and reject late results；
 - selected song remains consistent across return；the score closes into that selected folio and Library returns to Book Flow；`LibraryScorePreviewViewModel` stays closed after the successful Practice handoff/return until the user explicitly opens the folio again。
@@ -739,7 +749,7 @@ If physical AVP is unavailable:
 
 ### Docs
 
-Final docs pass is only a consistency check; architecture docs must already have been updated in P4-T3 / P5-T3 / P6-T3 when each owner changed. In P6-T5 update only if the final lifecycle changes those already-recorded facts:
+Final docs pass is only a consistency check; architecture docs must already have been updated in P4-T3 / P5-T3 / P6-T3 when each owner changed. P6-T5 must not become a delayed documentation/cleanup bucket. Update only if P6-specific teardown or verified final behavior materially changes an already-recorded fact:
 - `docs/architecture.md` for final spatial scene/controller lifecycle consistency；
 - `docs/data-flow.md` should already have been corrected in P6-T3 when old hand renderers were deleted；P6-T5 only adjusts it again if the final lifecycle implementation materially changes the already-documented flow；
 - `docs/testing.md` only with actually executed evidence。
@@ -772,7 +782,7 @@ If any remain, trace ownership and fix in the task where they were supposed to b
 - Simulator E2E；
 - physical AVP alignment/comfort checks when available。
 
-**Atomic commit:** `test: P6-T5 - 收口 Reality-first Spatial Practice`
+**Atomic commit:** `test: P6-T5 - 验证 Reality-first Spatial Practice 全链路`
 
 ---
 

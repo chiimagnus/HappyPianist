@@ -110,7 +110,7 @@ return to Spatial Library
 | 中：卡顿 / Swift 6 隔离 | 当前 makePresentation 每次全谱重做；现有部分 layout/context 非 Sendable | T1 单一 owner 非主 Actor 建一次绝对布局、可取消且只留当前值；T3 建一次 page plan；overlay 不触发全谱计算 |
 | 中：深色模式 / 无障碍回退 | renderer 使用 `.primary`，新象牙纸面可能白字白底；descriptor 先遍历 notes 再 rests，非时序；翻页双面可重复暴露 VoiceOver | T3 纸面墨色与时序排序；P3-T1 当场处理 Reduce Motion 与动画层 a11y，T4 是验收而非补基础能力 |
 | 高：旧 ImmersiveSpace workaround 被错误继承 | `.inTransition` + 最多 40 次 `Task.yield()` + recursive retry / force-closed 只是在修补旧状态机；所有 Calibration/VirtualPiano/Practice caller 都依赖它 | P4-T1 用一个共享 in-flight scene task + 真实 open/dismiss/scene lifecycle facts 替换；删除 `.inTransition`、`recoverIfStuck` 和旧 caller plumbing |
-| 高：同一 ImmersiveSpace mode 切换后 AR provider 不更新 | 当前 tracking reconcile 只在 immersive appear/resume；`.library → .calibration → .practice` 不重开 scene | P4-T1 每次 mode change 立即 reconcile `ARTrackingRequirements`、hand consumer 和 plane guidance |
+| 高：同一 ImmersiveSpace mode 切换后不仅 AR provider 不更新，mode-specific runtime 也不会自动迁移 | 当前 tracking reconcile 只在 immersive appear/resume；同一 scene 的 `.library → .calibration → .practice` 不会再次触发 `ImmersiveView.onAppear/onDisappear`，所以 Calibration polling/capture、Practice localization、Virtual Piano guidance 等也可能残留或根本不启动 | P4-T1 每次 mode change 走一个明确 oldMode→newMode runtime hook：先退出旧 mode-owned tasks，再 reconcile `ARTrackingRequirements`/hand/plane，进入新 mode-owned lifecycle；不等不存在的下一次 onAppear |
 | 高：requirements 变化会重建整个 ARKit runtime，Spatial Library 世界坐标失去连续依据 | 当前 `ARTrackingService.start` 在 `.world → .world+hand` 也 stop 整个 session/new Runtime；但 Library/Calibration/Practice 都持续需要 world tracking | P4-T1 改成同一 ARKitSession 的增量 provider reconcile：保留同一个 WorldTrackingProvider，按需替换 stopped hand/plane provider；full stop/failure 才重建 world runtime |
 | 高：AR provider 真实运行态会与手写状态漂移 | 当前不消费 `ARKitSession.events`，`.running/.stopped` 只在本服务调用 run/stop 时手写；系统运行中 pause/stop/error 后可能仍被当成 running | P4-T1 建唯一 session-event task；新增 `.paused`，以真实 provider event/authorization 纠正状态；unexpected stop 不允许 `start` 误 early-return |
 | 高：裸 world transform 缺少 runtime identity | `worldFromSpatialLibrary` 若跨 WorldTrackingProvider replacement 复用，会指向失效坐标语义 | P4-T1 暴露 `worldTrackingGeneration`；P4-T2 placement 保存 transform+generation，generation 变化必须 fresh re-place；P5/P6 禁止飞回旧 transform |
@@ -121,13 +121,16 @@ return to Spatial Library
 | 高：Window Book Flow 删除后 imported-song delete 能力丢失 | 当前删除入口绑定 drag/hold carousel；辅助 Window 没独立管理入口 | P4-T4 迁移为普通 destructive management action + 系统确认，复用 `SongLibraryViewModel.deleteEntry()`；同 task 删除旧 drag/hold policy/tests |
 | 高：Window 收口时可能顺带删掉 local-audio binding | `SongLibraryView` 还承载没有 audioFileName 曲目的本地音频 fileImporter + `bindAudio` | P4-T4 明确保留为辅助管理能力；只移除核心浏览，不删除音频绑定/import 业务路径 |
 | 高：Library 按钮可能绕过活跃 Practice/Preparation | shared coordinator 允许 mode switch，但直接 `.practice/.calibration → .library` 会跳过 save/cancel/return | P4-T1 Library summon 复用现有 launch/return/setup lifecycle facts；活跃流程只能走正式 finish/cancel/return，不加影子 active flag |
-| 高：校准方向未知却被伪装成 resolved | `resolveRuntimeCalibrationFromTrackedAnchors()` 在无法判断 player/interior side 时会写 `frontEdgeToKeyCenterLocalZ = 0` 后仍返回 `.resolved` | P5-T1 改成 typed recoverable `playerSideAmbiguous`；Practice Localization 在现有 bounded loop 中恢复/超时提示；SpatialScore resolver 不再下游猜方向 |
+| 高：校准方向未知却被伪装成 resolved，并且下游还有兼容猜测 | `resolveRuntimeCalibrationFromTrackedAnchors()` 在无法判断 player/interior side / frame 退化时会写 `frontEdgeToKeyCenterLocalZ = 0` 后仍返回 `.resolved`；`PianoCalibration.init` 默认也是 0；`PianoKeyGeometryService` 再把 0 静默解释为 `+Z` | P5-T1 改成 typed recoverable `playerSideAmbiguous`，统一校验水平 A0→C8 frame 不变量；删掉 calibration 的 zero default 与 geometry 的 zero→+Z fallback，更新所有 fixture/caller，不留兼容 initializer |
 | 中：score placement preference 过度持久化 | 原 P5-T2 为 X/Y/Z UI 偏好新建 Documents JSON/quarantine/recovery | P5-T2 按 AGENTS 改用 UserDefaults，小型 concrete store，无 protocol/factory/quarantine/recovery UI |
 | 高：空间 Start Practice 与旧 Window 入口双轨 | P5 新增 score-attached start，但旧 `SongLibraryView` 按钮/onStartPractice/pushWindow 仍存在 | P5-T3 空间 start 复用 `SongLibraryViewModel.startPractice` gate，同时删除旧 Window 启动链，不留 2D/spatial feature flag |
-| 高：Preparation 关闭被误当成 Practice handoff 成功 | setup 完成与 `PracticeLaunchViewModel.state == .ready` 是两个不同事实；若过早 consume，后续 activation failure/retry 会丢失空间 handoff 身份 | P5-T3 用最小 `awaitingPreparation → awaitingPracticeActivation` 生命周期；matching `.ready` + keyboard geometry 后才 handoff 并清空；`.failure` 保留等待态复用现有 Retry，Return/身份失效才取消 |
+| 高：空间开始练习若再造 pending coordinator 会形成双 launch 状态机 | `PracticeLaunchViewModel` 已拥有 `requestedSongID + state + activationIdentity + generation`、真实 resolver/preparation、retry/return cancellation；另加 `SpatialPracticeLaunchCoordinator(awaitingPreparation/awaitingPracticeActivation)` 会复制生命周期 | P5-T3 继续使用唯一 `PracticeLaunchViewModel`；setup 未 ready 时先注册现有 `.requested` 但暂不 activate，只补 expected `scoreFileVersionID`/spatial-origin 事实并放进现有 activation/return context；Preparation 用既有 `isFinishingSetup` 区分成功 dismiss 与用户取消 |
 | 高：Library preview 与 Practice page navigation 会同时拥有同一 Spread | 原 handoff 只写 Practice become authoritative，没有关闭 preview 的 prepared/navigation lifecycle | P5-T3 成功 activation 后先关闭/cancel Library preview owner 再绑定 Practice owner；失败/取消则 preview 保持唯一 owner；返回 Book Flow 不复活第二页码 owner |
+| 高：AI `requestGeneration` 不是唯一播放窗口身份 | `AIPerformanceService.generateContinuousWindow()` 把 `phraseGenerationAtRequest` 传给 queue；同一 generation 可连续接受多个 playback windows，不能用它关联 CompanionAction/shifted schedule/开始时间 | P6-T1 由 `DuetAIPlaybackQueue` 为每个 accepted `WindowItem` 分配独立 `windowID`，并把 action + shifted schedule + 实际 play start 原子发布；requestGeneration 只保留 stale/cancel 语义，不建平行字典 |
+| 高：AI note-on/off 没有稳定 occurrence identity | `ImprovScheduleBuilder` 当前生成的 `PracticeSequencerMIDIEvent` 默认 `sourceEventID == nil`；同音高重叠/重复时仅按 MIDI/order 配对会含糊 | P6-T2 在 schedule builder 就给每个 AI note occurrence 生成确定的非 nil sourceEventID，on/off 共享；Companion contact builder 严格按 ID 配对，缺失/冲突直接拒绝，不保留 FIFO 兼容 fallback |
+| 高：当前-unit Replay 有声音但没有示范手时钟 | `replayCurrentUnit()` 走 `PracticeManualReplayService`；现有 demonstration timing 只由 Autoplay 发布，因此“复用 Replay 做一键示范”按旧计划会变成音频播放、手不动 | P6-T2 让现有 Manual Replay 在真实 `play()` 后发布同一中性 hand-motion transport/contact timing，并在 stop/reset/replacement 清空；P6-T4 只加 ephemeral Demonstration intent，不新增 playback engine/timer |
 | 高：结果/重练仍退回 Window Alert | 第 08 设计稿要求结果与 focus/retry 发生在 Book Spread；当前 `PracticeStepView` 用 round-completion Alert | P6-T4 复用 `PracticeRoundSummaryViewModel/PracticeNextAction/PracticeHotspot` 在 Spatial Book Spread 展示并删除旧 round Alert |
-| 高：返回 Spatial Library 会被旧 return lifecycle 关闭 ImmersiveSpace | `PracticeWindowReturnCoordinator` 成功后硬调用 closeImmersive，window onDisappear 又有 system-close | P6-T5 保存成功后在同一 ImmersiveSpace 切 `.library`；return coordinator presentation completion 可 switch 或 close，onDisappear 不二次关闭 |
+| 高：返回 Spatial Library 会被旧 return lifecycle 关闭 ImmersiveSpace | `PracticeWindowReturnCoordinator` 成功后硬调用 closeImmersive，window onDisappear 又有 system-close | **P5-T3 当场修**：保持 `flush/discard -> finishReturn/finalize -> presentation completion -> teardown -> dismiss Window`，把 hard-coded close 改成中性 completion；spatial return 切 `.practice → .library` 不关 scene，并让 onDisappear 复用 return coordinator 事实避免二次关闭。P6-T5 只回归验证 |
 
 ### 已实际执行的基线
 
@@ -151,15 +154,15 @@ return to Spatial Library
 | P3-T1 | 如有试验动画 wrapper 当场删；不新增兼容旗标、计时器或 bitmap 缓存 |
 | P4-T1 | 用共享 coordinator **替换**旧 immersive owner；删除 `.inTransition`、`recoverIfStuck`、yield-loop/recursive retry、`PracticeImmersiveCloseCoordinator`、旧 `PracticeImmersive*` contract/adapter 名称与 caller plumbing；同 task 把 ARTrackingService 改为保留 world provider 的增量 reconcile + session-events 真状态同步，并从 protocol 删除无生产 consumer 的 `activeRequirements` / `authorizationStatusByType` |
 | P4-T4 | Window Book Flow 核心 browsing/confirm 路径退出 production；删除旧 drag-delete/hold policy/tests；imported-song delete 迁到辅助管理 UI 后继续走现有业务 gate |
-| P5-T1 | 删除“方向无法判断但用 zero offset 继续 `.resolved`”的校准兜底，改成 typed recoverable player-side failure |
+| P5-T1 | 删除“方向无法判断但用 zero offset 继续 `.resolved`”以及 `PianoCalibration` zero default / `PianoKeyGeometryService` zero→+Z 的兼容兜底；统一 horizontal-frame + player-side invariant，改成 typed recoverable failure |
 | P5-T2 | P4 selected Spread 的临时 Library scene ownership 当场迁到唯一 SpatialScore controller；UserDefaults preference 同时接入这个真实 production owner，不留孤立 store |
-| P5-T3 | 成功 Practice activation 释放 Library preview page owner；空间 Start Practice 接管后删除旧 Window start button/onStartPractice/pushWindow 链，不复制第二份 score/page state |
-| P5-T4 | 移除 P5 调试期固定世界 translation、临时 placement sliders/offsets；只保留 resolver + keyboard-local preference |
+| P5-T3 | 成功 Practice activation 释放 Library preview page owner；空间 Start Practice 复用唯一 `PracticeLaunchViewModel` 并删除旧 Window start button/onStartPractice/pushWindow 链；同 task 把成功 return 改成 same-ImmersiveSpace `.practice→.library`，不复制第二份 launch/score/page/return state |
+| P5-T4 | **不作为延期清理桶**；P5-T1/T2/T3 各自在生产路径接入时删除被替代的 fixed translation/debug placement。T4 只增加最终位置微调/重置并验证 resolver + keyboard-local preference |
 | P6-T1 | 删除 `isVirtualPerformerEnabled/setVirtualPerformerEnabled` 等旧产品 API 命名和被新 playback presentation 取代的 phase-only glue |
 | P6-T2 | Demonstration-only motion plan/clip-set/transport/callback/session/skeleton/root-planner 命名迁成共用 `PianoHand...` 内核，并把可复用纯运动代码移动到中性 `PianoHandMotion/`；不留 deprecated alias/旧 forwarding file |
-| P6-T3 | 当场删除 NeonHand、旧 Demonstration overlay、VirtualPerformer/Xiaocheng/第二台 performer piano 与仅服务这些 renderer 的测试/资产；rig/loader/asset/generator 迁成 Companion identity；旧 `DemonstrationHands/` 目录清空删除；同步更新 `HappyPianistAVP/AGENTS.md`；旧 persistent Demonstration setting 暂时只作为中间触发来源 |
-| P6-T4 | one-shot Companion Demonstration 接管时删除旧 Demonstration setting/AppStorage；删除 View-local autoplay 真值、旧 round-result Alert、重复 score/2D keyboard/top cue/永久 toolbar；结果/focus/retry 回到 Spatial Book Spread |
-| P6-T5 | 修正 successful return 为 same-ImmersiveSpace `.practice → .library`；只做 E2E/lifecycle/真机收口，不承接更早 task 本该删除的旧实现 |
+| P6-T3 | 当场删除 NeonHand、旧 Demonstration overlay、VirtualPerformer/Xiaocheng/第二台 performer piano 与仅服务这些 renderer 的测试/资产；rig/loader/asset/generator 迁成 Companion identity；旧 `DemonstrationHands/` 目录清空删除；同步更新 `HappyPianistAVP/AGENTS.md`；**同时删除旧 persistent Demonstration setting/AppStorage**，中间态只允许内存 ephemeral demonstration intent |
+| P6-T4 | 新增 one-shot Companion Demonstration 空间动作但不重建持久 setting；删除 View-local autoplay 真值、旧 round-result Alert、重复 score/2D keyboard/top cue/永久 toolbar；结果/focus/retry 回到 Spatial Book Spread |
+| P6-T5 | 只做 E2E/lifecycle/teardown/真机回归；successful return 已由 P5-T3 修成 same-ImmersiveSpace `.practice → .library`，T5 不再第一次重构返回路径，也不承接更早 task 的清理 |
 
 重复守卫只在已证明同一无悬挂执行段上游保证不变量、无外部/异步边界时删除；UI disabled 不是 service 权限证明。输入/文件校验、导入原子性与备份恢复、过期任务隔离、无障碍基础不列入删除项。
 
@@ -382,20 +385,24 @@ P2 必须先把 **score-level engraving / spacing** 与 **system slicing / viewp
 
 但 `AIPerformanceService.State` 目前没有把 validated action 暴露给 UI，而且 `DuetAIPlaybackQueue` 的 callback 只暴露 idle/preparing/playing。
 
-真正的音频开始点发生在 `service.play()` 成功之后。
+真正的音频开始点发生在 `service.play()` 成功之后。并且当前 queue 的 `requestGeneration` 实际来自 `phraseGenerationAtRequest`，它只用于 stale/cancel 判定；同一 generation 可以产生多个连续 accepted windows，所以它不是播放窗口唯一 ID。
 
-因此 P6 不能用“schedule 更新时刻”猜手部动画时间。必须把：
+因此 P6 不能用“schedule 更新时刻”猜手部动画时间，也不能用 requestGeneration 反查当前动作。必须让 queue 为每个 accepted window 分配独立 `windowID`，并原子暴露：
 
-- accepted request/window identity；
+- unique accepted window identity；
 - validated CompanionAction；
 - shifted schedule；
-- 实际 playback start monotonic time；
+- 实际 playback start monotonic time。
 
-作为有界运行期 presentation state 暴露出来。
+只保留 current/pending 有界事实，不在 `AIPerformanceService` 再建一张 generation→action 历史表。
 
 AI schedule 再转换成 `PianoKeyContactTimeline`，复用现有：
 
 `PianoFingeringPlanner → PianoHandMotionClipBuilder → PianoHandMotionPlayer`
+
+AI schedule builder 必须先给每个 note occurrence 写入稳定 `sourceEventID`，note-on/off 共享同一 ID；Companion contact conversion 严格按 ID 配对，避免重复同音高时用顺序猜。
+
+Demonstrate 也不能假定现有 Replay 已经提供 hand timing：当前 `PracticeManualReplayService` 只有音频/step cursor，示范手 timing 只接 Autoplay。P6-T2 要让 **同一个 Manual Replay engine** 发布中性 hand-motion timing，这样 P6-T4 的 one-shot Demonstration 才是真正“复用现有 Replay”，而不是暗中再造第二个播放时钟。
 
 这样 Demonstrate 与 AI 使用同一套真实琴键动作基础，不新造第二套手部动画系统。
 

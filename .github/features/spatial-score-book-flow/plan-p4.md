@@ -45,7 +45,9 @@ P4 的验收重点是把前两张图从“Window 中的视觉模拟”变成真�
 - `HappyPianistAVPApp` 已有唯一 `.mixed` `ImmersiveSpace`。
 - `AppState.ImmersiveMode` 只有 `.calibration / .practice`。
 - `AppState` 已拥有 `immersiveSpaceState`；当前 `.inTransition` 只服务旧 open/close workaround，没有独立产品语义。
-- 打开/关闭状态机实现在 `ARGuidePracticeViewModel.openImmersiveForStep / closeImmersiveForStep / recoverImmersiveStateIfStuck`；其中 `.inTransition` 分支通过最多 40 次 `Task.yield()` + recursive retry / force-closed 修补状态。P4 必须删除这条脆弱围栏，而不是把它抽进共享 coordinator。
+- 打开/关闭状态机实现在 `ARGuidePracticeViewModel.openImmersiveForStep / closeImmersiveForStep / recoverImmersiveStateIfStuck`；其中 `.inTransition` 分支通过最多 40 次 `Task.yield()` + recursive retry / force-closed 修补状态。`PracticeWindowRootView` 又叠了一层 `PracticeImmersiveCloseCoordinator` 来串行化 `close + recover`。这两层都是同一个旧 workaround，P4-T1 必须一起删除，而不是把其中任何一层抽进新 coordinator。
+- `HappyPianistAVPApp` 目前还在 ImmersiveSpace 外层 `.onAppear/.onDisappear` 直接写 `appState.immersiveSpaceState`，同时 `ImmersiveView -> ARGuideViewModel` 已拥有真实 scene lifecycle 回调；P4-T1 必须收成单一 mounted-fact writer，不能保留双写。
+- 同一个 ImmersiveSpace 已打开时切 `.library/.calibration/.practice` 不会再次触发 `ImmersiveView.onAppear/onDisappear`。因此只重配 AR providers 不够：进入/离开 calibration 时还要启动/停止 `CalibrationGuideViewModel` 的 polling/capture，离开 Practice/Virtual Piano 时还要取消 localization/guidance/hand consumer 等 mode-specific runtime。P4-T1 必须显式迁移这些 runtime side effects，不能等 scene lifecycle 偶然补触发。
 - Library 目前没有 `openImmersiveSpace` 路径。
 - `ARTrackingService.deviceWorldTransform(...)` 已能从 WorldTrackingProvider 查询当前设备 pose。
 
@@ -86,7 +88,7 @@ Expected:
 The coordinator owns no SwiftUI Environment action permanently. Calls receive the existing open/dismiss handlers and serialize exactly one in-flight scene operation.
 
 Mode publication rules are explicit:
-- **already mounted/open**: switching `.library/.calibration/.practice` sets the target mode once and immediately reconciles AR requirements；no new `openImmersiveSpace` call；
+- **already mounted/open**: switching `.library/.calibration/.practice` captures `oldMode`, publishes the target mode once, then explicitly reconciles both mode-specific runtime ownership and AR requirements；no new `openImmersiveSpace` call and no expectation that `onAppear/onDisappear` will run again；
 - **closed -> open(targetMode)**: save the previous mode, set/publish `targetMode` **before** invoking the open action so `ImmersiveView.onAppear` starts the correct runtime on its first lifecycle callback；if the action returns `.userCancelled/.error` and the scene did not mount, restore the previous mode；
 - if `sceneDidAppear` has already established the scene despite an unusual action-result ordering, mounted lifecycle fact wins；do not roll back a live scene；
 - close never changes the product mode just to manufacture a state transition；`sceneDidDisappear` owns the mounted `.closed` fact。
@@ -101,9 +103,20 @@ The installed visionOS 27.0 SDK exposes `OpenImmersiveSpaceAction.Result` as `.o
 
 `AppState.ImmersiveSpaceState` is reduced to mounted facts (`closed/open`) or an equivalent minimal representation. Transition-in-progress lives only in the coordinator's private task, not as a second public state machine. Concurrent callers await/serialize through that task. There is no `recoverIfStuck()`, recursive retry, arbitrary yield count or forced reset-to-closed branch。
 
+Delete the existing `HappyPianistAVPApp` outer `.onAppear/.onDisappear -> appState.immersiveSpaceState` writes in this same task. The existing `ImmersiveView.onAppear/onDisappear -> ARGuideViewModel` chain becomes the only mounted-scene adapter and forwards the fact to the shared coordinator exactly once.
+
 3. Practice/calibration/virtual-piano placement and every current View caller migrate to this coordinator in the **same task**.
 
-Route scene actions through one ARGuideViewModel runtime façade backed by the coordinator so Library/Calibration/Practice do not each manipulate `AppState` directly. Reuse the existing `ImmersiveView.onAppear/onDisappear -> ARGuideViewModel.onImmersiveAppear/onImmersiveDisappear` chain as the **only** mounted-scene adapter: those ViewModel lifecycle methods notify `sceneDidAppear/sceneDidDisappear` and then perform the existing runtime start/teardown work. Do not add a second scene observer or let `ImmersiveView` write `AppState` directly. Delete the old duplicated methods from `ARGuidePracticeViewModel` and change callers directly; no forwarding wrappers for `openImmersiveForStep / closeImmersiveForStep / recoverImmersiveStateIfStuck` remain。
+Route scene actions through one ARGuideViewModel runtime façade backed by the coordinator so Library/Calibration/Practice do not each manipulate `AppState` directly. Reuse the existing `ImmersiveView.onAppear/onDisappear -> ARGuideViewModel.onImmersiveAppear/onImmersiveDisappear` chain as the **only** mounted-scene adapter: those ViewModel lifecycle methods notify `sceneDidAppear/sceneDidDisappear` and then perform full-scene start/teardown work. Do not add a second scene observer or let `ImmersiveView`/App root write `AppState` directly. Delete the old duplicated methods from `ARGuidePracticeViewModel` and change callers directly; no forwarding wrappers for `openImmersiveForStep / closeImmersiveForStep / recoverImmersiveStateIfStuck` remain。
+
+For **mode changes while the scene remains mounted**, add one neutral `ARGuideViewModel` mode-transition entry point (exact name may follow the implementation) receiving `oldMode/newMode`. It owns the current runtime side effects instead of scattering them across Views:
+- leaving `.calibration` cancels calibration support polling/capture through the existing calibration shutdown/stop APIs；entering `.calibration` starts the existing calibration guide lifecycle after provider reconciliation is requested；
+- leaving `.practice` cancels Practice localization, virtual-piano guidance/input consumers, recording/AI runtime that is practice-owned, without stopping the retained world provider merely to enter Library；
+- entering `.practice` starts only the runtime required by the selected piano mode and existing Practice lifecycle；
+- entering `.library` owns no calibration/practice/virtual-piano task and reconciles to world-only tracking；
+- no mode-specific task is allowed to survive after its mode loses ownership, and no mode switch waits for a future scene `onAppear` that will not happen。
+
+This is not a second state machine: `AppState.immersiveMode` remains the one product mode fact, while the transition entry point only performs deterministic exit/enter side effects for the old/new values.
 
 The platform action contracts are shared infrastructure, not Practice contracts. In the same task rename/move:
 - `PracticeImmersiveOpenResult` -> `ImmersiveSpaceOpenResult`；
@@ -125,7 +138,7 @@ When P4-T3 exposes that Library action, it is **not** allowed to bypass an activ
 - no calibration capture；
 - no virtual-piano plane requirement。
 
-**Mode switching while the same ImmersiveSpace stays open is a runtime event.** Every successful `.library ↔ .calibration ↔ .practice` mode change immediately reconciles the existing AR runtime (`startTrackingIfNeeded()` or its refactored equivalent); do not wait for another `onImmersiveAppear()` that will never happen.
+**Mode switching while the same ImmersiveSpace stays open is a runtime event.** Every successful `.library ↔ .calibration ↔ .practice` mode change immediately runs the explicit old/new mode exit/enter hook above **and** reconciles the existing AR runtime (`startTrackingIfNeeded()` or its refactored equivalent); do not wait for another `onImmersiveAppear()` that will never happen.
 
 Refactor `ARTrackingService.start(requirements:)` away from its current whole-`Runtime` restart on every requirements change. All current immersive modes continuously require `.world`, and current ARKit semantics allow an already-running session to `run(newProviders)` while keeping providers that are present in both the old and new arrays running. Also stop treating provider state as a value we can infer only from our own `run/stop` calls: one session-event task must reconcile actual ARKit provider/authorization changes.
 
@@ -133,7 +146,7 @@ The current single `sessionGeneration` cannot continue doing both jobs. Split th
 - **runtime identity/generation**: changes only on full ARKitSession/world-provider replacement；stable world/event/update tasks bind to this；
 - **provider-reconcile request identity**: changes when desired requirements change；only the latest request may publish optional-provider ownership/state。
 
-There is exactly one serialized reconcile task per runtime；never overlap `session.run(...)` calls on the same session. A newer requirements request supersedes/cancels stale work and then runs after prior session mutation has settled；stale completion must not overwrite newer desired state. `start(requirements:)` remains idempotent when desired requirements already match **and the required providers are actually healthy**；it must not early-return merely because a private desired value matches after an unexpected provider stop.
+There is exactly one serialized reconcile task per runtime；never overlap `session.run(...)` calls on the same session. A newer requirements request may coalesce/cancel **pending intent that has not started mutating the session**, but once a `session.run(...)` mutation has begun it is awaited to settlement before the next reconcile. Request identity prevents stale completion from publishing superseded optional-provider ownership/state；do not treat task cancellation as rollback of an ARKit session mutation. `start(requirements:)` remains idempotent when desired requirements already match **and the required providers are actually healthy**；it must not early-return merely because a private desired value matches after an unexpected provider stop.
 
 `Runtime` should own one stable `session + worldTrackingProvider`, plus replaceable optional hand/plane provider slots/tasks；do not create a second Runtime merely to re-enable an optional provider.
 
@@ -174,6 +187,7 @@ This incremental reconcile is the basis for keeping `worldFromSpatialLibrary` st
 - user cancelled/error before mount restores the prior mode and leaves mounted state closed；
 - sceneDidAppear-before-action-result ordering keeps the mounted scene/mode rather than rolling it back；
 - sanctioned coordinator-driven `.library → .calibration → .practice` mode switches work without reopening the scene；
+- mounted mode switches explicitly enter/exit calibration/practice/virtual-piano runtime even though `ImmersiveView.onAppear/onDisappear` do not fire again；leaving calibration leaves no polling/capture task, and entering calibration starts the guide without reopening the scene；
 - Library summon action cannot directly hijack an active Preparation/Practice session or bypass save/cancel/return gates；
 - each mode switch immediately reconciles provider requirements and hand-consumer ownership；
 - real `ARKitSession.events` changes `providerStateByName` for initialized/running/paused/stopped and authorization changes；no stale hand-written `.running` survives a system/provider stop；
@@ -188,7 +202,7 @@ This incremental reconcile is the basis for keeping `worldFromSpatialLibrary` st
 - close；
 - Practice existing lifecycle parity after replacement；
 - `.library` requests world tracking without hand/plane requirements；
-- full old-symbol scan for `recoverImmersiveStateIfStuck` and `.inTransition` is zero。
+- full old-symbol scan for `recoverImmersiveStateIfStuck`, `PracticeImmersiveCloseCoordinator`, `.inTransition`, and direct App-root mounted-state writes is zero。
 
 ### Cleanup in this task
 
@@ -197,6 +211,7 @@ Delete:
 - `ImmersiveSpaceState.inTransition`；全仓已确认它只服务被替换的旧 transition workaround；
 - `recoverImmersiveStateIfStuck()`；
 - `PracticeImmersiveCloseCoordinator`；它只串行化旧 `close + recover`，共享 coordinator 接管 close 串行化后没有独立职责；
+- `HappyPianistAVPApp` 对 `immersiveSpaceState` 的外层 `.onAppear/.onDisappear` 直接写入；mounted fact 只保留 `ImmersiveView -> ARGuideViewModel -> shared coordinator` 一条路径；
 - old open/close/recover closure plumbing in `PracticeLocalizationViewModel`；
 - old `PracticeImmersive*` result/handler typealiases and `makePracticeImmersive*` adapter names after all callers migrate；
 - `ARTrackingServiceProtocol.activeRequirements` and `.authorizationStatusByType` plus fake-only implementations；neither has a production consumer；

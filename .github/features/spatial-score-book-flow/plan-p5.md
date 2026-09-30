@@ -50,9 +50,13 @@ Current `KeyboardFrame`:
 - +Y = world up；
 - +Z = right-handed convention，源码明确说明“不保证朝向用户”。
 
-Current `PianoCalibration.frontEdgeToKeyCenterLocalZ`:
-- already resolves which side of keyboard is the instrument interior using the device pose during runtime calibration；
-- sign therefore carries the stable playing-side relationship for the current calibrated keyboard。
+Current `PianoCalibration.frontEdgeToKeyCenterLocalZ` is intended to carry which side of keyboard is the instrument interior, but the invariant is **not currently enforced**:
+- `PianoCalibration.init` defaults `frontEdgeToKeyCenterLocalZ` to `0`；
+- `AppState.resolveRuntimeCalibrationFromTrackedAnchors()` writes `0` and still returns `.resolved` when the player side is degenerate or `KeyboardFrame` construction fails；
+- `PianoKeyGeometryService.generateKeyboardGeometry()` treats zero as a compatibility case and silently guesses `+Z`/`+whiteKeyDepth/2`；
+- `AppState` first validates the full 3D A0→C8 distance, while `KeyboardFrame` actually requires a non-degenerate **horizontal XZ span**. A large vertical separation can therefore pass the first guard and fail the real frame invariant later。
+
+P5-T1 must make this a single explicit invariant rather than adding another downstream fallback.
 
 Current `PianoKeyboardGeometry`:
 - contains `frame`；
@@ -65,9 +69,11 @@ Expected:
 - Add: `HappyPianistAVP/Models/SpatialScore/SpatialScorePlacement.swift`
 - Add: `HappyPianistAVP/Services/SpatialScore/SpatialScorePlacementResolver.swift`
 - Update: `HappyPianistAVP/ViewModels/AppState.swift` runtime calibration side-resolution semantics
-- Update: `HappyPianistAVP/ViewModels/Practice/Launch/PracticeLocalizationViewModel.swift` + `ARGuidePracticeViewModel.swift` presentation mapping for the new typed recoverable failure
+- Update: `HappyPianistAVP/Models/Calibration/CalibrationModels.swift` so runtime `PianoCalibration` no longer has an implicit zero-direction default
+- Update: `HappyPianistAVP/Services/PianoMode/RealPiano/PianoKeyGeometryService.swift` to delete the zero→`+Z` compatibility guess
+- Update: `HappyPianistAVP/ViewModels/Practice/Launch/PracticeLocalizationViewModel.swift` + `ARGuidePracticeViewModel.swift` presentation/retry routing for the new typed recoverable failure
 - Add: direct AppState/calibration-side tests plus focused `HappyPianistAVPTests/SpatialScore/` placement tests
-- Update: `PracticeLocalizationPolicyTests.swift` / localization VM tests
+- Update: `PianoKeyGeometryServiceTests.swift`, `PracticeLocalizationPolicyTests.swift` / localization VM tests and every `PianoCalibration(...)` caller that relied on the old default
 
 ### Model
 
@@ -94,7 +100,9 @@ Resolver input:
 
 Use `frontEdgeToKeyCenterLocalZ` sign as the formal calibrated interior-side fact.
 
-Fix its source invariant in this task: `AppState.resolveRuntimeCalibrationFromTrackedAnchors()` must no longer return `.resolved` with `frontEdgeToKeyCenterLocalZ == 0` when the current device pose cannot establish the player/interior side. Compute the signed device separation along `KeyboardFrame.zAxisWorld`; a clearly positive/negative side yields ±key-depth/2, while a non-finite/near-zero ambiguous side returns a new typed recoverable calibration-resolution result (for example `playerSideAmbiguous`) instead of writing zero and claiming success. The minimum side-separation threshold is one named calibration/localization constant validated by geometry tests/device evidence, not a scattered epsilon.
+Fix its source invariant in this task. `AppState.resolveRuntimeCalibrationFromTrackedAnchors()` first validates the same horizontal A0→C8 span needed by `KeyboardFrame`, rather than accepting a 3D distance that can still produce an invalid horizontal frame. Then compute the signed device separation along `KeyboardFrame.zAxisWorld`; a clearly positive/negative side yields ±key-depth/2, while a non-finite/near-zero ambiguous side returns a new typed recoverable calibration-resolution result (for example `playerSideAmbiguous`) instead of writing zero and claiming success. The minimum side-separation threshold is one named calibration/localization constant validated by geometry tests/device evidence, not a scattered epsilon.
+
+In the same task remove `PianoCalibration.init(... frontEdgeToKeyCenterLocalZ: Float = 0)`'s zero default and delete `PianoKeyGeometryService`'s `zero -> +Z` compatibility path. A production `PianoCalibration` used for real keyboard geometry must carry a finite non-zero resolved interior-side offset；zero is rejected instead of reinterpreted. Update fixtures/callers explicitly rather than keeping a compatibility initializer or alias.
 
 Score default belongs:
 - centered horizontally over the keyboard；
@@ -109,7 +117,7 @@ The pure resolver performs **no AR query itself**. Practice Localization owns re
 - add the corresponding `PracticeLocalizationFailure` presentation case rather than collapsing it into `providerNotRunning`；
 - `runPracticeLocalization` treats it as a recoverable localization result and keeps polling inside the existing bounded localization window；
 - `practiceLocalizationTimeoutFailure(...)` maps the last ambiguous-side result to the dedicated failure case；
-- `ARGuidePracticeViewModel.canRetryPracticeLocalization` returns true for it；
+- `PracticeLocalizationState.failed(reason:)` / existing Practice failure presentation exposes it as retryable through the already-existing `ARGuidePracticeViewModel.retryPracticeLocalization(...)` action；there is **no** separate `canRetryPracticeLocalization` API to invent；
 - status/action text tells the user to return to the playing side / face the keyboard and retry；
 - retry uses the existing `retryPracticeLocalization(...)` path, with no new retry coordinator。
 
@@ -136,7 +144,8 @@ The resolver returns:
 - finite orthonormal transform；
 - user offset applied in keyboard-local space；
 - AppState positive/negative signed side -> matching ± key-center offset；
-- AppState near-zero/ambiguous side -> typed recoverable failure, never `.resolved` with zero；
+- AppState degenerate horizontal A0→C8 span and near-zero/ambiguous player side never publish `.resolved` with zero；the former maps to the existing/revised invalid-calibration failure and the latter to the typed recoverable side failure；
+- `PianoCalibration` production construction cannot silently omit interior-side offset, and `PianoKeyGeometryService` has no zero→`+Z` fallback；
 - Practice Localization retries that failure within its existing bounded window and maps timeout to an actionable message；
 - direct resolver zero/ambiguous input -> explicit unresolved/invariant failure；
 - changing world keyboard transform does not change local placement result。
@@ -275,13 +284,13 @@ Only persist:
 
 Expected:
 - Reuse/Update: P5-T2 `SpatialScoreSceneController.swift` / `SpatialScorePlacementViewModel.swift`
-- Add: `HappyPianistAVP/ViewModels/SpatialScore/SpatialPracticeLaunchCoordinator.swift` or an equivalently narrow navigation coordinator
+- Update: `HappyPianistAVP/ViewModels/Practice/Launch/PracticeLaunchViewModel.swift` / `PracticeLaunchModels.swift` only as needed to carry the already-selected spatial score file-version/origin fact inside the **existing** launch owner; do not add a second launch coordinator
 - Update: `ImmersiveView.swift`
 - Update: `HappyPianistAVPApp.swift`
 - Update: `LibraryWindowView.swift` / spatial Book Spread attachment actions
 - Update: `PreparationWindowRootView.swift`
 - Update: `PracticeWindowRootView.swift`
-- Update: `LiveAppGraph.swift` only for the launch coordinator/handoff dependencies；do not recreate owners already composed in T2
+- Update: `LiveAppGraph.swift` only for the existing launch/SpatialScore handoff dependencies；do not compose a second launch owner or recreate owners already composed in T2
 - Update: `docs/architecture.md` in this same task with Library→KeyboardScore handoff/lifecycle；SpatialScore ownership itself was already documented in T2
 - Update Practice/Library integration tests
 
@@ -328,48 +337,47 @@ The final product must not require the user to return to the ordinary Library Wi
 
 Add one score-attached “开始练习” action.
 
-The narrow `SpatialPracticeLaunchCoordinator` owns only a pending launch identity/lifecycle:
+Do **not** add a `SpatialPracticeLaunchCoordinator`. The current `PracticeLaunchViewModel` already owns `requestedSongID + state + activationIdentity + generation`, performs the real resolver/preparation work, owns retry/return cancellation, and therefore remains the one launch state machine.
 
-- selected song ID；
-- score file/version identity；
-- whether the launch came from Spatial Library；
-- one minimal presentation stage: `awaitingPreparation` or `awaitingPracticeActivation`。
+Extend that existing owner only with the minimum spatial launch facts it cannot currently express:
+- expected `scoreFileVersionID` captured from the selected Library entry；
+- spatial-origin/presentation identity needed to keep the already-open Spatial Score parked during setup and to validate the eventual handoff；
+- those facts must survive the existing retry and failed-save `beginReturn -> abortReturn` restoration path, so extend the existing activation/return context rather than storing a parallel flag in SwiftUI。
 
-Do **not** use a generic `consumed` boolean: Preparation dismissal and successful Practice activation are different facts. Successful spatial handoff clears the coordinator entirely；cancel/return/identity invalidation also clears it after restoring Library presentation.
+A setup-not-ready launch can be **registered as the existing `.requested(songID)` state without activating it yet**. That state already distinguishes “request exists but Practice preparation has not started” from `.loading/.failure/.ready`, so do not invent `awaitingPreparation/awaitingPracticeActivation` stages or a generic `consumed` boolean.
 
-It does **not** own:
-- Library selection；
-- Practice session；
-- calibration；
-- immersive open/closed state。
+Add one narrow cancellation operation on `PracticeLaunchViewModel` only if needed for a still-unactivated spatial request closed from Preparation. It clears the existing request/activation identity/current visit that has not begun recording and invalidates its generation；it is not a second coordinator and must not cancel an already-active Practice session.
 
 #### Setup already ready
 
 1. validate the currently open spatial preview still matches the selected song/version；
-2. call the existing `SongLibraryViewModel.startPractice(entryID:perform:)` gate so import-active and missing-entry protection stay centralized；inside its `perform`, register the pending spatial launch and call the existing `PracticeLaunchViewModel.request(songID:)`；
+2. call the existing `SongLibraryViewModel.startPractice(entryID:perform:)` gate so import-active and missing-entry protection stay centralized；inside its `perform`, register the existing `PracticeLaunchViewModel` request with the expected `scoreFileVersionID` / spatial origin；
 3. open/push the existing Practice auxiliary Window because it still owns alerts, save/return lifecycle and advanced tools；
 4. keep the current ImmersiveSpace alive；
-5. once Practice activation publishes matching prepared state + keyboard geometry, switch shared immersive mode to `.practice` and perform score handoff。
+5. activation resolves the entry and verifies `resolved.entry.scoreFileVersionID` still equals the captured expected version **before** preparation/application；a replaced score invalidates the stale spatial request instead of silently launching the new file；
+6. once Practice activation publishes matching prepared state + keyboard geometry, switch shared immersive mode to `.practice` and perform score handoff.
 
 #### Setup not ready
 
-1. retain the pending spatial launch identity；
+1. pass the existing `SongLibraryViewModel.startPractice(...)` gate and register the `PracticeLaunchViewModel` request **before** opening setup, but do not call `activateCurrentRequest()` yet；this preserves one launch identity across setup without a second coordinator；
 2. open/push the existing Preparation Window；
 3. reuse the existing PianoTypePicker / Bluetooth MIDI / A0-C8 calibration flow；
-4. while calibration mode is active, hide/park the selected score rather than inventing score-only calibration；
-5. on successful “完成设置”, if a pending spatial launch still matches the selected song/version:
+4. while calibration mode is active, park the selected Spatial Score through its existing presentation owner rather than inventing score-only calibration；
+5. on successful “完成设置”, if the still-requested launch matches the selected song/version:
+   - mark the existing `PreparationWindowRootView.isFinishingSetup` path as the successful programmatic dismissal fact；
    - dismiss Preparation；
-   - request the existing Practice launch；
-   - open/push the Practice auxiliary Window；
+   - open/push the Practice auxiliary Window and let the existing launch owner activate the already-registered request；
    - transition the **already-open shared ImmersiveSpace** from calibration to practice instead of unconditionally tearing it down first。
 
 If preparation was opened independently from the auxiliary Window and there is no pending spatial launch, preserve its existing standalone completion behavior.
 
-For a pending spatial launch, `PreparationWindowRootView` also handles system/user dismissal:
-- successful `finishSetup` changes the coordinator from `awaitingPreparation` -> `awaitingPracticeActivation` **before** dismissing the Preparation Window, then requests/opens Practice；
-- `onDisappear` treats only a still-`awaitingPreparation` launch as cancelled, invalidates it, unparks/restores the selected score, switches the still-open ImmersiveSpace back to `.library`, and reconciles world-only tracking；
-- `awaitingPracticeActivation` means Preparation completed successfully, so that same `onDisappear` is not a cancellation signal；
-- no pending spatial launch -> existing standalone window disappearance behavior remains unchanged。
+For a registered-but-not-yet-activated spatial launch, `PreparationWindowRootView` also handles system/user dismissal without another lifecycle enum:
+- successful `finishSetup` sets/uses the existing `isFinishingSetup` fact before dismissing the Preparation Window, then opens Practice；
+- `onDisappear` with `isFinishingSetup == false` and a still-`.requested` matching spatial launch means user/system cancellation：cancel that existing pending request, unpark/restore the selected score, switch the still-open ImmersiveSpace back to `.library`, and reconcile world-only tracking；
+- programmatic dismissal after successful finish is not cancellation；
+- no registered spatial launch -> existing standalone window disappearance behavior remains unchanged。
+
+Do not add another `awaitingPreparation` boolean/enum merely to mirror facts already represented by `PracticeLaunchViewModel.state` + `isFinishingSetup`.
 
 If the selected score/file version changes while preparation is in progress:
 - invalidate the pending launch；
@@ -416,11 +424,11 @@ then:
 7. reparent/settle under KeyboardScoreRoot without visual jump；
 8. hide Spatial Book Flow folios for Practice。
 
-If Practice activation publishes `.failure`, keep the coordinator in `awaitingPracticeActivation` so the **existing Practice retry action** can still succeed into the same spatial handoff；do not invent a second retry path. While not `.ready`, Library preview remains the content/page owner and the score stays parked/hidden according to the setup transition, never driven by Practice navigation.
+If Practice activation publishes `.failure`, keep the spatial request facts inside the existing `PracticeLaunchViewModel` so its **existing Practice retry action** can still succeed into the same spatial handoff；do not invent a second retry path. While not `.ready`, Library preview remains the content/page owner and the score stays parked/hidden according to the setup transition, never driven by Practice navigation.
 
 If the user chooses the existing Return action, the Practice Window is dismissed before readiness, the selected song/version becomes invalid, or launch identity is superseded, cancel the pending spatial launch and restore the Spatial Library score/Book Flow. There is never a period where both preview and Practice navigation are authoritative.
 
-After matching `.ready` + keyboard geometry completes the handoff, clear the launch coordinator；subsequent Practice retries/resume are ordinary Practice lifecycle, not a forever-retained spatial-launch flag.
+After matching `.ready` + keyboard geometry completes the handoff, the Spatial Score's own presentation mode becomes the durable fact that it is keyboard-owned for this Practice session. Do not retain a forever-lived “pending spatial launch” flag；the existing Practice launch identity may keep only the metadata it already needs for retry/return consistency.
 
 Exact RealityKit move/reparent API must be verified against the installed visionOS 27.0 SDK / current Apple docs before implementation.
 
@@ -446,27 +454,33 @@ When leaving Practice back to Library after save/finalization succeeds:
 - keep `SongLibraryViewModel.selectedEntryID` unchanged；
 - keep `LibraryScorePreviewViewModel` closed after the successful Practice handoff rather than resurrecting a second page owner just for return；the user can confirm the selected folio to open detail again；
 - release Practice navigation/content binding and remove `KeyboardScoreRoot`；
-- P6 owns the final save/order/window-dismiss details, but this presentation target is fixed here。
+- **P5-T3 owns the return lifecycle replacement now, not P6**：refactor `PracticeWindowReturnCoordinator`'s hard-coded `closeImmersive` callback into one neutral presentation-completion callback. Preserve the existing order `flush/discard gate -> finishReturn/finalize -> presentation completion -> Practice teardown -> dismiss Practice Window`；
+- for a successful spatial return, presentation completion switches the already-open shared ImmersiveSpace `.practice -> .library`, reconciles world-only tracking, releases Practice navigation/`KeyboardScoreRoot`, restores Spatial Library root/Book Flow, and only then allows the Practice Window to dismiss；it does **not** dismiss the ImmersiveSpace；
+- save/finalization failure calls the existing abort/resume path and leaves Practice mounted；explicit discard may return only after the existing discard/finalize path permits exit；
+- `PracticeWindowRootView.onDisappear` must reuse `PracticeWindowReturnCoordinator.isReturning/waitForCompletion()` to distinguish an in-flight/completed authorized return from a true system close. Do not add a `didSpatialReturn` shadow boolean. If an in-flight return ultimately fails after the window disappears, fall through to the existing best-effort system-close path；if it succeeds, do not close the restored Library ImmersiveSpace a second time；
+- a true system/non-spatial close still uses the shared P4 `ImmersiveSpacePresentationCoordinator` and existing best-effort Practice teardown.
 
 ### Tests
 
 - spatial Start Practice goes through `SongLibraryViewModel.startPractice` and requests the existing Practice flow without a Library Window click；
 - import-active/missing-entry still blocks spatial start through that same gate；
 - old Window start-practice button/closure/push action has no production references；
-- setup-not-ready creates one pending launch and routes through existing Preparation；
-- successful pending setup advances `awaitingPreparation → awaitingPracticeActivation` before window dismissal and does not unconditionally tear down the shared ImmersiveSpace before Practice；
-- user/system closing Preparation while still `awaitingPreparation` cancels it and returns the same ImmersiveSpace/score to Spatial Library；
+- setup-not-ready registers one request in the existing `PracticeLaunchViewModel` and routes through existing Preparation；
+- setup-not-ready registers one existing `.requested` Practice launch without activating it；successful `finishSetup` uses `isFinishingSetup` and does not unconditionally tear down the shared ImmersiveSpace before Practice；
+- user/system closing Preparation while a matching spatial request is still `.requested` cancels that request and returns the same ImmersiveSpace/score to Spatial Library；
 - independent/non-spatial Preparation still follows its valid standalone completion behavior；
 - score/file-version change invalidates stale pending launch；
 - one logical spatial score presentation survives library -> practice, with entity reuse while the same immersive session stays alive；
-- `.failure` keeps `awaitingPracticeActivation` so existing retry remains valid；matching `.ready` + geometry performs handoff and then clears the launch coordinator；Return/dismiss/identity invalidation cancels and restores Library；
+- `.failure` retains the existing launch identity/version so existing retry remains valid；matching `.ready` + geometry performs handoff without a second launch coordinator；Return/dismiss/identity invalidation cancels/restores through the existing launch owner；
 - successful activation releases Library preview ownership before Practice navigation drives the attachment；failed/cancelled activation leaves Library preview authoritative；
 - realAudio geometry -> target；
 - bluetoothMIDI geometry -> same target pipeline；
 - missing geometry -> no guessed target；
 - keyboard frame update moves root but preserves local offset；
 - Reduce Motion skips flight；
-- return to library tears down keyboard root；
+- successful save/discard return switches `.practice -> .library` without dismissing the shared ImmersiveSpace, tears down keyboard root, then dismisses Practice Window；
+- save/finalization failure stays in Practice and does not change spatial mode；
+- Practice Window `onDisappear` after successful/in-flight authorized return does not trigger a second immersive close, while true system close still does；
 - no WorldAnchor add/remove calls for score。
 
 ### Gate
@@ -553,14 +567,17 @@ Real-device checks:
 
 Record actual chosen default placement constants after this evidence; do not claim comfort from Simulator alone.
 
-### Cleanup
+### Cleanup boundary
 
-If P4/P5 introduced any temporary fixed-position score offsets, remove them in this task once the resolver/user preference owns placement.
+P5-T4 is **not** a cleanup bucket for temporary placement code. P5-T1/T2/T3 must use the canonical resolver/owner from the moment their production path becomes reachable and must delete any replaced fixed-position logic in that same task.
 
-Do not leave:
+Therefore earlier tasks must not introduce or leave:
 - magic RealityView translations；
-- debug placement sliders；
+- temporary fixed-position score offsets；
+- debug placement sliders in production；
 - separate realAudio/MIDI placement constants。
+
+T4 only adds the final user manipulation/reset behavior. If execution reaches T4 and finds one of the above, treat it as an incomplete earlier task and fix that owning task before continuing rather than normalizing delayed cleanup.
 
 ### Gate
 
