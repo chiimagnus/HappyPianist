@@ -347,61 +347,64 @@ private func bookInput(_ session: PracticeSessionViewModel) throws -> GrandStaff
     GrandStaffNotationScoreInput(identity: try #require(session.songIdentity), projection: try #require(session.notationProjection), measureSpans: session.measureSpans, facts: try #require(session.notationScoreFacts), attributeTimeline: session.attributeTimeline)
 }
 
-@Test
-@MainActor
-func nativePreparedBookShowsManualResumeAndRestTransportInExistingWindow() async throws {
-    let prepared = try await preparedBookFixture()
-    let playback = BookTransportTestPlayback()
-    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper(), sequencerPlaybackService: playback)
-    installBook(prepared, into: session)
-    let owner = GrandStaffNotationPageViewModel()
-    await owner.load(try bookInput(session))
-    let plan = try #require(owner.plan)
-    let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-    let window = try #require(scene.windows.first { $0.isKeyWindow })
-    let original = window.rootViewController
-    let size = window.bounds.size
-    let minimum = scene.sizeRestrictions?.minimumSize
-    let maximum = scene.sizeRestrictions?.maximumSize
-    defer {
-        session.shutdown()
-        window.rootViewController = original
-        scene.requestGeometryUpdate(.Vision(size: size, minimumSize: minimum, maximumSize: maximum))
+extension NativeBookWindowTests {
+    @Test
+    @MainActor
+    func nativePreparedBookShowsManualResumeAndRestTransportInExistingWindow() async throws {
+        let prepared = try await preparedBookFixture()
+        let playback = BookTransportTestPlayback()
+        let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper(), sequencerPlaybackService: playback)
+        installBook(prepared, into: session)
+        let owner = GrandStaffNotationPageViewModel()
+        await owner.load(try bookInput(session))
+        let plan = try #require(owner.plan)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = try #require(scene.windows.first { $0.isKeyWindow })
+        let original = window.rootViewController
+        let size = window.bounds.size
+        let minimum = scene.sizeRestrictions?.minimumSize
+        let maximum = scene.sizeRestrictions?.maximumSize
+        defer {
+            session.shutdown()
+            window.rootViewController = original
+            scene.requestGeometryUpdate(.Vision(size: size, minimumSize: minimum, maximumSize: maximum))
+        }
+        scene.requestGeometryUpdate(.Vision(size: CGSize(width: 1240, height: 1000), minimumSize: CGSize(width: 1240, height: 1000), maximumSize: CGSize(width: 1240, height: 1000)))
+        let controller = UIHostingController(rootView: PreparedBookNativeRoot(session: session))
+        window.rootViewController = controller
+        await TestAsyncWait.until("existing practice book window") { window.bounds.width >= 1239 && window.bounds.height >= 999 }
+        session.startGuidingIfReady()
+        session.skip()
+        #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
+        try await Task.sleep(for: .seconds(1))
+        _ = await session.suspendAndFlushProgress()
+        session.resumeAfterSuspension()
+        #expect(session.state == .ready && session.isRestoredSessionPaused)
+        #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
+        try await Task.sleep(for: .seconds(1))
+        session.retryMeasure(prepared.measureSpans[0].sourceMeasureID)
+        session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: prepared.measureSpans[0].occurrenceID, end: prepared.measureSpans[127].occurrenceID))
+        _ = session.applyPendingRoundConfiguration()
+        #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
+        try await Task.sleep(for: .seconds(1))
+        session.setAutoplayEnabled(true)
+        session.startGuidingIfReady()
+        await TestAsyncWait.until("native book autoplay started") { playback.sequence != nil }
+        let rest = try #require(plan.pages.first { $0.index >= 2 }?.measures.first?.span)
+        playback.seconds = session.tempoMap.timeSeconds(atTick: rest.startTick) - session.tempoMap.timeSeconds(atTick: prepared.steps[0].tick) + session.autoplayTimingLeadInSeconds + 0.001
+        await TestAsyncWait.until("native rest page") { session.notationNavigationTick() == rest.startTick }
+        #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 1)
+        try await Task.sleep(for: .seconds(1))
+        await session.pauseAutoplayPlayback()
+        let paused = session.notationNavigationTick()
+        playback.seconds += 10
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(session.notationNavigationTick() == paused)
+        session.clearPreparedSong()
+        #expect(session.notationNavigationTick() == nil && session.notationProjection == nil)
+        try await Task.sleep(for: .seconds(1))
     }
-    scene.requestGeometryUpdate(.Vision(size: CGSize(width: 1240, height: 1000), minimumSize: CGSize(width: 1240, height: 1000), maximumSize: CGSize(width: 1240, height: 1000)))
-    let controller = UIHostingController(rootView: PreparedBookNativeRoot(session: session))
-    window.rootViewController = controller
-    await TestAsyncWait.until("existing practice book window") { window.bounds.width >= 1239 && window.bounds.height >= 999 }
-    session.startGuidingIfReady()
-    session.skip()
-    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
-    try await Task.sleep(for: .seconds(1))
-    _ = await session.suspendAndFlushProgress()
-    session.resumeAfterSuspension()
-    #expect(session.state == .ready && session.isRestoredSessionPaused)
-    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == plan.spreadCount - 1)
-    try await Task.sleep(for: .seconds(1))
-    session.retryMeasure(prepared.measureSpans[0].sourceMeasureID)
-    session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: prepared.measureSpans[0].occurrenceID, end: prepared.measureSpans[127].occurrenceID))
-    _ = session.applyPendingRoundConfiguration()
-    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
-    try await Task.sleep(for: .seconds(1))
-    session.setAutoplayEnabled(true)
-    session.startGuidingIfReady()
-    await TestAsyncWait.until("native book autoplay started") { playback.sequence != nil }
-    let rest = try #require(plan.pages.first { $0.index >= 2 }?.measures.first?.span)
-    playback.seconds = session.tempoMap.timeSeconds(atTick: rest.startTick) - session.tempoMap.timeSeconds(atTick: prepared.steps[0].tick) + session.autoplayTimingLeadInSeconds + 0.001
-    await TestAsyncWait.until("native rest page") { session.notationNavigationTick() == rest.startTick }
-    #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 1)
-    try await Task.sleep(for: .seconds(1))
-    await session.pauseAutoplayPlayback()
-    let paused = session.notationNavigationTick()
-    playback.seconds += 10
-    try await Task.sleep(for: .milliseconds(100))
-    #expect(session.notationNavigationTick() == paused)
-    session.clearPreparedSong()
-    #expect(session.notationNavigationTick() == nil && session.notationProjection == nil)
-    try await Task.sleep(for: .seconds(1))
+
 }
 
 private struct PreparedBookNativeRoot: View {

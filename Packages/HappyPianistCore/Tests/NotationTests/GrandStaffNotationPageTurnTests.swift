@@ -65,3 +65,21 @@ func pageTurnRejectsOldCompletionAfterReplacementResetAndReducedMotion() throws 
     state.request(identity: replacement, target: 3, animated: true)
     #expect(state.identity == nil)
 }
+
+@Test
+func pageTurnPlanReplacementAndOddLastPageNeverReusePreviousSheets() throws {
+    let song = PracticeSongIdentity(songID: UUID(), scoreRevision: "same-score")
+    let identity = GrandStaffNotationPageTurnIdentity(song: song, pageIDs: ["a", "b", "c", "d", "e"])
+    var state = GrandStaffNotationPageTurnState()
+    state.request(identity: identity, target: 1, animated: true)
+    state.request(identity: identity, target: 2, animated: true)
+    let last = try #require(state.transition)
+    #expect(last.frontPage == 3 && last.backPage == 4 && last.underneathRight == 5)
+    #expect(!identity.pageIDs.indices.contains(last.underneathRight))
+    let replacement = GrandStaffNotationPageTurnIdentity(song: song, pageIDs: ["new-a", "new-b", "new-c", "new-d", "new-e"])
+    state.request(identity: replacement, target: 2, animated: true)
+    state.complete(last)
+    #expect(state.identity == replacement && state.target == 2 && state.transition == nil)
+    state.request(identity: .init(song: song, pageIDs: []), target: 0, animated: true)
+    #expect(state.identity == nil && state.target == nil && state.transition == nil)
+}

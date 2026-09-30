@@ -28,39 +28,42 @@ func pageTurnLiveSurfacesEndAtExactUprightTargetInBothDirections() throws {
     }
 }
 
-@Test
-@MainActor
-func nativeSharedSpreadActuallyAnimatesAndAccessibleReadingConvergesInExistingWindow() async throws {
-    let plan = try turnPresentationPlan()
-    let navigation = TurnNativeNavigation()
-    let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-    let window = try #require(scene.windows.first { $0.isKeyWindow })
-    let original = window.rootViewController
-    defer { window.rootViewController = original }
-    let controller = UIHostingController(rootView: TurnNativeRoot(plan: plan, navigation: navigation))
-    window.rootViewController = controller
-    try await Task.sleep(for: .seconds(1))
-    navigation.target = 1
-    try await Task.sleep(for: .milliseconds(80))
-    let early = try windowFrame(window)
-    try await Task.sleep(for: .milliseconds(220))
-    let middle = try windowFrame(window)
-    try await Task.sleep(for: .milliseconds(650))
-    let end = try windowFrame(window)
-    #expect(early != middle)
-    #expect(middle != end)
-    navigation.target = 0
-    try await Task.sleep(for: .milliseconds(80))
-    navigation.target = 2
-    try await Task.sleep(for: .milliseconds(800))
-    let finalJump = try windowFrame(window)
-    navigation.accessibleReading = true
-    navigation.target = 0
-    try await Task.sleep(for: .milliseconds(150))
-    let reduced = try windowFrame(window)
-    try await Task.sleep(for: .milliseconds(650))
-    #expect(reduced == (try windowFrame(window)))
-    #expect(reduced != finalJump)
+extension NativeBookWindowTests {
+    @Test
+    @MainActor
+    func nativeSharedSpreadActuallyAnimatesAndAccessibleReadingConvergesInExistingWindow() async throws {
+        let plan = try turnPresentationPlan()
+        let navigation = TurnNativeNavigation()
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = try #require(scene.windows.first { $0.isKeyWindow })
+        let original = window.rootViewController
+        defer { window.rootViewController = original }
+        let controller = UIHostingController(rootView: TurnNativeRoot(plan: plan, navigation: navigation))
+        window.rootViewController = controller
+        try await Task.sleep(for: .seconds(1))
+        navigation.target = 1
+        try await Task.sleep(for: .milliseconds(80))
+        let early = try windowFrame(window)
+        try await Task.sleep(for: .milliseconds(220))
+        let middle = try windowFrame(window)
+        try await Task.sleep(for: .milliseconds(650))
+        let end = try windowFrame(window)
+        #expect(early != middle)
+        #expect(middle != end)
+        navigation.target = 0
+        try await Task.sleep(for: .milliseconds(80))
+        navigation.target = 2
+        try await Task.sleep(for: .milliseconds(800))
+        let finalJump = try windowFrame(window)
+        navigation.accessibleReading = true
+        navigation.target = 0
+        try await Task.sleep(for: .milliseconds(150))
+        let reduced = try windowFrame(window)
+        try await Task.sleep(for: .milliseconds(650))
+        #expect(reduced == (try windowFrame(window)))
+        #expect(reduced != finalJump)
+    }
+
 }
 
 @MainActor

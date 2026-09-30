@@ -26,26 +26,26 @@ struct GrandStaffNotationPageTurnView: View, Animatable {
                 page(turning ? transition.underneathRight : transition.target * 2 + 1)
             }
             if turning {
-            HStack(spacing: 0) {
-                if progress < 0.5 {
-                    if forward { Color.clear.frame(width: halfGutter) }
-                    page(transition.frontPage)
-                    if !forward { Color.clear.frame(width: halfGutter) }
-                } else {
-                    if !forward { Color.clear.frame(width: halfGutter) }
-                    page(transition.backPage)
-                    if forward { Color.clear.frame(width: halfGutter) }
+                HStack(spacing: 0) {
+                    if progress < 0.5 {
+                        if forward { Color.clear.frame(width: halfGutter) }
+                        page(transition.frontPage)
+                        if !forward { Color.clear.frame(width: halfGutter) }
+                    } else {
+                        if !forward { Color.clear.frame(width: halfGutter) }
+                        page(transition.backPage)
+                        if forward { Color.clear.frame(width: halfGutter) }
+                    }
                 }
-            }
-            .frame(width: pageWidth + halfGutter)
-            .rotation3DEffect(.degrees(progress < 0.5 ? 0 : (forward ? 180 : -180)), axis: (x: 0, y: 1, z: 0))
-            .shadow(color: .black.opacity(0.2 * sin(.pi * progress)), radius: staffSpace, x: forward ? -staffSpace : staffSpace)
-            #if os(visionOS)
-            .perspectiveRotationEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), anchor: forward ? .leading : .trailing, perspective: 0.3)
-            #else
-            .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), anchor: forward ? .leading : .trailing, perspective: 0.3)
-            #endif
-            .offset(x: forward ? pageWidth + halfGutter : 0)
+                .frame(width: pageWidth + halfGutter)
+                .rotation3DEffect(.degrees(progress < 0.5 ? 0 : (forward ? 180 : -180)), axis: (x: 0, y: 1, z: 0))
+                .shadow(color: .black.opacity(0.2 * sin(.pi * progress)), radius: staffSpace, x: forward ? -staffSpace : staffSpace)
+                #if os(visionOS)
+                .perspectiveRotationEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), anchor: forward ? .leading : .trailing, perspective: 0.3)
+                #else
+                .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), anchor: forward ? .leading : .trailing, perspective: 0.3)
+                #endif
+                .offset(x: forward ? pageWidth + halfGutter : 0)
             }
         }
         .frame(width: plan.geometry.spreadWidth * staffSpace, height: plan.geometry.height * staffSpace)
