@@ -104,7 +104,7 @@ title = "真机验证 Vision Pro → Windows Qwen decision RTT"
 status = "blocked"
 plan = "plan-p2.md#p2-t3"
 commit = ""
-note = "当前仅 Windows MCP，没有可用 Apple Vision Pro 真机局域网会话；按计划保留 blocked evidence，不用 localhost 替代。"
+note = "2026-09-30 已在 macOS 同步当前分支并完成 visionOS Simulator 验证：build PASS；HappyPianistAVPTests 1033 tests / 1022 passed / 11 unrelated failed / 0 skipped，Qwen/Companion 无失败。CoreDevice 能看到已配对物理 Vision Pro，但当前状态 unavailable，因此真机 LAN RTT 仍 blocked，不用 Simulator/localhost 替代。"
 
 [[tasks]]
 id = "P3-T1"

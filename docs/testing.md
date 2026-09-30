@@ -56,8 +56,8 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 | 证据 | 状态 | 不能替代 |
 | --- | --- | --- |
-| Simulator 自动化 suite | `failed`：2026-09-26，基于 `0a8f63a`；1010 通过、11 失败，失败集中在手部骨架 / hand motion / local sampler | 真机、听感、教师或教学证据 |
-| Qwen / Companion 定向回归 | `passed`：2026-09-30；Qwen 已固定为本地 NF4 4-bit，Python Qwen/Stage A/service-E2E 定向回归 26/26；Stage A 固定 120 cases，延迟仅记录；服务级 E2E 固定 60 cases 双跑均为 0 action mismatch、11/11 Aria 生成成功、0 generation failure，生成 MIDI 均通过重解析与 note-on/off 配平 | `settled_end` 语义质量缺口、Vision Pro 真实设备网络与产品 playback E2E |
+| Simulator 自动化 suite | `failed`：2026-09-30，基于 `3ba1f4e`；visionOS 27.0 新建 Apple Vision Pro Simulator 上 1033 tests，1022 通过、11 失败、0 skipped。失败集中在 hand rig / hand motion / local sampler / demonstration hands；`make build:simulator` 通过 | 真机、听感、教师或教学证据 |
+| Qwen / Companion 定向回归 | `passed`：2026-09-30；Qwen 已固定为本地 NF4 4-bit，Python Qwen/Stage A/service-E2E 定向回归 26/26；Stage A 固定 120 cases，延迟仅记录；服务级 E2E 固定 60 cases 双跑均为 0 action mismatch、11/11 Aria 生成成功、0 generation failure，生成 MIDI 均通过重解析与 note-on/off 配平；最新 visionOS Simulator 全量 suite 中 Qwen/Companion 相关测试无失败 | `settled_end` 语义质量缺口、Vision Pro 真实设备网络与产品 playback E2E |
 | Aria true-streaming P3 probe | `No-Go`：2026-09-30；P2 的 11 个 generating cases 上，oracle-compatible incremental decoder 与最终 `AbsTokenizer.detokenize()` 11/11 完全一致；first complete event median 75.9ms，但安全 `<T>` commit median 820.9ms，3/11 在 full completion 前没有安全 boundary；350ms 内安全 commit 仅 2/11，其中仅 1/11 含 note | 单个完整 token/event 不能替代安全 playable window；当前继续保留 HTTP full-response，不宣称产品实时 streaming |
 | 多 exporter 合法 fixture | `blocked evidence` | 内部 fixture、伪造 provenance、不明来源下载 |
 | 真机硬件、钢琴家盲评、教师标注、coaching 研究 | `pending evidence` | Simulator bucket、诊断字段、点击次数或单个 demo |
