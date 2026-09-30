@@ -14,6 +14,7 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - `PracticePreparationService` 先生成唯一的 `ScorePerformancePlan`，再单向投影 steps、琴键引导、notation、时间线和 sequence。没有 steps 或 measure spans 的结果是 typed failure，不存在 legacy/fallback 练习模式。
 - preparation 将正式 logical instrument / structural part 事实接到 runtime。Notation 接收完整 projection、小节结构、attribute timeline 与这些来源事实；projection 已映射到显示 staff，不再重复 normalizer。
 - Notation owner 在非主 Actor 异步构建唯一的 staff-space 绝对布局与 canonical PagePlan，保留完整边界、source beam provenance、spanner 与墨迹边界；换谱/关闭取消任务并拒绝迟到 generation。所有 occurrence（含空休止）唯一分配到 system/page/spread；分谱表上下文按正式 original part/staff 查询。首/末边界、source beam 连通组与 continuation 使用原始来源，完整墨迹决定二维 fit。tick、hand、active range 和 overlay 只更新局部 presentation，不重建全谱；范围外内容变淡但不删除。高亮、VoiceOver 和辅助显示不写入 progress。Practice 以完整 score 驱动双页，放大阅读纵向显示同一分页；离散导航复用唯一 transport 的 scheduled tick（包含小节边界），休止期间不插值、不优先旧 guide。
+- 共用 Spread 仅根据目标双页驱动单张纸的实时正反面；相邻翻动，大跳或翻动期间新目标直接收敛。原生动画完成核对谱身份与 generation，关闭/换谱拒绝旧完成；不缓存位图、不增加时钟。Reduce Motion 与放大阅读直接换页，视觉纸层不暴露重复语义，VoiceOver 始终读取正式目标双页且不强制移焦。
 
 曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策，Reduce Motion 保留中央强调但取消透视旋转。
 

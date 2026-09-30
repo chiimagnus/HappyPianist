@@ -8,7 +8,10 @@ public struct GrandStaffNotationSpreadView: View {
     let practiceHandMode: PracticeHandMode
     let annotations: [GrandStaffNotationMeasureAnnotation]
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var enlarged = false
+    @State private var turn = GrandStaffNotationPageTurnState()
+    @State private var progress = 0.0
 
     public init(plan: GrandStaffNotationPagePlan, targetIndex: Int, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both, annotations: [GrandStaffNotationMeasureAnnotation] = []) {
         self.plan = plan
@@ -32,20 +35,66 @@ public struct GrandStaffNotationSpreadView: View {
                         }
                     }
                 } else {
-                    HStack(spacing: plan.geometry.gutter * staffSpace) {
-                        GrandStaffNotationPageView(plan: plan, index: targetIndex * 2, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
-                        GrandStaffNotationPageView(plan: plan, index: targetIndex * 2 + 1, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
+                    let transition = if let active = turn.transition, active.identity == plan.turnIdentity, active.target == targetIndex, !reduceMotion { active } else {
+                        GrandStaffNotationPageTurnState.Transition(identity: plan.turnIdentity, generation: turn.generation, source: targetIndex, target: targetIndex)
                     }
+                    GrandStaffNotationPageTurnView(plan: plan, transition: transition, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations, progress: progress)
+                    .accessibilityRepresentation { pair(staffSpace: staffSpace) }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
                 ContentUnavailableView("曲谱位置无效", systemImage: "music.note")
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(pageRangeLabel)
+        .onChange(of: Request(identity: plan.turnIdentity, target: targetIndex, animated: !reduceMotion && !enlarged && !dynamicTypeSize.isAccessibilitySize), initial: true) { _, request in
+            var next = turn
+            next.request(identity: request.identity, target: request.target, animated: request.animated)
+            guard next != turn else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                turn = next
+                progress = 0
+            }
+            if let transition = next.transition {
+                withAnimation(.easeInOut(duration: 0.55), completionCriteria: .removed) {
+                    progress = 1
+                } completion: {
+                    guard turn.transition == transition else { return }
+                    withTransaction(transaction) {
+                        turn.complete(transition)
+                        progress = 0
+                    }
+                }
+            }
+        }
+        .onDisappear { turn.clear() }
         .overlay(alignment: .topTrailing) {
             Button(enlarged ? "恢复双页" : "放大阅读", systemImage: enlarged ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") { enlarged.toggle() }
                 .labelStyle(.iconOnly)
                 .padding(.trailing)
+        }
+    }
+
+    private struct Request: Equatable {
+        let identity: GrandStaffNotationPageTurnIdentity
+        let target: Int
+        let animated: Bool
+    }
+
+    private var pageRangeLabel: String {
+        guard (0..<plan.spreadCount).contains(targetIndex) else { return "曲谱位置无效" }
+        let first = targetIndex * 2 + 1
+        let last = min(first + 1, plan.pages.count)
+        return first == last ? "第 \(first) 页，共 \(plan.pages.count) 页" : "第 \(first) 至 \(last) 页，共 \(plan.pages.count) 页"
+    }
+
+    private func pair(staffSpace: Double) -> some View {
+        HStack(spacing: plan.geometry.gutter * staffSpace) {
+            GrandStaffNotationPageView(plan: plan, index: targetIndex * 2, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
+            GrandStaffNotationPageView(plan: plan, index: targetIndex * 2 + 1, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
         }
     }
 }
