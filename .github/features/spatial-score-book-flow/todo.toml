@@ -1,5 +1,5 @@
 version = 1
-current_task_id = ""
+current_task_id = "P1-T3"
 
 [[tasks]]
 id = "P1-T1"
@@ -118,5 +118,29 @@ id = "P6-T2"
 title = "完成 physical AVP 设计走查与长期文档收口"
 status = "pending"
 plan = "plan-p6.md#p6-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T3"
+title = "补齐完整产品流程与异常设计"
+status = "in_progress"
+plan = "plan-p1.md#p1-t3"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T4"
+title = "制作可操作的浏览器三维原型"
+status = "pending"
+plan = "plan-p1.md#p1-t4"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T5"
+title = "验证原型并交付多视角设计板"
+status = "pending"
+plan = "plan-p1.md#p1-t5"
 commit = ""
 note = ""

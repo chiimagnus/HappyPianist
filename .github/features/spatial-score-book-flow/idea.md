@@ -42,9 +42,9 @@ Book Flow 中每本 folio 是独立空间对象；中心书展开为双页谱；
 ## 已有视觉输入与缺口
 
 已在当前树确认并查看：
-- `.github/features/spatial-2026-09-30/设计稿/images/01-Book-Flow曲库.png`：中心书、邻册倾斜/后退。
-- `.github/features/spatial-2026-09-30/设计稿/images/02-双页Book-Spread曲目详情.png`：轻书脊、双页、多行 Grand Staff、谱上练习事实。
-- `.github/features/spatial-2026-09-30/设计稿/images/04-正常练习.png`：真实琴/双手、琴上谱、局部 Guide。
+- `images/01-Book-Flow曲库.png`：中心书、邻册倾斜/后退。
+- `images/02-双页Book-Spread曲目详情.png`：轻书脊、双页、多行 Grand Staff、谱上练习事实。
+- `images/04-正常练习.png`：真实琴/双手、琴上谱、局部 Guide。
 
 旧生成清单声称八张已生成，但当前仅以上三张 PNG 存在；03/05/06/07/08 有 prompt，不能当作已有设计图。单视角静帧也不证明尺度、侧面、命中区、连续动作与失败流程已经设计完。
 
@@ -102,4 +102,4 @@ Book Flow 中每本 folio 是独立空间对象；中心书展开为双页谱；
 
 本次源码读取基于 `ed77b659`：已有一个 mixed ImmersiveSpace，`AppState.ImmersiveMode` 只有 calibration/practice，Library 仍 Vinyl，Practice 仍 `GrandStaffNotationView`。旧审计描述的分页/SpatialLibrary 文件在当前树不存在；计划“新增”不表示已经实现。
 
-本次授权仅设计与计划，不启动 App 实现。按 writing-plan 约定，计划/设计及归档本地保留，不新增 Git 提交、不 push、不建分支。
+当前授权包含完整流程设计、HTML + Three.js 浏览器交互原型及由原型捕获的设计板，不启动正式 App 实现、不改现有 2D。浏览器中的曲谱、设备、手部、音乐时序和保存均为明确标识的模拟；它支持产品走查，不替代 P1-T1 的 RealityView / physical AVP 空间验证。按 writing-plan 约定，计划/设计、原型及归档本地保留，不新增 Git 提交、不 push、不建分支。
