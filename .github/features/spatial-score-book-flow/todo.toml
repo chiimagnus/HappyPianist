@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P1-T9"
+current_task_id = ""
 
 [[tasks]]
 id = "P1-T1"
@@ -142,10 +142,11 @@ note = "16 个 Node 回归通过；Helium 实际 canvas 命中并走通完整主
 [[tasks]]
 id = "P1-T5"
 title = "验证原型并交付多视角设计板"
-status = "in_progress"
+status = "completed"
 plan = "plan-p1.md#p1-t5"
 commit = ""
-note = ""
+no_commit_reason = "feature 设计原型与证据按项目规则仅本地保留"
+note = "2026-10-01T15:29:04.272Z 完整29项Helium浏览器检查通过、异常为空；16项Node回归通过；45张真实运行截图已刷新；设计入口/流程/报告/设计板本地链接有效，窄屏设计板与回原型链接通过；仅原型范围，不放行原生任务"
 
 [[tasks]]
 id = "P1-T6"
@@ -158,23 +159,26 @@ note = "仓库两个规范文件与 feature 全部 Markdown/TOML 指定条款全
 [[tasks]]
 id = "P1-T7"
 title = "移除空间信息卡并修正控件对象归属"
-status = "in_progress"
+status = "completed"
 plan = "plan-p1.md#p1-t7"
 commit = ""
-note = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "最新整套 29 项浏览器检查通过：曲名只在书上，无重复信息卡；斜侧俯视世界矩阵固定且控件投影随视角变窄；主流程实际鼠标命中及安全返回通过"
 
 [[tasks]]
 id = "P1-T8"
 title = "将详情操作融入书页，取消悬浮按钮面板"
-status = "in_progress"
+status = "completed"
 plan = "plan-p1.md#p1-t8"
 commit = ""
-note = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "详情无底部面板；书签开始、页内继续9/范围9–12、标题试听和书脊合拢真实点击通过；首末页禁用与范围标记归属通过；多视角设计板已刷新"
 
 [[tasks]]
 id = "P1-T9"
 title = "补充明确命名与局部 Tooltip"
-status = "in_progress"
+status = "completed"
 plan = "plan-p1.md#p1-t9"
 commit = ""
-note = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "真实短时悬停不显示、停留显示、移开消失且业务不变；试听/页界说明更新正确；修复书签悬停浅底白字并检查计算样式；最新29项浏览器检查通过"

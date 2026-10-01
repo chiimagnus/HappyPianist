@@ -46,6 +46,17 @@ async function evaluate(expression) {
 }
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 const snapshot = () => evaluate('prototypeReview.snapshot()');
+async function pageLoad(action) {
+  let listener;
+  let timer;
+  const loaded = new Promise((resolve, reject) => {
+    listener = event => { if (JSON.parse(event.data).method === 'Page.loadEventFired') resolve(); };
+    socket.addEventListener('message', listener);
+    timer = setTimeout(() => reject(new Error('Page load timed out')), 10000);
+  });
+  try { await action(); await loaded; }
+  finally { clearTimeout(timer); socket.removeEventListener('message', listener); }
+}
 async function click(type, value) {
   const selector = `[data-action="${type}"]${value === undefined ? '' : `[data-value="${value}"]`}`;
   const deadline = Date.now() + 4000;
@@ -93,9 +104,13 @@ async function capture(name) {
 
 try {
   execFileSync(process.execPath, [cli, 'activate', created.targetId], { stdio: 'ignore' });
+  await send('Page.enable');
+  await send('Network.enable');
+  await send('Network.setCacheDisabled', { cacheDisabled: true });
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 960, deviceScaleFactor: 1, mobile: false });
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  await pageLoad(() => send('Page.reload', { ignoreCache: true }));
   await evaluate('new Promise(resolve => { const poll = () => window.prototypeReview ? resolve(true) : setTimeout(poll, 50); poll(); })');
   await wait(300);
   assert.equal(await evaluate('document.hidden'), false);
@@ -213,6 +228,8 @@ try {
     checked('独立深度 / 斜侧俯视 / 不跟头 / 快速换书收敛');
     await board('D03');
     assert.equal(await evaluate('document.querySelectorAll("#actions .row").length'), 0);
+    assert.equal(await evaluate('document.querySelector(".page-corner.previous").disabled'), true);
+    assert.ok(await evaluate('document.querySelector(".page-corner.previous").dataset.help.includes("第一组")'));
     assert.equal(await evaluate('document.querySelector("#spatial-operations").dataset.stage'), 'detail');
     const pageBounds = await evaluate('document.querySelector("#spatial-operations").getBoundingClientRect().toJSON()');
     const practiceBounds = await evaluate('document.querySelector("[data-action=start][data-value=begin]").getBoundingClientRect().toJSON()');
@@ -223,6 +240,7 @@ try {
     assert.equal(await evaluate('getComputedStyle(document.querySelector(".practice-bookmark"), "::after").visibility'), 'hidden');
     await wait(650);
     assert.equal(await evaluate('getComputedStyle(document.querySelector(".practice-bookmark"), "::after").visibility'), 'visible');
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".practice-bookmark")).backgroundColor'), 'rgb(53, 74, 65)');
     assert.equal((await snapshot()).stage, beforeHelp.stage);
     assert.equal((await snapshot()).measure, beforeHelp.measure);
     await capture('D03-tooltip');
@@ -259,6 +277,9 @@ try {
     await wait(100);
     assert.equal((await snapshot()).spread, 2);
     assert.equal((await snapshot()).flipping, false);
+    assert.equal(await evaluate('document.querySelector(".page-corner.next").disabled'), true);
+    assert.ok(await evaluate('document.querySelector(".page-corner.next").dataset.help.includes("最后一组")'));
+    assert.equal(await evaluate('document.querySelector(".range-mark")'), null);
     await capture('D04-last');
     await click('page', -1);
     await wait(300);
@@ -312,7 +333,7 @@ try {
     checked('取消进入 / 加载以后无迟到完成');
     for (const fault of ['empty', 'library-error']) {
       await evaluate(`prototypeReview.injectCase('${fault}')`);
-      assert.equal((await snapshot()).visibleBooks, 0);
+      await until(state => state.visibleBooks === 0, `${fault} 仍显示书册`);
       await wait(200);
       await capture(`case-${fault}`);
       await click('manage');
@@ -419,20 +440,24 @@ try {
     assert.equal((await snapshot()).renderError, '');
     assert.deepEqual(failures, []);
     const userAgent = await evaluate('navigator.userAgent');
-    await send('Page.navigate', { url: 'http://127.0.0.1:8765/boards/' });
-    await wait(600);
+    await pageLoad(() => send('Page.navigate', { url: 'http://127.0.0.1:8765/boards/' }));
     await send('Emulation.setFocusEmulationEnabled', { enabled: true });
-    await evaluate('[...document.images].forEach(image => { image.loading = "eager"; }); true');
-    const imagesDeadline = Date.now() + 30000;
-    while (Date.now() < imagesDeadline && !await evaluate('[...document.images].every(image => image.complete && image.naturalWidth > 0)')) await wait(200);
-    assert.equal(await evaluate('[...document.images].every(image => image.complete && image.naturalWidth > 0)'), true);
     assert.equal(await evaluate('document.querySelectorAll("section").length'), 10);
+    for (let section = 0; section < 10; section += 1) {
+      await evaluate(`document.querySelectorAll('section')[${section}].scrollIntoView(); true`);
+      const imagesDeadline = Date.now() + 10000;
+      const missingImages = () => evaluate(`[...document.querySelectorAll('section')[${section}].querySelectorAll('img')].filter(image => !image.complete || !image.naturalWidth).map(image => ({ source: image.getAttribute('src'), complete: image.complete }))`);
+      let missing = await missingImages();
+      while (Date.now() < imagesDeadline && missing.length) { await wait(200); missing = await missingImages(); }
+      assert.deepEqual(missing, [], `D${String(section + 1).padStart(2, '0')} 图片未加载：${JSON.stringify(missing)}`);
+    }
+    assert.equal(await evaluate('document.images.length'), 45);
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
     await wait(100);
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 960, deviceScaleFactor: 1, mobile: false });
-    await evaluate('document.querySelector("a[href=\"../prototype/?board=D03\"]").click()');
-    await wait(600);
+    await pageLoad(() => evaluate('document.querySelector(\'a[href="../prototype/?board=D03"]\').click()'));
+    await evaluate('new Promise(resolve => { const poll = () => window.prototypeReview ? resolve(true) : setTimeout(poll, 50); poll(); })');
     await stage('detail');
     checked('设计板图片全部加载、窄屏无横向溢出、操作链接抵达对应原型');
     assert.deepEqual(failures, []);
