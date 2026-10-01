@@ -180,8 +180,8 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
-                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                let openHandler = makeImmersiveSpaceOpenHandler(openImmersiveSpace)
+                let dismissHandler = makeImmersiveSpaceDismissHandler(dismissImmersiveSpace)
                 viewModel.setPracticeVirtualPianoEnabled(viewModel.isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
                 await viewModel.enterPracticeStep(
@@ -190,8 +190,7 @@ struct PracticeStepView: View {
                 )
 
                 if isStepVisible == false {
-                    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
-                    await viewModel.recoverImmersiveStateIfStuck()
+                    await viewModel.closeImmersive(using: dismissHandler)
                 }
             }
         }

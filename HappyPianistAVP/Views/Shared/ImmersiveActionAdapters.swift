@@ -1,9 +1,9 @@
 import SwiftUI
 
 @MainActor
-func makePracticeImmersiveOpenHandler(
+func makeImmersiveSpaceOpenHandler(
     _ openImmersiveSpace: OpenImmersiveSpaceAction
-) -> PracticeImmersiveOpenHandler {
+) -> ImmersiveSpaceOpenHandler {
     { id in
         switch await openImmersiveSpace(id: id) {
         case .opened:
@@ -19,9 +19,9 @@ func makePracticeImmersiveOpenHandler(
 }
 
 @MainActor
-func makePracticeImmersiveDismissHandler(
+func makeImmersiveSpaceDismissHandler(
     _ dismissImmersiveSpace: DismissImmersiveSpaceAction
-) -> PracticeImmersiveDismissHandler {
+) -> ImmersiveSpaceDismissHandler {
     {
         await dismissImmersiveSpace()
     }

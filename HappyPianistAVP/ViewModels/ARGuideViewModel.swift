@@ -20,6 +20,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     // MARK: - App-level dependencies
 
     let appState: AppState
+    let immersivePresentationCoordinator: ImmersiveSpacePresentationCoordinator
     let practiceSetupState: PracticeSetupState
     let pianoModeRegistry: PianoModeRegistryProtocol
     let diagnosticsReporter: (any DiagnosticsReporting)?
@@ -48,9 +49,11 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     @ObservationIgnored private var currentTrackingRequirements: ARTrackingRequirements = []
     @ObservationIgnored private var isImmersiveRuntimeSuspended = false
     @ObservationIgnored private var shouldResumeVirtualPerformer = false
+    @ObservationIgnored private var activeImmersiveDismissHandler: ImmersiveSpaceDismissHandler?
 
     init(
         appState: AppState,
+        immersivePresentationCoordinator: ImmersiveSpacePresentationCoordinator? = nil,
         practiceSetupState: PracticeSetupState,
         pianoModeRegistry: PianoModeRegistryProtocol,
         makePracticeSessionViewModel: @escaping @MainActor (String?) -> PracticeSessionViewModel,
@@ -64,6 +67,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.appState = appState
+        self.immersivePresentationCoordinator =
+            immersivePresentationCoordinator ?? ImmersiveSpacePresentationCoordinator(appState: appState)
         self.practiceSetupState = practiceSetupState
         self.pianoModeRegistry = pianoModeRegistry
         self.diagnosticsReporter = diagnosticsReporter
@@ -115,6 +120,12 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             self?.startTrackingIfNeeded()
         }
         setupAppStateCallbacks()
+        self.immersivePresentationCoordinator.installModeTransitionHandler { [weak self] oldMode, newMode in
+            self?.handleImmersiveModeTransition(from: oldMode, to: newMode)
+        }
+        localization.onLocalizationFailure = { [weak self] _ in
+            await self?.closeActiveImmersivePresentation()
+        }
 
         // Ensure Bluetooth MIDI input events are subscribed immediately for the initial practice session.
         // Otherwise, AI improv (and recording) won't receive any MIDI events until the session is rebuilt.
@@ -389,6 +400,14 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         appState.calibrationCaptureService
     }
 
+    var isCalibrationTrackingReady: Bool {
+        calibrationGuideViewModel.isTrackingReady
+    }
+
+    var calibrationTrackingStatusText: String? {
+        calibrationGuideViewModel.trackingStatusText
+    }
+
     var arTrackingService: ARTrackingServiceProtocol {
         appState.arTrackingService
     }
@@ -598,27 +617,58 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     }
 
     func enterPracticeStep(
-        openImmersiveSpace: PracticeImmersiveOpenHandler,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
+        openImmersiveSpace: @escaping ImmersiveSpaceOpenHandler,
+        dismissImmersiveSpace: @escaping ImmersiveSpaceDismissHandler
     ) async {
-        await practiceViewModel.enterPracticeStep(
-            openImmersiveSpace: openImmersiveSpace,
-            dismissImmersiveSpace: dismissImmersiveSpace
-        )
+        activeImmersiveDismissHandler = dismissImmersiveSpace
+        practiceViewModel.preparePracticeStep()
+
+        if practiceEntryBlockingReason() != nil {
+            practiceViewModel.beginPracticeLocalization()
+            return
+        }
+
+        practiceLocalizationViewModel.setPracticeLocalizationState(.openingImmersive)
+        if let openError = await openImmersive(mode: .practice, using: openImmersiveSpace) {
+            practiceLocalizationViewModel.setPracticeLocalizationState(
+                .failed(reason: .immersiveOpenFailed(message: openError))
+            )
+            return
+        }
+        practiceViewModel.beginPracticeLocalization()
     }
 
     func retryPracticeLocalization(
-        openImmersiveSpace: PracticeImmersiveOpenHandler,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
+        openImmersiveSpace: @escaping ImmersiveSpaceOpenHandler,
+        dismissImmersiveSpace: @escaping ImmersiveSpaceDismissHandler
     ) async {
-        await practiceViewModel.retryPracticeLocalization(
-            openImmersiveSpace: openImmersiveSpace,
-            dismissImmersiveSpace: dismissImmersiveSpace
-        )
+        activeImmersiveDismissHandler = dismissImmersiveSpace
+
+        if practiceEntryBlockingReason() != nil {
+            practiceViewModel.beginPracticeLocalization()
+            return
+        }
+
+        practiceLocalizationViewModel.setPracticeLocalizationState(.openingImmersive)
+        if let openError = await openImmersive(mode: .practice, using: openImmersiveSpace) {
+            practiceLocalizationViewModel.setPracticeLocalizationState(
+                .failed(reason: .immersiveOpenFailed(message: openError))
+            )
+            return
+        }
+        practiceViewModel.beginPracticeLocalization()
     }
 
-    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeImmersiveOpenHandler) async {
-        await practiceViewModel.enterVirtualPianoPlacement(openImmersiveSpace: openImmersiveSpace)
+    func enterVirtualPianoPlacement(openImmersiveSpace: @escaping ImmersiveSpaceOpenHandler) async {
+        practiceViewModel.prepareVirtualPianoPlacement()
+        practiceLocalizationViewModel.setPracticeLocalizationState(.openingImmersive)
+        if let openError = await openImmersive(mode: .practice, using: openImmersiveSpace) {
+            practiceLocalizationViewModel.setPracticeLocalizationState(
+                .failed(reason: .immersiveOpenFailed(message: openError))
+            )
+            return
+        }
+        practiceViewModel.markVirtualPianoPlacementReady()
     }
 
     func resetPracticeLocalizationState() {
@@ -631,19 +681,21 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         practiceViewModel.practiceLocalizationTimeoutFailure(lastRecoverableResolution: lastRecoverableResolution)
     }
 
-    func openImmersiveForStep(
+    func openImmersive(
         mode: AppState.ImmersiveMode,
-        openImmersiveSpace: PracticeImmersiveOpenHandler
+        using openImmersiveSpace: @escaping ImmersiveSpaceOpenHandler
     ) async -> String? {
-        await practiceViewModel.openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
+        await immersivePresentationCoordinator.open(mode: mode, using: openImmersiveSpace)
     }
 
-    func closeImmersiveForStep(dismissImmersiveSpace: PracticeImmersiveDismissHandler) async {
-        await practiceViewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissImmersiveSpace)
+    func closeImmersive(using dismissImmersiveSpace: @escaping ImmersiveSpaceDismissHandler) async {
+        activeImmersiveDismissHandler = dismissImmersiveSpace
+        await immersivePresentationCoordinator.close(using: dismissImmersiveSpace)
     }
 
-    func recoverImmersiveStateIfStuck() async {
-        await practiceViewModel.recoverImmersiveStateIfStuck()
+    private func closeActiveImmersivePresentation() async {
+        guard let activeImmersiveDismissHandler else { return }
+        await immersivePresentationCoordinator.close(using: activeImmersiveDismissHandler)
     }
 
     func suspendPracticeAndFlushProgress() async {
@@ -761,27 +813,22 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     }
 
     func onImmersiveAppear() {
+        immersivePresentationCoordinator.sceneDidAppear()
         isImmersiveRuntimeSuspended = false
-        switch appState.immersiveMode {
-        case .calibration:
-            startTrackingIfNeeded()
-            calibrationGuideViewModel.onImmersiveAppear()
-        case .practice:
-            startTrackingIfNeeded()
-        }
-        if isVirtualPerformerEnabled {
-            setPracticeVirtualPerformerEnabled(true)
-        }
+        activateImmersiveRuntime(for: appState.immersiveMode)
     }
 
     func onImmersiveDisappear() {
+        immersivePresentationCoordinator.sceneDidDisappear()
         isImmersiveRuntimeSuspended = false
         shouldResumeVirtualPerformer = false
+        activeImmersiveDismissHandler = nil
         calibrationGuideViewModel.shutdown()
         practiceLocalizationViewModel.shutdown()
         practiceSessionViewModel.stopVirtualPianoInput()
         recordingViewModel.stop()
         aiPerformanceViewModel.shutdown()
+        placementViewModel.stopGuidance()
         stopTracking()
     }
 
@@ -800,14 +847,51 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     func resumeImmersiveRuntimeIfNeeded() {
         guard isImmersiveRuntimeSuspended else { return }
         isImmersiveRuntimeSuspended = false
-        startTrackingIfNeeded()
-        if appState.immersiveMode == .calibration {
-            calibrationGuideViewModel.onImmersiveAppear()
-        }
-        if shouldResumeVirtualPerformer {
-            setPracticeVirtualPerformerEnabled(true)
-        }
+        activateImmersiveRuntime(for: appState.immersiveMode)
         shouldResumeVirtualPerformer = false
+    }
+
+    private func handleImmersiveModeTransition(
+        from oldMode: AppState.ImmersiveMode,
+        to newMode: AppState.ImmersiveMode
+    ) {
+        guard oldMode != newMode else { return }
+        deactivateImmersiveRuntime(for: oldMode)
+        activateImmersiveRuntime(for: newMode)
+    }
+
+    private func deactivateImmersiveRuntime(for mode: AppState.ImmersiveMode) {
+        switch mode {
+        case .library:
+            break
+        case .calibration:
+            calibrationGuideViewModel.shutdown()
+        case .practice:
+            practiceLocalizationViewModel.shutdown()
+            practiceSessionViewModel.stopVirtualPianoInput()
+            recordingViewModel.stop()
+            aiPerformanceViewModel.shutdown()
+            placementViewModel.stopGuidance()
+            shouldResumeVirtualPerformer = false
+        }
+    }
+
+    private func activateImmersiveRuntime(for mode: AppState.ImmersiveMode) {
+        guard appState.immersiveSpaceState == .open else { return }
+        guard isImmersiveRuntimeSuspended == false else { return }
+
+        startTrackingIfNeeded()
+        switch mode {
+        case .library:
+            break
+        case .calibration:
+            calibrationGuideViewModel.onImmersiveAppear()
+        case .practice:
+            startVirtualPianoGuidanceIfNeeded()
+            if shouldResumeVirtualPerformer || isVirtualPerformerEnabled {
+                setPracticeVirtualPerformerEnabled(true)
+            }
+        }
     }
 
     func startTrackingIfNeeded() {
@@ -858,6 +942,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     private func trackingRequirementsForCurrentContext() -> ARTrackingRequirements {
         switch appState.immersiveMode {
+        case .library:
+            [.world]
         case .calibration:
             .calibration
         case .practice:
@@ -871,6 +957,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     private func handleHandTrackingUpdate(_ fingerTips: FingerTipsSnapshot) {
         switch appState.immersiveMode {
+        case .library:
+            break
         case .calibration:
             calibrationGuideViewModel.handleHandUpdates()
 

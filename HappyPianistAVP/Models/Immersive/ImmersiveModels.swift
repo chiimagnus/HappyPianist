@@ -24,6 +24,7 @@ struct ARTrackingRequirements: OptionSet {
 enum ARTrackingProviderState: Equatable {
     case idle
     case running
+    case paused
     case unsupported
     case unauthorized
     case disabled
@@ -36,6 +37,8 @@ enum ARTrackingProviderState: Equatable {
             "idle"
         case .running:
             "running"
+        case .paused:
+            "paused"
         case .unsupported:
             "unsupported"
         case .unauthorized:

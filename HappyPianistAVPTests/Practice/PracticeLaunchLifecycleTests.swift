@@ -132,39 +132,6 @@ func systemDisappearRunsBestEffortCloseOnceWithoutReturnDismissal() async {
 
 @MainActor
 @Test
-func overlappingReadyPresentationCloseIntentsDismissImmersiveOnce() async {
-    let coordinator = PracticeImmersiveCloseCoordinator()
-    let gate = MainActorTestGate()
-    var closeCount = 0
-    var recoverCount = 0
-    let first = Task { @MainActor in
-        await coordinator.closeIfNeeded(
-            isClosed: false,
-            close: {
-                closeCount += 1
-                await gate.wait()
-            },
-            recover: { recoverCount += 1 }
-        )
-    }
-    await gate.waitUntilEntered()
-    let second = Task { @MainActor in
-        await coordinator.closeIfNeeded(
-            isClosed: false,
-            close: { closeCount += 1 },
-            recover: { recoverCount += 1 }
-        )
-    }
-    gate.resume()
-    await first.value
-    await second.value
-
-    #expect(closeCount == 1)
-    #expect(recoverCount == 1)
-}
-
-@MainActor
-@Test
 func activeSceneOperationWaitsForCancelledSuspendToFinish() async {
     let coordinator = PracticeSceneLifecycleCoordinator()
     let gate = MainActorTestGate()

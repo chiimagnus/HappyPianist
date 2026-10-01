@@ -5,6 +5,7 @@ struct CalibrationStageCard: View {
     let phase: ARGuideViewModel.CalibrationPhase
     let storedCalibration: StoredWorldAnchorCalibration?
     let isReticleReadyToConfirm: Bool
+    let trackingStatusText: String?
     let errorMessage: String?
     let onReturnHome: () -> Void
     let onRecalibrate: () -> Void
@@ -43,6 +44,12 @@ struct CalibrationStageCard: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+                if let trackingStatusText {
+                    Text(trackingStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 #if DEBUG && targetEnvironment(simulator)
                     if simulatorDemoState == .enabled, let onSimulatorDemoAdvance {

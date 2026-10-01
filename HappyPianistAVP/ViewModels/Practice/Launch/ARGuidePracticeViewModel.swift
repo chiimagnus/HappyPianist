@@ -79,11 +79,19 @@ final class ARGuidePracticeViewModel {
         switch worldState {
         case .running:
             return "AR 定位：可用"
+        case .paused:
+            return "AR 定位：暂时暂停"
+        case .stopped:
+            return "AR 定位：已停止"
+        case .disabled:
+            return "AR 定位：已关闭"
         case .unsupported:
             return "AR 定位：不可用（设备/环境不支持）"
+        case .unauthorized:
+            return "AR 定位：不可用（未授权）"
         case let .failed(reason):
             return "AR 定位：失败（\(reason)）"
-        default:
+        case .idle:
             return "AR 定位：初始化中"
         }
     }
@@ -93,13 +101,19 @@ final class ARGuidePracticeViewModel {
         switch handState {
         case .running:
             return "手势辅助：可用（boost + fallback）"
+        case .paused:
+            return "手势辅助：暂时暂停"
+        case .stopped:
+            return "手势辅助：已停止"
         case .disabled:
             return "手势辅助：已关闭（Bluetooth MIDI 模式）"
+        case .unsupported:
+            return "手势辅助：不可用（设备不支持）"
         case .unauthorized:
             return "手势辅助：不可用（未授权）"
         case let .failed(reason):
             return "手势辅助：不可用（\(reason)）"
-        default:
+        case .idle:
             return "手势辅助：初始化中"
         }
     }
@@ -150,30 +164,20 @@ final class ARGuidePracticeViewModel {
         return nil
     }
 
-    func enterPracticeStep(
-        openImmersiveSpace: PracticeImmersiveOpenHandler,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
-    ) async {
+    func preparePracticeStep() {
         if placementViewModel.isVirtualPianoEnabled {
             placementViewModel.showVirtualPianoForPractice()
         }
-        await beginPracticeLocalization(
-            openImmersiveSpace: openImmersiveSpace,
-            dismissImmersiveSpace: dismissImmersiveSpace
+    }
+
+    func beginPracticeLocalization() {
+        practiceLocalizationViewModel.beginPracticeLocalization(
+            isVirtualPianoEnabled: placementViewModel.isVirtualPianoEnabled,
+            blockingReason: practiceEntryBlockingReason()
         )
     }
 
-    func retryPracticeLocalization(
-        openImmersiveSpace: PracticeImmersiveOpenHandler,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
-    ) async {
-        await beginPracticeLocalization(
-            openImmersiveSpace: openImmersiveSpace,
-            dismissImmersiveSpace: dismissImmersiveSpace
-        )
-    }
-
-    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeImmersiveOpenHandler) async {
+    func prepareVirtualPianoPlacement() {
         if placementViewModel.isVirtualPianoEnabled == false {
             placementViewModel.isVirtualPianoPlaced = false
             placementViewModel.setPracticeVirtualPianoEnabled(true)
@@ -187,12 +191,9 @@ final class ARGuidePracticeViewModel {
 
         placementViewModel.showVirtualPianoForPlacement()
 
-        practiceLocalizationViewModel.setPracticeLocalizationState(.openingImmersive)
-        if let openError = await openImmersiveForStep(mode: .practice, openImmersiveSpace: openImmersiveSpace) {
-            practiceLocalizationViewModel.setPracticeLocalizationState(.failed(reason: .immersiveOpenFailed(message: openError)))
-            return
-        }
+    }
 
+    func markVirtualPianoPlacementReady() {
         practiceLocalizationViewModel.setPracticeLocalizationState(.ready)
     }
 
@@ -208,91 +209,4 @@ final class ARGuidePracticeViewModel {
         )
     }
 
-    func openImmersiveForStep(
-        mode: AppState.ImmersiveMode,
-        openImmersiveSpace: PracticeImmersiveOpenHandler
-    ) async -> String? {
-        appState.immersiveMode = mode
-
-        switch appState.immersiveSpaceState {
-        case .open:
-            return nil
-
-        case .inTransition:
-            for _ in 0 ..< 40 {
-                await Task.yield()
-                if appState.immersiveSpaceState != .inTransition {
-                    break
-                }
-            }
-
-            if appState.immersiveSpaceState == .closed {
-                return await openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
-            }
-            return nil
-
-        case .closed:
-            appState.immersiveSpaceState = .inTransition
-            switch await openImmersiveSpace(appState.immersiveSpaceID) {
-            case .opened:
-                // ImmersiveView.onAppear is the single source of truth for `.open`.
-                return nil
-
-            case .userCancelled:
-                appState.immersiveSpaceState = .closed
-                return "已取消打开沉浸空间。"
-
-            case .error:
-                appState.immersiveSpaceState = .closed
-                return "打开沉浸空间失败，请重试。"
-
-            case .unknown:
-                appState.immersiveSpaceState = .closed
-                return "沉浸空间返回未知状态，请重试。"
-            }
-        }
-    }
-
-    func closeImmersiveForStep(dismissImmersiveSpace: PracticeImmersiveDismissHandler) async {
-        if appState.immersiveSpaceState == .open {
-            appState.immersiveSpaceState = .inTransition
-        }
-        await dismissImmersiveSpace()
-        // ImmersiveView.onDisappear is the single source of truth for `.closed`.
-    }
-
-    func recoverImmersiveStateIfStuck() async {
-        guard appState.immersiveSpaceState == .inTransition else { return }
-        for _ in 0 ..< 40 {
-            await Task.yield()
-            if appState.immersiveSpaceState != .inTransition {
-                return
-            }
-        }
-        appState.immersiveSpaceState = .closed
-    }
-
-    private func beginPracticeLocalization(
-        openImmersiveSpace: PracticeImmersiveOpenHandler,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
-    ) async {
-        await practiceLocalizationViewModel.beginPracticeLocalization(
-            isVirtualPianoEnabled: placementViewModel.isVirtualPianoEnabled,
-            blockingReason: practiceEntryBlockingReason(),
-            openImmersiveSpace: openImmersiveSpace,
-            dismissImmersiveSpace: dismissImmersiveSpace,
-            openImmersiveForStep: { [weak self] open in
-                guard let self else { return "已退出练习流程。" }
-                return await self.openImmersiveForStep(mode: .practice, openImmersiveSpace: open)
-            },
-            closeImmersiveForStep: { [weak self] dismiss in
-                guard let self else { return }
-                await self.closeImmersiveForStep(dismissImmersiveSpace: dismiss)
-            },
-            recoverImmersiveStateIfStuck: { [weak self] in
-                guard let self else { return }
-                await self.recoverImmersiveStateIfStuck()
-            }
-        )
-    }
 }

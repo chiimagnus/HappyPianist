@@ -4,7 +4,6 @@ struct VirtualPianoPreparationView: View {
     @Environment(PianoSetupCoordinator.self) private var pianoSetupCoordinator
     @Environment(\.preparationNavigationActions) private var navigationActions
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
-    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Bindable var viewModel: ARGuideViewModel
 
     var body: some View {
@@ -46,7 +45,7 @@ struct VirtualPianoPreparationView: View {
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)
         .task {
-            let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
+            let openHandler = makeImmersiveSpaceOpenHandler(openImmersiveSpace)
             await viewModel.enterVirtualPianoPlacement(openImmersiveSpace: openHandler)
         }
         .onChange(of: viewModel.isVirtualPianoPlaced) {

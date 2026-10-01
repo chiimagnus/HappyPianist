@@ -19,11 +19,11 @@ final class AppState {
 
     enum ImmersiveSpaceState {
         case closed
-        case inTransition
         case open
     }
 
     enum ImmersiveMode {
+        case library
         case calibration
         case practice
     }

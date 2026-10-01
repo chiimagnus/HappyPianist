@@ -29,26 +29,29 @@ func enterPracticeStepCallsOpenImmersive() async {
 
 @Test
 @MainActor
-func closeImmersiveForStepCallsDismissWhenNotClosed() async {
+func closeImmersiveCallsDismissWhenMounted() async {
     let appState = AppState()
     let practiceSetupState = PracticeSetupState()
     let viewModel = ARGuideViewModel(appState: appState, practiceSetupState: practiceSetupState)
     appState.immersiveSpaceState = .open
 
     var dismissCount = 0
-    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: { dismissCount += 1 })
+    await viewModel.closeImmersive(using: { dismissCount += 1 })
+
     #expect(dismissCount == 1)
+    #expect(appState.immersiveSpaceState == .open)
 }
 
 @Test
 @MainActor
-func closeImmersiveForStepCallsDismissWhenStateClaimsClosed() async {
+func closeImmersiveDoesNotDismissWhenAlreadyClosed() async {
     let appState = AppState()
     let practiceSetupState = PracticeSetupState()
     let viewModel = ARGuideViewModel(appState: appState, practiceSetupState: practiceSetupState)
     appState.immersiveSpaceState = .closed
 
     var dismissCount = 0
-    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: { dismissCount += 1 })
-    #expect(dismissCount == 1)
+    await viewModel.closeImmersive(using: { dismissCount += 1 })
+
+    #expect(dismissCount == 0)
 }

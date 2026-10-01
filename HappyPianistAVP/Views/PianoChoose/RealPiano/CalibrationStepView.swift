@@ -28,6 +28,7 @@ struct CalibrationStepView: View {
             phase: phase,
             storedCalibration: viewModel.storedCalibration,
             isReticleReadyToConfirm: isReticleReadyToConfirm,
+            trackingStatusText: viewModel.calibrationTrackingStatusText,
             errorMessage: errorMessage,
             onReturnHome: { onExit() },
             onRecalibrate: { beginRecalibration() },
@@ -54,16 +55,15 @@ struct CalibrationStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
-                let openError = await viewModel.openImmersiveForStep(mode: .calibration, openImmersiveSpace: openHandler)
+                let openHandler = makeImmersiveSpaceOpenHandler(openImmersiveSpace)
+                let openError = await viewModel.openImmersive(mode: .calibration, using: openHandler)
                 if let openError {
                     viewModel.presentCalibrationError(message: openError)
                 }
 
                 if isStepVisible == false {
-                    let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
-                    await viewModel.recoverImmersiveStateIfStuck()
+                    let dismissHandler = makeImmersiveSpaceDismissHandler(dismissImmersiveSpace)
+                    await viewModel.closeImmersive(using: dismissHandler)
                 }
             }
         }
@@ -79,9 +79,8 @@ struct CalibrationStepView: View {
 
             if isSimulatorDemoActive == false, shouldCloseImmersive {
                 Task { @MainActor in
-                    let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
-                    await viewModel.recoverImmersiveStateIfStuck()
+                    let dismissHandler = makeImmersiveSpaceDismissHandler(dismissImmersiveSpace)
+                    await viewModel.closeImmersive(using: dismissHandler)
                 }
             }
         }
@@ -93,16 +92,15 @@ struct CalibrationStepView: View {
         hasRequestedImmersiveOpen = true
 
         Task { @MainActor in
-            let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
-            let openError = await viewModel.openImmersiveForStep(mode: .calibration, openImmersiveSpace: openHandler)
+            let openHandler = makeImmersiveSpaceOpenHandler(openImmersiveSpace)
+            let openError = await viewModel.openImmersive(mode: .calibration, using: openHandler)
             if let openError {
                 viewModel.presentCalibrationError(message: openError)
             }
 
             if isStepVisible == false {
-                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
-                await viewModel.recoverImmersiveStateIfStuck()
+                let dismissHandler = makeImmersiveSpaceDismissHandler(dismissImmersiveSpace)
+                await viewModel.closeImmersive(using: dismissHandler)
             }
         }
     }
@@ -111,7 +109,8 @@ struct CalibrationStepView: View {
         #if DEBUG && targetEnvironment(simulator)
             if isSimulatorDemoActive { return true }
         #endif
-        return viewModel.calibrationCaptureService.isReticleReadyToConfirm
+        return viewModel.isCalibrationTrackingReady
+            && viewModel.calibrationCaptureService.isReticleReadyToConfirm
     }
 
     private var isSimulatorDemoActive: Bool {

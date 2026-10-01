@@ -14,7 +14,8 @@ func immersiveSuspendAndResumeAreIdempotentAndRebuildTrackingFromRequirements() 
         practiceSetupState: appState.practiceSetupState
     )
 
-    viewModel.startTrackingIfNeeded()
+    viewModel.onImmersiveAppear()
+    #expect(appState.immersiveSpaceState == .open)
     #expect(tracking.startCalls == [.calibration])
 
     viewModel.suspendImmersiveRuntime()
@@ -30,15 +31,61 @@ func immersiveSuspendAndResumeAreIdempotentAndRebuildTrackingFromRequirements() 
 }
 
 @MainActor
+@Test
+func mountedModeSwitchesReconcileRuntimeWithoutReopeningScene() async {
+    let tracking = LifecycleTrackingService()
+    tracking.providerStateByName = [
+        "hand": .running,
+        "world": .running,
+        "plane": .disabled,
+    ]
+    let appState = AppState(arTrackingService: tracking)
+    appState.immersiveMode = .library
+    let viewModel = ARGuideViewModel(
+        appState: appState,
+        practiceSetupState: appState.practiceSetupState
+    )
+
+    viewModel.onImmersiveAppear()
+    #expect(tracking.startCalls == [[.world]])
+
+    var openCount = 0
+    let open: ImmersiveSpaceOpenHandler = { _ in
+        openCount += 1
+        return .opened
+    }
+
+    #expect(await viewModel.openImmersive(mode: .calibration, using: open) == nil)
+    #expect(openCount == 0)
+    #expect(tracking.startCalls.last == .calibration)
+
+    #expect(await viewModel.openImmersive(mode: .library, using: open) == nil)
+    #expect(openCount == 0)
+    #expect(tracking.startCalls.last == [.world])
+
+    tracking.providerStateByName["hand"] = .unsupported
+    try? await Task.sleep(for: .milliseconds(150))
+    if case .error = viewModel.calibrationPhase {
+        #expect(Bool(false))
+    }
+
+    tracking.providerStateByName["hand"] = .running
+    #expect(await viewModel.openImmersive(mode: .practice, using: open) == nil)
+    #expect(openCount == 0)
+    #expect(tracking.startCalls.last == [.hand, .world])
+
+    viewModel.onImmersiveDisappear()
+}
+
+@MainActor
 private final class LifecycleTrackingService: ARTrackingServiceProtocol {
     var fingerTipsSnapshot = FingerTipsSnapshot.empty
     var handSkeletonSnapshot = HandSkeletonSnapshot.empty
     var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     var detectedPlanes: [DetectedPlane] = []
-    var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] = [:]
     var providerStateByName: [String: ARTrackingProviderState] = [:]
-    var activeRequirements: ARTrackingRequirements = []
+    var worldTrackingGeneration = 0
     var isWorldTrackingSupported = true
 
     private let relay = CurrentValueAsyncStreamRelay(FingerTipsSnapshot.empty)
@@ -65,14 +112,10 @@ private final class LifecycleTrackingService: ARTrackingServiceProtocol {
     func removeWorldAnchor(id _: UUID) async throws {}
 
     func start(requirements: ARTrackingRequirements) {
-        activeRequirements = requirements
         startCalls.append(requirements)
     }
 
     func stop() {
-        activeRequirements = []
         stopCallCount += 1
-        relay.finishSubscribers()
-        handSkeletonRelay.finishSubscribers()
     }
 }

@@ -10,7 +10,6 @@ struct PracticeWindowRootView: View {
     @Bindable var launchViewModel: PracticeLaunchViewModel
     @State private var sceneLifecycleCoordinator = PracticeSceneLifecycleCoordinator()
     @State private var returnCoordinator = PracticeWindowReturnCoordinator()
-    @State private var immersiveCloseCoordinator = PracticeImmersiveCloseCoordinator()
     @State private var systemCloseCoordinator = PracticeSystemCloseCoordinator()
     @State private var isReturnSaveFailurePresented = false
     @State private var isDiscardConfirmationPresented = false
@@ -133,15 +132,9 @@ struct PracticeWindowRootView: View {
     }
 
     private func closeImmersivePresentationIfNeeded() async {
-        await immersiveCloseCoordinator.closeIfNeeded(
-            isClosed: arGuideViewModel.immersiveSpaceState == .closed,
-            close: {
-                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                await arGuideViewModel.closeImmersiveForStep(
-                    dismissImmersiveSpace: dismissHandler
-                )
-            },
-            recover: arGuideViewModel.recoverImmersiveStateIfStuck
+        guard arGuideViewModel.immersiveSpaceState == .open else { return }
+        await arGuideViewModel.closeImmersive(
+            using: makeImmersiveSpaceDismissHandler(dismissImmersiveSpace)
         )
     }
 }
@@ -169,30 +162,6 @@ final class PracticeSceneLifecycleCoordinator {
 
     func waitForCurrentOperation() async {
         await operationTask?.value
-    }
-}
-
-@MainActor
-final class PracticeImmersiveCloseCoordinator {
-    private var operationTask: Task<Void, Never>?
-
-    func closeIfNeeded(
-        isClosed: Bool,
-        close: @escaping @MainActor () async -> Void,
-        recover: @escaping @MainActor () async -> Void
-    ) async {
-        if let operationTask {
-            await operationTask.value
-            return
-        }
-        guard isClosed == false else { return }
-        let task = Task { @MainActor in
-            await close()
-            await recover()
-        }
-        operationTask = task
-        await task.value
-        operationTask = nil
     }
 }
 

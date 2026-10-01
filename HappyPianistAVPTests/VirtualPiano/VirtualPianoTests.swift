@@ -1,3 +1,4 @@
+import ARKit
 import Foundation
 import Practice
 @testable import HappyPianistAVP
@@ -350,6 +351,53 @@ func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() throws {
 
 @MainActor
 @Test
+func pausedPlaneTrackingHidesVirtualPianoConfirmation() {
+    let tracking = VirtualPianoTrackingService()
+    tracking.providerStateByName = [
+        "hand": .running,
+        "world": .running,
+        "plane": .paused,
+    ]
+    let appState = AppState(arTrackingService: tracking)
+    appState.immersiveMode = .practice
+
+    let session = PracticeSessionViewModel(
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: LiveNoteCapturingPlaybackService()
+    )
+    let localization = PracticeLocalizationViewModel(appState: appState)
+    let confirmation = GazePlaneDiskConfirmationViewModel()
+    confirmation.update(
+        planeHit: PlaneHit(
+            id: UUID(),
+            hitPointWorld: SIMD3<Float>(0, 0, -1),
+            planeNormalWorld: SIMD3<Float>(0, 1, 0),
+            distanceMeters: 1
+        ),
+        leftPalmWorld: nil,
+        rightPalmWorld: nil,
+        nowUptime: 1
+    )
+    #expect(confirmation.isDiskVisible)
+
+    let placement = VirtualPianoPlacementViewModel(
+        appState: appState,
+        practiceSessionViewModel: session,
+        practiceLocalizationViewModel: localization,
+        gazePlaneDiskConfirmation: confirmation
+    )
+    placement.isVirtualPianoEnabled = true
+
+    #expect(placement.isGazePlaneDiskVisible == false)
+    #expect(placement.gazePlaneDiskStatusText == "虚拟钢琴：平面检测暂时暂停，恢复后可继续放置。")
+
+    placement.updateGuidance(fingerTips: .empty, nowUptime: 2)
+    #expect(confirmation.isDiskVisible == false)
+}
+
+@MainActor
+@Test
 func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() async throws {
     let playbackService = LiveNoteCapturingPlaybackService()
     let session = PracticeSessionViewModel(
@@ -460,6 +508,44 @@ private func makeTestKeyboardGeometry() -> PianoKeyboardGeometry {
     let frame = KeyboardFrame(worldFromKeyboard: transform)
     let service = VirtualPianoKeyGeometryService()
     return service.generateKeyboardGeometry(from: frame)!
+}
+
+@MainActor
+private final class VirtualPianoTrackingService: ARTrackingServiceProtocol {
+    var fingerTipsSnapshot = FingerTipsSnapshot.empty
+    var handSkeletonSnapshot = HandSkeletonSnapshot.empty
+    var worldAnchorsByID: [UUID: WorldAnchor] = [:]
+    var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
+    var detectedPlanes: [DetectedPlane] = []
+    var providerStateByName: [String: ARTrackingProviderState] = [:]
+    var worldTrackingGeneration = 0
+    var isWorldTrackingSupported = true
+
+    func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
+        AsyncStream { continuation in
+            continuation.yield(.empty)
+            continuation.finish()
+        }
+    }
+
+    func handSkeletonUpdatesStream() -> AsyncStream<HandSkeletonSnapshot> {
+        AsyncStream { continuation in
+            continuation.yield(.empty)
+            continuation.finish()
+        }
+    }
+
+    func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? {
+        nil
+    }
+
+    func addWorldAnchor(originFromAnchorTransform _: simd_float4x4) async throws -> UUID {
+        UUID()
+    }
+
+    func removeWorldAnchor(id _: UUID) async throws {}
+    func start(requirements _: ARTrackingRequirements) {}
+    func stop() {}
 }
 
 @MainActor

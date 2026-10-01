@@ -54,6 +54,32 @@ func presentCalibrationErrorClearsPendingAnchorAndUpdatesPhase() {
 
 @Test
 @MainActor
+func pausedCalibrationTrackingIsTemporaryAndNotReady() {
+    let trackingService = FakeARTrackingService()
+    trackingService.providerStateByName = [
+        "hand": .paused,
+        "world": .running,
+        "plane": .disabled,
+    ]
+    let appState = AppState(
+        arTrackingService: trackingService,
+        calibrationCaptureService: CalibrationPointCaptureService(),
+        calibrationRepository: InMemoryCalibrationRepository(),
+        keyGeometryService: PianoKeyGeometryService()
+    )
+    appState.immersiveMode = .calibration
+
+    let viewModel = CalibrationGuideViewModel(appState: appState)
+    viewModel.onImmersiveAppear()
+
+    #expect(viewModel.isTrackingReady == false)
+    #expect(viewModel.trackingStatusText == "追踪已暂停，等待恢复。")
+    #expect(viewModel.calibrationPhase == .capturingA0)
+    viewModel.shutdown()
+}
+
+@Test
+@MainActor
 func shutdownIsIdempotent() async {
     let trackingService = FakeARTrackingService()
     let repository = InMemoryCalibrationRepository()
@@ -83,13 +109,12 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
     var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     var detectedPlanes: [DetectedPlane] = []
-    var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] = [:]
     var providerStateByName: [String: HappyPianistAVP.ARTrackingProviderState] = [
         "hand": .idle,
         "world": .idle,
         "plane": .idle,
     ]
-    var activeRequirements: ARTrackingRequirements = []
+    var worldTrackingGeneration = 0
 
     var isWorldTrackingSupported: Bool {
         true
@@ -119,9 +144,7 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
 
     func removeWorldAnchor(id _: UUID) async throws {}
 
-    func start(requirements: ARTrackingRequirements) {
-        activeRequirements = requirements
-    }
+    func start(requirements _: ARTrackingRequirements) {}
 
     func stop() {}
 }

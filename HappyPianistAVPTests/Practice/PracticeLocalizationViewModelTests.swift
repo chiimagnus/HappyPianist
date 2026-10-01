@@ -9,7 +9,7 @@ import Testing
 
 @Test
 @MainActor
-func beginPracticeLocalizationWithBlockingReasonTransitionsToBlocked() async {
+func beginPracticeLocalizationWithBlockingReasonTransitionsToBlocked() {
     let trackingService = FakeARTrackingService()
     let repository = InMemoryCalibrationRepository()
     let appState = AppState(
@@ -26,21 +26,11 @@ func beginPracticeLocalizationWithBlockingReasonTransitionsToBlocked() async {
         pollingInterval: .milliseconds(10)
     )
 
-    var openCallCount = 0
-    await viewModel.beginPracticeLocalization(
+    viewModel.beginPracticeLocalization(
         isVirtualPianoEnabled: false,
-        blockingReason: .missingImportedSteps,
-        openImmersiveSpace: { _ in .opened },
-        dismissImmersiveSpace: {},
-        openImmersiveForStep: { _ in
-            openCallCount += 1
-            return nil
-        },
-        closeImmersiveForStep: { dismiss in await dismiss() },
-        recoverImmersiveStateIfStuck: {}
+        blockingReason: .missingImportedSteps
     )
 
-    #expect(openCallCount == 0)
     #expect(viewModel.practiceLocalizationState == .blocked(reason: .missingImportedSteps))
 }
 
@@ -69,24 +59,17 @@ func shutdownCancelsProviderWaitTask() async {
         pollingInterval: .milliseconds(20)
     )
 
-    var closeCallCount = 0
-    await viewModel.beginPracticeLocalization(
+    var failureCount = 0
+    viewModel.onLocalizationFailure = { _ in failureCount += 1 }
+    viewModel.beginPracticeLocalization(
         isVirtualPianoEnabled: false,
-        blockingReason: nil,
-        openImmersiveSpace: { _ in .opened },
-        dismissImmersiveSpace: {},
-        openImmersiveForStep: { _ in nil },
-        closeImmersiveForStep: { dismiss in
-            closeCallCount += 1
-            await dismiss()
-        },
-        recoverImmersiveStateIfStuck: {}
+        blockingReason: nil
     )
 
     viewModel.shutdown()
     try? await Task.sleep(for: .milliseconds(1200))
 
-    #expect(closeCallCount == 0)
+    #expect(failureCount == 0)
     if case .failed = viewModel.practiceLocalizationState {
         #expect(Bool(false))
     }
@@ -94,7 +77,7 @@ func shutdownCancelsProviderWaitTask() async {
 
 @Test
 @MainActor
-func worldTrackingUnsupportedFailsAndRequestsClose() async {
+func worldTrackingUnsupportedFailsAndNotifiesRuntimeOwner() async {
     let trackingService = FakeARTrackingService()
     trackingService.isWorldTrackingSupportedOverride = false
 
@@ -113,28 +96,53 @@ func worldTrackingUnsupportedFailsAndRequestsClose() async {
         pollingInterval: .milliseconds(10)
     )
 
-    var closeCallCount = 0
-    await viewModel.beginPracticeLocalization(
+    var failures: [PracticeLocalizationViewModel.PracticeLocalizationFailure] = []
+    viewModel.onLocalizationFailure = { failures.append($0) }
+    viewModel.beginPracticeLocalization(
         isVirtualPianoEnabled: false,
-        blockingReason: nil,
-        openImmersiveSpace: { _ in .opened },
-        dismissImmersiveSpace: {},
-        openImmersiveForStep: { _ in nil },
-        closeImmersiveForStep: { dismiss in
-            closeCallCount += 1
-            await dismiss()
-        },
-        recoverImmersiveStateIfStuck: {}
+        blockingReason: nil
     )
 
     try? await Task.sleep(for: .milliseconds(50))
 
-    #expect(closeCallCount == 1)
-    if case let .failed(reason) = viewModel.practiceLocalizationState {
-        #expect(reason == .worldTrackingUnsupported)
-    } else {
-        #expect(Bool(false))
-    }
+    #expect(failures == [.worldTrackingUnsupported])
+    #expect(viewModel.practiceLocalizationState == .failed(reason: .worldTrackingUnsupported))
+}
+
+@Test
+@MainActor
+func pausedWorldTrackingWaitsInsteadOfFailingImmediately() async {
+    let trackingService = FakeARTrackingService()
+    trackingService.providerStateByName = [
+        "hand": .paused,
+        "world": .paused,
+    ]
+
+    let appState = AppState(
+        arTrackingService: trackingService,
+        calibrationCaptureService: CalibrationPointCaptureService(),
+        calibrationRepository: InMemoryCalibrationRepository(),
+        keyGeometryService: PianoKeyGeometryService()
+    )
+    let viewModel = PracticeLocalizationViewModel(
+        appState: appState,
+        providerStartupTimeoutSeconds: 1,
+        practiceLocalizationTimeoutSeconds: 1,
+        pollingInterval: .milliseconds(20)
+    )
+
+    var failureCount = 0
+    viewModel.onLocalizationFailure = { _ in failureCount += 1 }
+    viewModel.beginPracticeLocalization(
+        isVirtualPianoEnabled: false,
+        blockingReason: nil
+    )
+
+    try? await Task.sleep(for: .milliseconds(80))
+
+    #expect(viewModel.practiceLocalizationState == .waitingForProviders)
+    #expect(failureCount == 0)
+    viewModel.shutdown()
 }
 
 @MainActor
@@ -144,13 +152,12 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
     var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     var detectedPlanes: [DetectedPlane] = []
-    var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] = [:]
     var providerStateByName: [String: HappyPianistAVP.ARTrackingProviderState] = [
         "hand": .idle,
         "world": .idle,
         "plane": .idle,
     ]
-    var activeRequirements: ARTrackingRequirements = []
+    var worldTrackingGeneration = 0
 
     var isWorldTrackingSupportedOverride = true
     var isWorldTrackingSupported: Bool {
@@ -181,9 +188,7 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
 
     func removeWorldAnchor(id _: UUID) async throws {}
 
-    func start(requirements: ARTrackingRequirements) {
-        activeRequirements = requirements
-    }
+    func start(requirements _: ARTrackingRequirements) {}
 
     func stop() {}
 }

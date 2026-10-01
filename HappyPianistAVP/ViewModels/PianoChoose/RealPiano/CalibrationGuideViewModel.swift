@@ -51,6 +51,27 @@ final class CalibrationGuideViewModel {
         appState.calibrationCaptureService
     }
 
+    var isTrackingReady: Bool {
+        arTrackingService.providerStateByName["hand"] == .running
+            && arTrackingService.providerStateByName["world"] == .running
+    }
+
+    var trackingStatusText: String? {
+        let handState = arTrackingService.providerStateByName["hand"] ?? .idle
+        let worldState = arTrackingService.providerStateByName["world"] ?? .idle
+
+        if handState == .paused || worldState == .paused {
+            return "追踪已暂停，等待恢复。"
+        }
+        if handState == .stopped || worldState == .stopped {
+            return "追踪已停止，请重试进入校准。"
+        }
+        if handState == .idle || worldState == .idle {
+            return "正在等待追踪服务就绪…"
+        }
+        return nil
+    }
+
     func shutdown() {
         cancelCalibrationGuidedCalibrationTasks()
         calibrationAnchorCaptureTask?.cancel()
@@ -199,6 +220,10 @@ final class CalibrationGuideViewModel {
 
     private func confirmPendingCalibrationAnchorIfReady() async {
         guard let pendingAnchor = pendingCalibrationCaptureAnchor else { return }
+        guard isTrackingReady else {
+            calibrationStatusMessage = trackingStatusText ?? "追踪暂时不可用，恢复后再确认。"
+            return
+        }
         guard calibrationCaptureService.isReticleReadyToConfirm else {
             let fingerText = pendingAnchor == .a0 ? "左手食指" : "右手食指"
             let keyText = pendingAnchor == .a0 ? "A0" : "C8"

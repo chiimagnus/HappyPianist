@@ -81,12 +81,6 @@ struct HappyPianistAVPApp: App {
 
         ImmersiveSpace(id: appState.immersiveSpaceID) {
             ImmersiveView(viewModel: graph.arGuideViewModel)
-                .onAppear {
-                    appState.immersiveSpaceState = .open
-                }
-                .onDisappear {
-                    appState.immersiveSpaceState = .closed
-                }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }

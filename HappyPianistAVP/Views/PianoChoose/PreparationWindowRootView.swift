@@ -40,11 +40,8 @@ struct PreparationWindowRootView: View {
         isFinishingSetup = true
 
         Task { @MainActor in
-            let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-            await arGuideViewModel.closeImmersiveForStep(
-                dismissImmersiveSpace: dismissHandler
-            )
-            await arGuideViewModel.recoverImmersiveStateIfStuck()
+            let dismissHandler = makeImmersiveSpaceDismissHandler(dismissImmersiveSpace)
+            await arGuideViewModel.closeImmersive(using: dismissHandler)
             dismissWindow(id: WindowID.preparation)
         }
     }

@@ -62,6 +62,8 @@ final class PracticeLocalizationViewModel {
     private var practiceLocalizationTask: Task<Void, Never>?
 
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
+    @ObservationIgnored var onLocalizationFailure:
+        (@MainActor (PracticeLocalizationFailure) async -> Void)?
 
     init(
         appState: AppState,
@@ -91,25 +93,14 @@ final class PracticeLocalizationViewModel {
 
     func beginPracticeLocalization(
         isVirtualPianoEnabled: Bool,
-        blockingReason: PracticeLocalizationFailure?,
-        openImmersiveSpace: PracticeImmersiveOpenHandler,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler,
-        openImmersiveForStep: @escaping (PracticeImmersiveOpenHandler) async -> String?,
-        closeImmersiveForStep: @escaping (PracticeImmersiveDismissHandler) async -> Void,
-        recoverImmersiveStateIfStuck: @escaping () async -> Void
-    ) async {
+        blockingReason: PracticeLocalizationFailure?
+    ) {
         cancelPracticeLocalizationTask()
         if isVirtualPianoEnabled == false {
             appState.clearRuntimeCalibrationForPracticeRelocation()
         }
 
         guard let blockingReason else {
-            practiceLocalizationState = .openingImmersive
-            if let openError = await openImmersiveForStep(openImmersiveSpace) {
-                practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
-                return
-            }
-
             if isVirtualPianoEnabled {
                 practiceLocalizationState = .ready
                 return
@@ -117,11 +108,7 @@ final class PracticeLocalizationViewModel {
 
             practiceLocalizationTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                await runPracticeLocalization(
-                    closeImmersiveForStep: closeImmersiveForStep,
-                    dismissImmersiveSpace: dismissImmersiveSpace,
-                    recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-                )
+                await runPracticeLocalization()
                 practiceLocalizationTask = nil
             }
             return
@@ -130,21 +117,12 @@ final class PracticeLocalizationViewModel {
         practiceLocalizationState = .blocked(reason: blockingReason)
     }
 
-    private func runPracticeLocalization(
-        closeImmersiveForStep: @escaping (PracticeImmersiveDismissHandler) async -> Void,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler,
-        recoverImmersiveStateIfStuck: @escaping () async -> Void
-    ) async {
+    private func runPracticeLocalization() async {
         practiceLocalizationState = .waitingForProviders
 
         if let startupFailure = await waitForProvidersToRunOrFail() {
             guard Task.isCancelled == false else { return }
-            await handlePracticeLocalizationFailure(
-                startupFailure,
-                closeImmersiveForStep: closeImmersiveForStep,
-                dismissImmersiveSpace: dismissImmersiveSpace,
-                recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-            )
+            await handlePracticeLocalizationFailure(startupFailure)
             return
         }
 
@@ -153,12 +131,7 @@ final class PracticeLocalizationViewModel {
 
         while Task.isCancelled == false {
             if let hardFailure = immediatePracticeFailureReason() {
-                await handlePracticeLocalizationFailure(
-                    hardFailure,
-                    closeImmersiveForStep: closeImmersiveForStep,
-                    dismissImmersiveSpace: dismissImmersiveSpace,
-                    recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-                )
+                await handlePracticeLocalizationFailure(hardFailure)
                 return
             }
 
@@ -175,12 +148,7 @@ final class PracticeLocalizationViewModel {
                 return
 
             case .missingStoredCalibration:
-                await handlePracticeLocalizationFailure(
-                    .missingStoredCalibration,
-                    closeImmersiveForStep: closeImmersiveForStep,
-                    dismissImmersiveSpace: dismissImmersiveSpace,
-                    recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-                )
+                await handlePracticeLocalizationFailure(.missingStoredCalibration)
                 return
 
             case let .anchorMissing(id):
@@ -191,10 +159,7 @@ final class PracticeLocalizationViewModel {
 
             case let .anchorsTooClose(distanceMeters):
                 await handlePracticeLocalizationFailure(
-                    .anchorsTooClose(distanceMeters: distanceMeters),
-                    closeImmersiveForStep: closeImmersiveForStep,
-                    dismissImmersiveSpace: dismissImmersiveSpace,
-                    recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
+                    .anchorsTooClose(distanceMeters: distanceMeters)
                 )
                 return
 
@@ -215,12 +180,7 @@ final class PracticeLocalizationViewModel {
             lastRecoverableResolution: lastRecoverableResolution
         )
 
-        await handlePracticeLocalizationFailure(
-            timeoutFailure,
-            closeImmersiveForStep: closeImmersiveForStep,
-            dismissImmersiveSpace: dismissImmersiveSpace,
-            recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-        )
+        await handlePracticeLocalizationFailure(timeoutFailure)
     }
 
     func practiceLocalizationTimeoutFailure(
@@ -300,18 +260,13 @@ final class PracticeLocalizationViewModel {
     }
 
     private func handlePracticeLocalizationFailure(
-        _ failure: PracticeLocalizationFailure,
-        closeImmersiveForStep: (PracticeImmersiveDismissHandler) async -> Void,
-        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler,
-        recoverImmersiveStateIfStuck: () async -> Void
+        _ failure: PracticeLocalizationFailure
     ) async {
         guard Task.isCancelled == false else { return }
 
         practiceLocalizationState = .failed(reason: failure)
         appState.clearRuntimeCalibrationForPracticeRelocation()
-
-        await closeImmersiveForStep(dismissImmersiveSpace)
-        await recoverImmersiveStateIfStuck()
+        await onLocalizationFailure?(failure)
     }
 
     private func cancelPracticeLocalizationTask() {

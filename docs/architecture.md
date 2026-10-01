@@ -11,6 +11,14 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 - 共享包只沿依赖方向组合，任何模块都不能反向引用 host UI 或 platform adapter；精确 package graph 由 CodeGraph 提供。
 - 新服务从稳定协议和 composition root 注入开始；单一实现不预建 factory、manager 或兼容层。
 
+## 沉浸空间与 AR 生命周期
+
+- App 只有一个 `.mixed` `ImmersiveSpace`。`AppState.immersiveMode` 是 `.library / .calibration / .practice` 的唯一产品模式事实；`ImmersiveSpacePresentationCoordinator` 只串行化 open/dismiss 请求，不复制业务状态。
+- `ImmersiveView.onAppear/onDisappear` 经 `ARGuideViewModel` 是 mounted `open/closed` 的唯一写入链。普通 mode 切换不会等待新的 scene lifecycle，而是立即退出旧 mode runtime、进入新 mode runtime。
+- `.library` 只需要 world tracking。Calibration/Practice 按需增加 hand/plane；`ARTrackingService` 在普通 mode 切换中保留同一 `ARKitSession + WorldTrackingProvider`，只增量重配可选 provider。
+- `ARKitSession.events` 与 provider 自身 `state` 是运行状态事实源；`.paused` 与 `.stopped` 不合并。手/平面不可用时清除对应瞬时投影，world 暂停不更换 generation。
+- `worldTrackingGeneration` 只在完整 runtime/world provider 重建时递增。沉浸运行时 suspend、显式 stop、world stop/error 或 `session.run` 失败会完整失效当前 runtime；普通 hand/plane 增删不会清空 world anchor cache。
+
 ## 不变量
 
 - MusicXML 是唯一正式曲谱来源；`PreparedPractice` 必须同时具备可演奏 steps 与 measure spans，`ScorePerformancePlan` 再单向投影声音与表现。

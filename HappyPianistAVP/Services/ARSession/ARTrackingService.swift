@@ -15,12 +15,25 @@ enum ARTrackingServiceError: LocalizedError {
 
 @MainActor
 final class ARTrackingService: ARTrackingServiceProtocol {
-    // ARKit provider 停止后不可再次运行，因此每个运行时只能拥有一个启动代次。
     final class Runtime {
         let session = ARKitSession()
         let worldTrackingProvider = WorldTrackingProvider()
-        let handTrackingProvider = HandTrackingProvider()
-        let planeDetectionProvider = PlaneDetectionProvider(alignments: [.horizontal])
+        var handTrackingProvider: HandTrackingProvider?
+        var planeDetectionProvider: PlaneDetectionProvider?
+    }
+
+    private enum ProviderKind: String {
+        case hand
+        case world
+        case plane
+
+        var requirement: ARTrackingRequirements {
+            switch self {
+            case .hand: .hand
+            case .world: .world
+            case .plane: .horizontalPlanes
+            }
+        }
     }
 
     private(set) var fingerTipsSnapshot = FingerTipsSnapshot.empty
@@ -28,13 +41,12 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     private(set) var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     private(set) var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     private(set) var detectedPlanes: [DetectedPlane] = []
-    private(set) var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] = [:]
     private(set) var providerStateByName: [String: ARTrackingProviderState] = [
-        "hand": .idle,
-        "world": .idle,
-        "plane": .idle,
+        ProviderKind.hand.rawValue: .idle,
+        ProviderKind.world.rawValue: .idle,
+        ProviderKind.plane.rawValue: .idle,
     ]
-    private(set) var activeRequirements: ARTrackingRequirements = []
+    private(set) var worldTrackingGeneration = 0
 
     var isWorldTrackingSupported: Bool {
         WorldTrackingProvider.isSupported
@@ -44,12 +56,17 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     private let handSkeletonUpdates = CurrentValueAsyncStreamRelay(HandSkeletonSnapshot.empty)
 
     private(set) var activeRuntime: Runtime?
-    private var sessionTask: Task<Void, Never>?
+    private var desiredRequirements: ARTrackingRequirements = []
+    private var authorizationStatusByType: [
+        ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus
+    ] = [:]
+
+    private var reconcileRequestID = 0
+    private var reconcileTask: Task<Void, Never>?
+    private var sessionEventsTask: Task<Void, Never>?
     private var handUpdatesTask: Task<Void, Never>?
     private var worldAnchorUpdatesTask: Task<Void, Never>?
     private var planeAnchorUpdatesTask: Task<Void, Never>?
-    private var sessionGeneration = 0
-    private var isSessionRunning = false
 
     func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
         fingerTipUpdates.makeStream()
@@ -60,14 +77,14 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     func deviceWorldTransform(atTimestamp timestamp: TimeInterval) -> simd_float4x4? {
-        guard providerStateByName["world"] == .running,
+        guard providerStateByName[ProviderKind.world.rawValue] == .running,
               let anchor = activeRuntime?.worldTrackingProvider.queryDeviceAnchor(atTimestamp: timestamp),
               anchor.isTracked else { return nil }
         return anchor.originFromAnchorTransform
     }
 
     func addWorldAnchor(originFromAnchorTransform: simd_float4x4) async throws -> UUID {
-        guard providerStateByName["world"] == .running, let activeRuntime else {
+        guard providerStateByName[ProviderKind.world.rawValue] == .running, let activeRuntime else {
             throw ARTrackingServiceError.worldTrackingNotRunning
         }
         let anchor = WorldAnchor(originFromAnchorTransform: originFromAnchorTransform)
@@ -76,144 +93,623 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     func removeWorldAnchor(id: UUID) async throws {
-        guard providerStateByName["world"] == .running, let activeRuntime else {
+        guard providerStateByName[ProviderKind.world.rawValue] == .running, let activeRuntime else {
             throw ARTrackingServiceError.worldTrackingNotRunning
         }
         try await activeRuntime.worldTrackingProvider.removeAnchor(forID: id)
     }
 
     func start(requirements: ARTrackingRequirements) {
-        if requirements == activeRequirements, sessionTask != nil || isSessionRunning {
+        guard requirements.isEmpty == false else {
+            stop()
             return
         }
 
-        sessionGeneration += 1
-        let generation = sessionGeneration
-        stopProviderRuntime()
-        clearHandTrackingState()
-        activeRequirements = requirements
-        clearStateForDisabledProviders(requirements: requirements)
-        configureInitialProviderStates(requirements: requirements)
+        if requirements == desiredRequirements,
+           reconcileTask == nil,
+           let activeRuntime,
+           providersAreHealthy(runtime: activeRuntime, requirements: requirements)
+        {
+            return
+        }
 
-        guard requirements.isEmpty == false else { return }
+        desiredRequirements = requirements
+        ensureRuntime()
+        reconcileRequestID += 1
+        scheduleReconcileIfNeeded()
+    }
+
+    func stop() {
+        desiredRequirements = []
+        reconcileRequestID += 1
+        tearDownActiveRuntime()
+        clearAllTrackingState()
+        authorizationStatusByType.removeAll(keepingCapacity: false)
+
+        for kind in [ProviderKind.hand, .world, .plane] {
+            switch providerStateByName[kind.rawValue] {
+            case .disabled, .unsupported:
+                break
+            default:
+                providerStateByName[kind.rawValue] = .stopped
+            }
+        }
+    }
+
+    private func ensureRuntime() {
+        guard activeRuntime == nil else { return }
+
         let runtime = Runtime()
         activeRuntime = runtime
+        worldTrackingGeneration += 1
+        providerStateByName[ProviderKind.world.rawValue] =
+            WorldTrackingProvider.isSupported ? .idle : .unsupported
+        providerStateByName[ProviderKind.hand.rawValue] =
+            desiredRequirements.contains(.hand)
+                ? (HandTrackingProvider.isSupported ? .idle : .unsupported)
+                : .disabled
+        providerStateByName[ProviderKind.plane.rawValue] =
+            desiredRequirements.contains(.horizontalPlanes)
+                ? (PlaneDetectionProvider.isSupported ? .idle : .unsupported)
+                : .disabled
 
-        sessionTask = Task { [weak self] in
+        startSessionEvents(runtime: runtime)
+        startWorldAnchorUpdates(runtime: runtime)
+    }
+
+    private func scheduleReconcileIfNeeded() {
+        guard reconcileTask == nil else { return }
+
+        reconcileTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer {
-                if sessionGeneration == generation {
-                    sessionTask = nil
-                }
+            while Task.isCancelled == false {
+                let requestID = reconcileRequestID
+                let requirements = desiredRequirements
+                guard let runtime = activeRuntime else { break }
+
+                await reconcile(runtime: runtime, requirements: requirements, requestID: requestID)
+
+                guard activeRuntime === runtime else { break }
+                guard requestID != reconcileRequestID else { break }
             }
+            reconcileTask = nil
+        }
+    }
 
-            let includesHand = requirements.contains(.hand)
-            let includesWorld = requirements.contains(.world)
-            let includesPlane = requirements.contains(.horizontalPlanes)
+    private func reconcile(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements,
+        requestID: Int
+    ) async {
+        guard activeRuntime === runtime else { return }
 
-            let handSupported = includesHand && HandTrackingProvider.isSupported
-            let worldSupported = includesWorld && WorldTrackingProvider.isSupported
-            let planeSupported = includesPlane && PlaneDetectionProvider.isSupported
+        prepareOptionalProviders(runtime: runtime, requirements: requirements)
+        publishStaticAvailability(runtime: runtime, requirements: requirements)
 
-            let handAuthorizations = handSupported ? HandTrackingProvider.requiredAuthorizations : []
-            let worldAuthorizations = worldSupported ? WorldTrackingProvider.requiredAuthorizations : []
-            let planeAuthorizations = planeSupported ? PlaneDetectionProvider.requiredAuthorizations : []
-            let requiredAuthorizations = deduplicatedRequiredAuthorizations(
-                includeHand: handSupported,
-                includeWorld: worldSupported,
-                includePlane: planeSupported
+        let requiredAuthorizations = deduplicatedRequiredAuthorizations(
+            runtime: runtime,
+            requirements: requirements
+        )
+        await resolveAuthorizationStatuses(
+            requiredAuthorizations,
+            runtime: runtime,
+            requestID: requestID
+        )
+
+        guard activeRuntime === runtime else { return }
+        guard requestID == reconcileRequestID else { return }
+
+        publishAuthorizationAvailability(runtime: runtime, requirements: requirements)
+
+        let providers = runnableProviders(runtime: runtime, requirements: requirements)
+        guard providers.isEmpty == false else {
+            cleanUpDisabledOptionalProviders(runtime: runtime, requirements: requirements)
+            return
+        }
+
+        do {
+            try await runtime.session.run(providers)
+        } catch {
+            guard activeRuntime === runtime else { return }
+            guard requestID == reconcileRequestID else { return }
+            invalidateRuntimeAfterRunFailure(
+                reason: error.localizedDescription,
+                runtime: runtime,
+                requirements: requirements
             )
-            let statuses: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] =
-                requiredAuthorizations.isEmpty ? [:] : await runtime.session.requestAuthorization(for: requiredAuthorizations)
+            return
+        }
 
-            guard Task.isCancelled == false, sessionGeneration == generation else { return }
-            authorizationStatusByType = statuses
+        guard activeRuntime === runtime else { return }
+        guard requestID == reconcileRequestID else { return }
 
-            let handAllowed = handSupported && isAuthorized(
-                requiredAuthorizations: handAuthorizations,
-                statuses: statuses
-            )
-            let worldAllowed = worldSupported && isAuthorized(
-                requiredAuthorizations: worldAuthorizations,
-                statuses: statuses
-            )
-            let planeAllowed = planeSupported && isAuthorized(
-                requiredAuthorizations: planeAuthorizations,
-                statuses: statuses
-            )
+        publishCurrentProviderStates(runtime: runtime, requirements: requirements)
+        startOptionalUpdateTasks(runtime: runtime, requirements: requirements)
+        cleanUpDisabledOptionalProviders(runtime: runtime, requirements: requirements)
+    }
 
-            updateAuthorizationStates(
-                requirements: requirements,
-                handSupported: handSupported,
-                worldSupported: worldSupported,
-                planeSupported: planeSupported,
-                handAllowed: handAllowed,
-                worldAllowed: worldAllowed,
-                planeAllowed: planeAllowed
-            )
+    private func prepareOptionalProviders(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        if requirements.contains(.hand), HandTrackingProvider.isSupported {
+            if runtime.handTrackingProvider == nil
+                || runtime.handTrackingProvider?.state == .stopped
+            {
+                handUpdatesTask?.cancel()
+                handUpdatesTask = nil
+                runtime.handTrackingProvider = HandTrackingProvider()
+                providerStateByName[ProviderKind.hand.rawValue] = .idle
+            }
+        }
 
-            var providersToRun: [any DataProvider] = []
-            if handAllowed { providersToRun.append(runtime.handTrackingProvider) }
-            if worldAllowed { providersToRun.append(runtime.worldTrackingProvider) }
-            if planeAllowed { providersToRun.append(runtime.planeDetectionProvider) }
-            guard providersToRun.isEmpty == false else { return }
+        if requirements.contains(.horizontalPlanes), PlaneDetectionProvider.isSupported {
+            if runtime.planeDetectionProvider == nil
+                || runtime.planeDetectionProvider?.state == .stopped
+            {
+                planeAnchorUpdatesTask?.cancel()
+                planeAnchorUpdatesTask = nil
+                runtime.planeDetectionProvider = PlaneDetectionProvider(alignments: [.horizontal])
+                providerStateByName[ProviderKind.plane.rawValue] = .idle
+            }
+        }
+    }
 
-            do {
-                try await runtime.session.run(providersToRun)
-                guard Task.isCancelled == false, sessionGeneration == generation else {
-                    runtime.session.stop()
-                    return
-                }
-                isSessionRunning = true
-                if handAllowed { providerStateByName["hand"] = .running }
-                if worldAllowed { providerStateByName["world"] = .running }
-                if planeAllowed { providerStateByName["plane"] = .running }
-                startUpdateTasks(runtime: runtime, generation: generation)
-            } catch {
-                guard sessionGeneration == generation else { return }
-                isSessionRunning = false
-                if error is CancellationError {
-                    markRunningProvidersStopped()
-                } else {
-                    if handAllowed { providerStateByName["hand"] = .failed(reason: error.localizedDescription) }
-                    if worldAllowed { providerStateByName["world"] = .failed(reason: error.localizedDescription) }
-                    if planeAllowed { providerStateByName["plane"] = .failed(reason: error.localizedDescription) }
+    private func publishStaticAvailability(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        if WorldTrackingProvider.isSupported == false {
+            providerStateByName[ProviderKind.world.rawValue] = .unsupported
+        }
+
+        if requirements.contains(.hand) == false {
+            providerStateByName[ProviderKind.hand.rawValue] = .disabled
+            clearHandTrackingState()
+        } else if HandTrackingProvider.isSupported == false {
+            providerStateByName[ProviderKind.hand.rawValue] = .unsupported
+            clearHandTrackingState()
+        } else if let handTrackingProvider = runtime.handTrackingProvider {
+            publishProviderState(handTrackingProvider.state, provider: handTrackingProvider, runtime: runtime)
+        }
+
+        if requirements.contains(.horizontalPlanes) == false {
+            providerStateByName[ProviderKind.plane.rawValue] = .disabled
+            clearPlaneTrackingState()
+        } else if PlaneDetectionProvider.isSupported == false {
+            providerStateByName[ProviderKind.plane.rawValue] = .unsupported
+            clearPlaneTrackingState()
+        } else if let planeDetectionProvider = runtime.planeDetectionProvider {
+            publishProviderState(planeDetectionProvider.state, provider: planeDetectionProvider, runtime: runtime)
+        }
+    }
+
+    private func resolveAuthorizationStatuses(
+        _ types: [ARKitSession.AuthorizationType],
+        runtime: Runtime,
+        requestID: Int
+    ) async {
+        let unresolved = types.filter { authorizationStatusByType[$0] == nil }
+        guard unresolved.isEmpty == false else { return }
+
+        let queried = await runtime.session.queryAuthorization(for: unresolved)
+        guard activeRuntime === runtime else { return }
+        for (type, status) in queried {
+            authorizationStatusByType[type] = status
+        }
+
+        guard requestID == reconcileRequestID else { return }
+        let notDetermined = unresolved.filter {
+            authorizationStatusByType[$0] == .notDetermined
+        }
+        guard notDetermined.isEmpty == false else { return }
+
+        let requested = await runtime.session.requestAuthorization(for: notDetermined)
+        guard activeRuntime === runtime else { return }
+        for (type, status) in requested {
+            authorizationStatusByType[type] = status
+        }
+    }
+
+    private func publishAuthorizationAvailability(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        if requirements.contains(.world),
+           WorldTrackingProvider.isSupported,
+           isAuthorized(WorldTrackingProvider.requiredAuthorizations) == false
+        {
+            providerStateByName[ProviderKind.world.rawValue] = .unauthorized
+        }
+
+        if requirements.contains(.hand),
+           HandTrackingProvider.isSupported,
+           runtime.handTrackingProvider != nil,
+           isAuthorized(HandTrackingProvider.requiredAuthorizations) == false
+        {
+            providerStateByName[ProviderKind.hand.rawValue] = .unauthorized
+            clearHandTrackingState()
+        }
+
+        if requirements.contains(.horizontalPlanes),
+           PlaneDetectionProvider.isSupported,
+           runtime.planeDetectionProvider != nil,
+           isAuthorized(PlaneDetectionProvider.requiredAuthorizations) == false
+        {
+            providerStateByName[ProviderKind.plane.rawValue] = .unauthorized
+            clearPlaneTrackingState()
+        }
+    }
+
+    private func runnableProviders(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) -> [any DataProvider] {
+        var providers: [any DataProvider] = []
+
+        if requirements.contains(.world),
+           WorldTrackingProvider.isSupported,
+           isAuthorized(WorldTrackingProvider.requiredAuthorizations)
+        {
+            providers.append(runtime.worldTrackingProvider)
+        }
+
+        if requirements.contains(.hand),
+           HandTrackingProvider.isSupported,
+           isAuthorized(HandTrackingProvider.requiredAuthorizations),
+           let handTrackingProvider = runtime.handTrackingProvider
+        {
+            providers.append(handTrackingProvider)
+        }
+
+        if requirements.contains(.horizontalPlanes),
+           PlaneDetectionProvider.isSupported,
+           isAuthorized(PlaneDetectionProvider.requiredAuthorizations),
+           let planeDetectionProvider = runtime.planeDetectionProvider
+        {
+            providers.append(planeDetectionProvider)
+        }
+
+        return providers
+    }
+
+    private func invalidateRuntimeAfterRunFailure(
+        reason: String,
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        guard activeRuntime === runtime else { return }
+
+        tearDownActiveRuntime()
+        clearAllTrackingState()
+
+        if requirements.contains(.world), WorldTrackingProvider.isSupported {
+            providerStateByName[ProviderKind.world.rawValue] = .failed(reason: reason)
+        }
+        if requirements.contains(.hand), HandTrackingProvider.isSupported {
+            providerStateByName[ProviderKind.hand.rawValue] = .failed(reason: reason)
+        }
+        if requirements.contains(.horizontalPlanes), PlaneDetectionProvider.isSupported {
+            providerStateByName[ProviderKind.plane.rawValue] = .failed(reason: reason)
+        }
+    }
+
+    private func startSessionEvents(runtime: Runtime) {
+        sessionEventsTask?.cancel()
+        sessionEventsTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await event in runtime.session.events {
+                guard Task.isCancelled == false, activeRuntime === runtime else { return }
+                switch event {
+                case let .authorizationChanged(type, status):
+                    authorizationStatusByType[type] = status
+                    handleAuthorizationChange(type: type, status: status, runtime: runtime)
+
+                case let .dataProviderStateChanged(dataProviders, newState, error):
+                    for provider in dataProviders {
+                        publishProviderState(
+                            newState,
+                            errorDescription: error?.localizedDescription,
+                            provider: provider,
+                            runtime: runtime
+                        )
+                    }
+
+                @unknown default:
+                    break
                 }
             }
         }
     }
 
-    func stop() {
-        sessionGeneration += 1
-        stopProviderRuntime()
-        activeRequirements = []
-        clearAllTrackingState()
-        fingerTipUpdates.finishSubscribers()
-        handSkeletonUpdates.finishSubscribers()
-        markRunningProvidersStopped()
+    private func handleAuthorizationChange(
+        type: ARKitSession.AuthorizationType,
+        status: ARKitSession.AuthorizationStatus,
+        runtime: Runtime
+    ) {
+        guard activeRuntime === runtime else { return }
+
+        let authorizationState = Self.trackingState(for: status)
+
+        if WorldTrackingProvider.requiredAuthorizations.contains(type),
+           desiredRequirements.contains(.world),
+           let authorizationState
+        {
+            providerStateByName[ProviderKind.world.rawValue] = authorizationState
+        }
+
+        if HandTrackingProvider.requiredAuthorizations.contains(type),
+           desiredRequirements.contains(.hand),
+           let authorizationState
+        {
+            providerStateByName[ProviderKind.hand.rawValue] = authorizationState
+            clearHandTrackingState()
+        }
+
+        if PlaneDetectionProvider.requiredAuthorizations.contains(type),
+           desiredRequirements.contains(.horizontalPlanes),
+           let authorizationState
+        {
+            providerStateByName[ProviderKind.plane.rawValue] = authorizationState
+            clearPlaneTrackingState()
+        }
+
+        if status == .allowed {
+            reconcileRequestID += 1
+            scheduleReconcileIfNeeded()
+        }
     }
 
-    private func stopProviderRuntime() {
-        handUpdatesTask?.cancel()
-        worldAnchorUpdatesTask?.cancel()
-        planeAnchorUpdatesTask?.cancel()
-        sessionTask?.cancel()
+    private func publishCurrentProviderStates(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        if requirements.contains(.world) {
+            publishProviderState(
+                runtime.worldTrackingProvider.state,
+                provider: runtime.worldTrackingProvider,
+                runtime: runtime
+            )
+        }
+        if requirements.contains(.hand), let provider = runtime.handTrackingProvider {
+            publishProviderState(provider.state, provider: provider, runtime: runtime)
+        }
+        if requirements.contains(.horizontalPlanes), let provider = runtime.planeDetectionProvider {
+            publishProviderState(provider.state, provider: provider, runtime: runtime)
+        }
+    }
 
+    private func publishProviderState(
+        _ state: DataProviderState,
+        errorDescription: String? = nil,
+        provider: any DataProvider,
+        runtime: Runtime
+    ) {
+        guard activeRuntime === runtime else { return }
+        guard let kind = providerKind(for: provider, runtime: runtime) else { return }
+
+        let isDesired = desiredRequirements.contains(kind.requirement)
+        let mappedState: ARTrackingProviderState
+
+        if isDesired == false {
+            mappedState = .disabled
+        } else if let errorDescription {
+            mappedState = .failed(reason: errorDescription)
+        } else {
+            mappedState = Self.trackingState(for: state)
+        }
+
+        providerStateByName[kind.rawValue] = mappedState
+
+        switch kind {
+        case .hand:
+            if mappedState != .running {
+                clearHandTrackingState()
+            }
+        case .plane:
+            if mappedState == .running {
+                rebuildDetectedPlanes()
+            } else {
+                detectedPlanes.removeAll(keepingCapacity: false)
+                if mappedState != .paused {
+                    planeAnchorsByID.removeAll(keepingCapacity: false)
+                }
+            }
+        case .world:
+            if isDesired && (state == .stopped || errorDescription != nil) {
+                invalidateRuntimeAfterWorldFailure(runtime)
+            }
+        }
+    }
+
+    static func trackingState(for state: DataProviderState) -> ARTrackingProviderState {
+        switch state {
+        case .initialized: .idle
+        case .running: .running
+        case .paused: .paused
+        case .stopped: .stopped
+        @unknown default: .stopped
+        }
+    }
+
+    static func trackingState(
+        for status: ARKitSession.AuthorizationStatus
+    ) -> ARTrackingProviderState? {
+        switch status {
+        case .allowed:
+            nil
+        case .notDetermined, .denied:
+            .unauthorized
+        @unknown default:
+            .unauthorized
+        }
+    }
+
+    private func providerKind(
+        for provider: any DataProvider,
+        runtime: Runtime
+    ) -> ProviderKind? {
+        let identity = ObjectIdentifier(provider)
+        if identity == ObjectIdentifier(runtime.worldTrackingProvider) {
+            return .world
+        }
+        if let handTrackingProvider = runtime.handTrackingProvider,
+           identity == ObjectIdentifier(handTrackingProvider)
+        {
+            return .hand
+        }
+        if let planeDetectionProvider = runtime.planeDetectionProvider,
+           identity == ObjectIdentifier(planeDetectionProvider)
+        {
+            return .plane
+        }
+        return nil
+    }
+
+    private func startWorldAnchorUpdates(runtime: Runtime) {
+        worldAnchorUpdatesTask?.cancel()
+        worldAnchorUpdatesTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await update in runtime.worldTrackingProvider.anchorUpdates {
+                guard Task.isCancelled == false, activeRuntime === runtime else { return }
+                switch update.event {
+                case .removed:
+                    worldAnchorsByID.removeValue(forKey: update.anchor.id)
+                case .added, .updated:
+                    worldAnchorsByID[update.anchor.id] = update.anchor
+                @unknown default:
+                    worldAnchorsByID[update.anchor.id] = update.anchor
+                }
+            }
+        }
+    }
+
+    private func startOptionalUpdateTasks(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        if requirements.contains(.hand),
+           handUpdatesTask == nil,
+           let handTrackingProvider = runtime.handTrackingProvider
+        {
+            handUpdatesTask = Task { @MainActor [weak self, weak handTrackingProvider] in
+                guard let self, let handTrackingProvider else { return }
+                for await update in handTrackingProvider.anchorUpdates {
+                    guard Task.isCancelled == false,
+                          activeRuntime === runtime,
+                          runtime.handTrackingProvider === handTrackingProvider else { return }
+                    updateHandTracking(from: update.anchor)
+                }
+            }
+        }
+
+        if requirements.contains(.horizontalPlanes),
+           planeAnchorUpdatesTask == nil,
+           let planeDetectionProvider = runtime.planeDetectionProvider
+        {
+            planeAnchorUpdatesTask = Task { @MainActor [weak self, weak planeDetectionProvider] in
+                guard let self, let planeDetectionProvider else { return }
+                for await update in planeDetectionProvider.anchorUpdates {
+                    guard Task.isCancelled == false,
+                          activeRuntime === runtime,
+                          runtime.planeDetectionProvider === planeDetectionProvider else { return }
+                    switch update.event {
+                    case .removed:
+                        planeAnchorsByID.removeValue(forKey: update.anchor.id)
+                    case .added, .updated:
+                        planeAnchorsByID[update.anchor.id] = update.anchor
+                    @unknown default:
+                        planeAnchorsByID[update.anchor.id] = update.anchor
+                    }
+                    if providerStateByName[ProviderKind.plane.rawValue] == .running {
+                        rebuildDetectedPlanes()
+                    }
+                }
+            }
+        }
+    }
+
+    private func cleanUpDisabledOptionalProviders(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) {
+        if requirements.contains(.hand) == false {
+            handUpdatesTask?.cancel()
+            handUpdatesTask = nil
+            runtime.handTrackingProvider = nil
+            clearHandTrackingState()
+            providerStateByName[ProviderKind.hand.rawValue] = .disabled
+        }
+
+        if requirements.contains(.horizontalPlanes) == false {
+            planeAnchorUpdatesTask?.cancel()
+            planeAnchorUpdatesTask = nil
+            runtime.planeDetectionProvider = nil
+            clearPlaneTrackingState()
+            providerStateByName[ProviderKind.plane.rawValue] = .disabled
+        }
+    }
+
+    private func providersAreHealthy(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) -> Bool {
+        if requirements.contains(.world),
+           providerStateByName[ProviderKind.world.rawValue] != .running
+        {
+            return false
+        }
+
+        if requirements.contains(.hand),
+           providerStateByName[ProviderKind.hand.rawValue] != .running
+        {
+            return false
+        }
+
+        if requirements.contains(.horizontalPlanes),
+           providerStateByName[ProviderKind.plane.rawValue] != .running
+        {
+            return false
+        }
+
+        return activeRuntime === runtime
+    }
+
+    private func invalidateRuntimeAfterWorldFailure(_ runtime: Runtime) {
+        guard activeRuntime === runtime else { return }
+
+        let worldState = providerStateByName[ProviderKind.world.rawValue] ?? .stopped
+        tearDownActiveRuntime()
+        clearAllTrackingState()
+        providerStateByName[ProviderKind.world.rawValue] = worldState
+        if desiredRequirements.contains(.hand) {
+            providerStateByName[ProviderKind.hand.rawValue] = .stopped
+        }
+        if desiredRequirements.contains(.horizontalPlanes) {
+            providerStateByName[ProviderKind.plane.rawValue] = .stopped
+        }
+    }
+
+    private func tearDownActiveRuntime() {
+        reconcileTask?.cancel()
+        reconcileTask = nil
+        sessionEventsTask?.cancel()
+        sessionEventsTask = nil
+        handUpdatesTask?.cancel()
         handUpdatesTask = nil
+        worldAnchorUpdatesTask?.cancel()
         worldAnchorUpdatesTask = nil
+        planeAnchorUpdatesTask?.cancel()
         planeAnchorUpdatesTask = nil
-        sessionTask = nil
 
         activeRuntime?.session.stop()
         activeRuntime = nil
-        isSessionRunning = false
     }
 
     private func clearAllTrackingState() {
         clearHandTrackingState()
         worldAnchorsByID.removeAll(keepingCapacity: false)
-        planeAnchorsByID.removeAll(keepingCapacity: false)
-        detectedPlanes.removeAll(keepingCapacity: false)
+        clearPlaneTrackingState()
     }
 
     private func clearHandTrackingState() {
@@ -223,110 +719,45 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         handSkeletonUpdates.yield(.empty)
     }
 
-    private func clearStateForDisabledProviders(requirements: ARTrackingRequirements) {
-        if requirements.contains(.hand) == false {
-            clearHandTrackingState()
-        }
-        if requirements.contains(.world) == false {
-            worldAnchorsByID.removeAll(keepingCapacity: false)
-        }
-        if requirements.contains(.horizontalPlanes) == false {
-            planeAnchorsByID.removeAll(keepingCapacity: false)
-            detectedPlanes.removeAll(keepingCapacity: false)
-        }
+    private func clearPlaneTrackingState() {
+        planeAnchorsByID.removeAll(keepingCapacity: false)
+        detectedPlanes.removeAll(keepingCapacity: false)
     }
 
-    private func configureInitialProviderStates(requirements: ARTrackingRequirements) {
-        providerStateByName["hand"] = initialState(
-            isRequired: requirements.contains(.hand),
-            isSupported: HandTrackingProvider.isSupported
-        )
-        providerStateByName["world"] = initialState(
-            isRequired: requirements.contains(.world),
-            isSupported: WorldTrackingProvider.isSupported
-        )
-        providerStateByName["plane"] = initialState(
-            isRequired: requirements.contains(.horizontalPlanes),
-            isSupported: PlaneDetectionProvider.isSupported
-        )
+    private func deduplicatedRequiredAuthorizations(
+        runtime: Runtime,
+        requirements: ARTrackingRequirements
+    ) -> [ARKitSession.AuthorizationType] {
+        var seen: Set<ARKitSession.AuthorizationType> = []
+        var ordered: [ARKitSession.AuthorizationType] = []
+        var required: [ARKitSession.AuthorizationType] = []
+
+        if requirements.contains(.world), WorldTrackingProvider.isSupported {
+            required += WorldTrackingProvider.requiredAuthorizations
+        }
+        if requirements.contains(.hand),
+           HandTrackingProvider.isSupported,
+           runtime.handTrackingProvider != nil
+        {
+            required += HandTrackingProvider.requiredAuthorizations
+        }
+        if requirements.contains(.horizontalPlanes),
+           PlaneDetectionProvider.isSupported,
+           runtime.planeDetectionProvider != nil
+        {
+            required += PlaneDetectionProvider.requiredAuthorizations
+        }
+
+        for type in required where seen.insert(type).inserted {
+            ordered.append(type)
+        }
+        return ordered
     }
 
-    private func initialState(isRequired: Bool, isSupported: Bool) -> ARTrackingProviderState {
-        guard isRequired else { return .disabled }
-        return isSupported ? .idle : .unsupported
-    }
-
-    private func updateAuthorizationStates(
-        requirements: ARTrackingRequirements,
-        handSupported: Bool,
-        worldSupported: Bool,
-        planeSupported: Bool,
-        handAllowed: Bool,
-        worldAllowed: Bool,
-        planeAllowed: Bool
-    ) {
-        if requirements.contains(.hand), handSupported, handAllowed == false {
-            providerStateByName["hand"] = .unauthorized
-        }
-        if requirements.contains(.world), worldSupported, worldAllowed == false {
-            providerStateByName["world"] = .unauthorized
-        }
-        if requirements.contains(.horizontalPlanes), planeSupported, planeAllowed == false {
-            providerStateByName["plane"] = .unauthorized
-        }
-    }
-
-    private func markRunningProvidersStopped() {
-        for name in ["hand", "world", "plane"] where providerStateByName[name] == .running {
-            providerStateByName[name] = .stopped
-        }
-    }
-
-    private func startUpdateTasks(runtime: Runtime, generation: Int) {
-        if handUpdatesTask == nil, providerStateByName["hand"] == .running {
-            handUpdatesTask = Task { [weak self] in
-                guard let self else { return }
-                for await update in runtime.handTrackingProvider.anchorUpdates {
-                    guard Task.isCancelled == false, sessionGeneration == generation else { return }
-                    updateHandTracking(from: update.anchor)
-                }
-            }
-        }
-
-        if worldAnchorUpdatesTask == nil, providerStateByName["world"] == .running {
-            worldAnchorUpdatesTask = Task { [weak self] in
-                guard let self else { return }
-                for await update in runtime.worldTrackingProvider.anchorUpdates {
-                    guard Task.isCancelled == false, sessionGeneration == generation else { return }
-                    switch update.event {
-                    case .removed:
-                        worldAnchorsByID.removeValue(forKey: update.anchor.id)
-                    case .added, .updated:
-                        worldAnchorsByID[update.anchor.id] = update.anchor
-                    @unknown default:
-                        worldAnchorsByID[update.anchor.id] = update.anchor
-                    }
-                }
-            }
-        }
-
-        if planeAnchorUpdatesTask == nil, providerStateByName["plane"] == .running {
-            planeAnchorUpdatesTask = Task { [weak self] in
-                guard let self else { return }
-                for await update in runtime.planeDetectionProvider.anchorUpdates {
-                    guard Task.isCancelled == false, sessionGeneration == generation else { return }
-                    switch update.event {
-                    case .removed:
-                        planeAnchorsByID.removeValue(forKey: update.anchor.id)
-                    case .added, .updated:
-                        planeAnchorsByID[update.anchor.id] = update.anchor
-                    @unknown default:
-                        planeAnchorsByID[update.anchor.id] = update.anchor
-                    }
-                    rebuildDetectedPlanes()
-                }
-            }
-        }
+    private func isAuthorized(
+        _ requiredAuthorizations: [ARKitSession.AuthorizationType]
+    ) -> Bool {
+        requiredAuthorizations.allSatisfy { authorizationStatusByType[$0] == .allowed }
     }
 
     private func updateHandTracking(from anchor: HandAnchor) {
@@ -366,32 +797,6 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         detectedPlanes = planeAnchorsByID.values.map { anchor in
             DetectedPlane(id: anchor.id, worldFromPlane: anchor.originFromAnchorTransform)
         }
-    }
-
-    private func deduplicatedRequiredAuthorizations(
-        includeHand: Bool,
-        includeWorld: Bool,
-        includePlane: Bool
-    ) -> [ARKitSession.AuthorizationType] {
-        var seen: Set<ARKitSession.AuthorizationType> = []
-        var ordered: [ARKitSession.AuthorizationType] = []
-        var required: [ARKitSession.AuthorizationType] = []
-
-        if includeHand { required += HandTrackingProvider.requiredAuthorizations }
-        if includeWorld { required += WorldTrackingProvider.requiredAuthorizations }
-        if includePlane { required += PlaneDetectionProvider.requiredAuthorizations }
-
-        for type in required where seen.insert(type).inserted {
-            ordered.append(type)
-        }
-        return ordered
-    }
-
-    private func isAuthorized(
-        requiredAuthorizations: [ARKitSession.AuthorizationType],
-        statuses: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus]
-    ) -> Bool {
-        requiredAuthorizations.allSatisfy { statuses[$0] == .allowed }
     }
 
     private func extractHandTips(from anchor: HandAnchor) -> HandTips {

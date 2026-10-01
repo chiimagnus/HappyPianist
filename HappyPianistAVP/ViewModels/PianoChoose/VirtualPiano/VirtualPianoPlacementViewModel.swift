@@ -61,6 +61,10 @@ final class VirtualPianoPlacementViewModel {
 
         let planeState = arTrackingService.providerStateByName["plane"] ?? .idle
         switch planeState {
+        case .paused:
+            return "虚拟钢琴：平面检测暂时暂停，恢复后可继续放置。"
+        case .stopped:
+            return "虚拟钢琴不可用：平面检测已停止，请重试。"
         case .unsupported:
             return "虚拟钢琴不可用：此设备/环境不支持平面检测。"
         case .unauthorized:
@@ -73,6 +77,10 @@ final class VirtualPianoPlacementViewModel {
 
         let handState = arTrackingService.providerStateByName["hand"] ?? .idle
         switch handState {
+        case .paused:
+            return "虚拟钢琴：手部追踪暂时暂停，恢复后可继续放置。"
+        case .stopped:
+            return "虚拟钢琴不可用：手部追踪已停止，请重试。"
         case .unsupported:
             return "虚拟钢琴不可用：此设备不支持手部追踪。"
         case .unauthorized:
@@ -89,6 +97,9 @@ final class VirtualPianoPlacementViewModel {
     var isGazePlaneDiskVisible: Bool {
         isVirtualPianoEnabled &&
             practiceSessionViewModel.keyboardGeometry == nil &&
+            arTrackingService.providerStateByName["world"] == .running &&
+            arTrackingService.providerStateByName["plane"] == .running &&
+            arTrackingService.providerStateByName["hand"] == .running &&
             gazePlaneDiskConfirmation.isDiskVisible
     }
 
@@ -224,6 +235,16 @@ final class VirtualPianoPlacementViewModel {
            anchor.isTracked
         {
             applyVirtualPianoGeometry(worldFromKeyboard: anchor.originFromAnchorTransform)
+            return
+        }
+
+        guard arTrackingService.providerStateByName["world"] == .running,
+              arTrackingService.providerStateByName["plane"] == .running,
+              arTrackingService.providerStateByName["hand"] == .running
+        else {
+            latestGazePlaneHit = nil
+            latestGazeRayOriginWorld = nil
+            gazePlaneDiskConfirmation.reset()
             return
         }
 

@@ -1,13 +1,37 @@
+import ARKit
 @testable import HappyPianistAVP
 import Testing
 
 @MainActor
 @Test
-func restartingTrackingReplacesStoppedARKitProviders() {
+func ordinaryRequirementChangesKeepStableWorldTrackingRuntime() {
+    let service = ARTrackingService()
+
+    service.start(requirements: [.world])
+    let runtime = service.activeRuntime
+    let generation = service.worldTrackingGeneration
+
+    service.start(requirements: [.world, .hand])
+    #expect(service.activeRuntime === runtime)
+    #expect(service.activeRuntime?.worldTrackingProvider === runtime?.worldTrackingProvider)
+    #expect(service.worldTrackingGeneration == generation)
+
+    service.start(requirements: [.world])
+    #expect(service.activeRuntime === runtime)
+    #expect(service.activeRuntime?.worldTrackingProvider === runtime?.worldTrackingProvider)
+    #expect(service.worldTrackingGeneration == generation)
+
+    service.stop()
+}
+
+@MainActor
+@Test
+func fullStopThenRestartReplacesWorldTrackingGeneration() {
     let service = ARTrackingService()
 
     service.start(requirements: [.world])
     let firstRuntime = service.activeRuntime
+    let firstGeneration = service.worldTrackingGeneration
 
     service.stop()
     service.start(requirements: [.world])
@@ -18,24 +42,44 @@ func restartingTrackingReplacesStoppedARKitProviders() {
     #expect(firstRuntime !== secondRuntime)
     #expect(firstRuntime?.session !== secondRuntime?.session)
     #expect(firstRuntime?.worldTrackingProvider !== secondRuntime?.worldTrackingProvider)
-    #expect(firstRuntime?.handTrackingProvider !== secondRuntime?.handTrackingProvider)
-    #expect(firstRuntime?.planeDetectionProvider !== secondRuntime?.planeDetectionProvider)
+    #expect(service.worldTrackingGeneration == firstGeneration + 1)
 
     service.stop()
 }
 
 @MainActor
 @Test
-func stoppingTrackingClearsHandSkeletonSnapshot() async {
+func stoppingTrackingClearsHandSkeletonWithoutFinishingStreams() async {
     let service = ARTrackingService()
     var iterator = service.handSkeletonUpdatesStream().makeAsyncIterator()
 
     #expect(await iterator.next() == .empty)
-    service.start(requirements: [.hand])
-    #expect(await iterator.next() == .empty)
+    service.start(requirements: [.hand, .world])
     service.stop()
 
     #expect(service.handSkeletonSnapshot == .empty)
     #expect(await iterator.next() == .empty)
-    #expect(await iterator.next() == nil)
+}
+
+@MainActor
+@Test
+func providerStateMappingPreservesPausedAndStoppedFacts() {
+    #expect(ARTrackingService.trackingState(for: .initialized) == .idle)
+    #expect(ARTrackingService.trackingState(for: .running) == .running)
+    #expect(ARTrackingService.trackingState(for: .paused) == .paused)
+    #expect(ARTrackingService.trackingState(for: .stopped) == .stopped)
+}
+
+@MainActor
+@Test
+func authorizationStateMappingDoesNotInventRunningState() {
+    #expect(ARTrackingService.trackingState(for: ARKitSession.AuthorizationStatus.allowed) == nil)
+    #expect(
+        ARTrackingService.trackingState(for: ARKitSession.AuthorizationStatus.notDetermined)
+            == .unauthorized
+    )
+    #expect(
+        ARTrackingService.trackingState(for: ARKitSession.AuthorizationStatus.denied)
+            == .unauthorized
+    )
 }
