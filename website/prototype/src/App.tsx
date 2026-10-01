@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { WebGPURenderer } from 'three/webgpu';
+import { usePrototypeRuntime } from './runtime/usePrototypeRuntime.ts';
 
 function PrototypeScene() {
   return (
@@ -11,8 +12,10 @@ function PrototypeScene() {
 }
 
 export function App() {
+  const runtime = usePrototypeRuntime();
+
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-stage={runtime.state.stage} data-reduced-motion={runtime.reducedMotion || undefined}>
       <header className="prototype-label">
         <strong>HappyPianist</strong>
         <span>Spatial Prototype</span>
