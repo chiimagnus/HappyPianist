@@ -11,6 +11,7 @@ export interface SceneReviewFacts {
   selectedBook: {
     index: number;
     title: string;
+    objectId: string | null;
     worldPosition: [number, number, number] | null;
     screenPoint: [number, number] | null;
   };
@@ -124,6 +125,7 @@ export function SceneReviewProbe({ state, readerRef }: SceneReviewProbeProps) {
         selectedBook: {
           index: state.selected,
           title: songs[state.selected]?.title ?? '',
+          objectId: selected?.uuid ?? null,
           worldPosition,
           screenPoint,
         },
