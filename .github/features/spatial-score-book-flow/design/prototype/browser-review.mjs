@@ -19,6 +19,7 @@ const pending = new Map();
 let serial = 0;
 const failures = [];
 const checks = [];
+const auxiliaryTargets = [];
 socket.addEventListener('message', event => {
   const reply = JSON.parse(event.data);
   const request = pending.get(reply.id);
@@ -47,14 +48,21 @@ const wait = milliseconds => new Promise(resolve => setTimeout(resolve, millisec
 const snapshot = () => evaluate('prototypeReview.snapshot()');
 async function click(type, value) {
   const selector = `[data-action="${type}"]${value === undefined ? '' : `[data-value="${value}"]`}`;
-  await wait(120);
-  const observation = await evaluate(`(() => { const element = document.querySelector(${JSON.stringify(selector)}); return element ? { disabled:element.disabled, text:element.innerText, rect:element.getBoundingClientRect().toJSON() } : null; })()`);
-  assert.ok(observation, `missing button ${selector}`);
-  assert.equal(observation.disabled, false, `${selector} disabled`);
+  const deadline = Date.now() + 4000;
+  let previous;
+  let observation;
+  while (Date.now() < deadline) {
+    await wait(100);
+    observation = await evaluate(`(() => { const element = document.querySelector(${JSON.stringify(selector)}); if (!element) return null; const rect = element.getBoundingClientRect(); const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2); return { disabled:element.disabled, rect:rect.toJSON(), hit:element.contains(hit), blocker:hit?.id || hit?.tagName }; })()`);
+    assert.ok(observation, `missing button ${selector}`);
+    assert.equal(observation.disabled, false, `${selector} disabled`);
+    if (observation.hit && previous && Math.abs(observation.rect.x - previous.rect.x) < 0.5 && Math.abs(observation.rect.y - previous.rect.y) < 0.5) break;
+    previous = observation;
+  }
   const x = observation.rect.x + observation.rect.width / 2;
   const y = observation.rect.y + observation.rect.height / 2;
   assert.ok(observation.rect.width > 0 && observation.rect.height > 0, `${selector} hidden`);
-  assert.ok(await evaluate(`document.querySelector(${JSON.stringify(selector)}).contains(document.elementFromPoint(${x}, ${y}))`), `${selector} blocked at ${x},${y}`);
+  assert.ok(observation.hit, `${selector} blocked by ${observation.blocker} at ${x},${y}`);
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
 }
@@ -63,8 +71,18 @@ async function stage(expected) {
   while (Date.now() < deadline) { const state = await snapshot(); if (state.stage === expected) return state; await wait(60); }
   assert.equal((await snapshot()).stage, expected);
 }
+async function until(predicate, label, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const state = await snapshot();
+    if (predicate(state)) return state;
+    await wait(200);
+  }
+  assert.fail(`${label}: ${JSON.stringify(await snapshot())}`);
+}
 async function board(id) {
   await evaluate(`prototypeReview.loadBoard(${JSON.stringify(id)}); document.querySelector('#review').open = false; prototypeReview.setView('front'); true`);
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 10, y: 120 });
   await wait(800);
 }
 function checked(label) { checks.push(label); console.log(`PASS ${label}`); }
@@ -74,6 +92,7 @@ async function capture(name) {
 }
 
 try {
+  execFileSync(process.execPath, [cli, 'activate', created.targetId], { stdio: 'ignore' });
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 960, deviceScaleFactor: 1, mobile: false });
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
@@ -83,6 +102,7 @@ try {
   await board('D01');
   await click('enter');
   await stage('library');
+  await until(state => state.meshes > 10 && state.visibleBooks === 5, '进入后未显示实际书册');
   assert.ok((await snapshot()).meshes > 10);
   assert.equal((await snapshot()).visibleBooks, 5);
   const bookID = (await snapshot()).selectedBookUUID;
@@ -101,9 +121,10 @@ try {
   assert.equal((await snapshot()).selectedBookUUID, bookID);
   assert.equal((await snapshot()).paused, true);
   await click('play');
-  await wait(1750);
-  assert.ok((await snapshot()).measure > 1);
+  assert.equal((await snapshot()).paused, false);
+  await until(state => state.measure > 1, '播放后未推进小节');
   await click('play');
+  assert.equal((await snapshot()).paused, true);
   const pausedMeasure = (await snapshot()).measure;
   await wait(1700);
   assert.equal((await snapshot()).measure, pausedMeasure);
@@ -196,8 +217,22 @@ try {
     const pageBounds = await evaluate('document.querySelector("#spatial-operations").getBoundingClientRect().toJSON()');
     const practiceBounds = await evaluate('document.querySelector("[data-action=start][data-value=begin]").getBoundingClientRect().toJSON()');
     assert.ok(practiceBounds.top < pageBounds.bottom && practiceBounds.bottom < pageBounds.bottom + 30);
+    const beforeHelp = await snapshot();
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: practiceBounds.x + practiceBounds.width / 2, y: practiceBounds.y + practiceBounds.height / 2 });
+    await wait(200);
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".practice-bookmark"), "::after").visibility'), 'hidden');
+    await wait(650);
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".practice-bookmark"), "::after").visibility'), 'visible');
+    assert.equal((await snapshot()).stage, beforeHelp.stage);
+    assert.equal((await snapshot()).measure, beforeHelp.measure);
+    await capture('D03-tooltip');
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 10, y: 120 });
+    await wait(150);
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".practice-bookmark"), "::after").visibility'), 'hidden');
+    checked('短时悬停无提示，停留显示 Tooltip，移开消失；只说明，不启动业务');
     await click('listen');
     assert.equal((await snapshot()).audition, true);
+    assert.ok(await evaluate('document.querySelector("[data-action=listen]").dataset.help.includes("停止")'));
     await click('listen');
     assert.equal((await snapshot()).audition, false);
     await click('start', 'resume');
@@ -336,7 +371,7 @@ try {
     await board('D07');
     await click('controls');
     await click('companion', 'teaching');
-    await wait(6750);
+    await until(state => state.companion === 'off', '一次示范未自动结束', 12000);
     assert.equal((await snapshot()).companion, 'off');
     assert.equal((await snapshot()).paused, true);
     checked('一次示范结束，不永久循环');
@@ -351,8 +386,7 @@ try {
     assert.deepEqual((await snapshot()).range, [9, 12]);
     assert.equal((await snapshot()).measure, 9);
     await click('play');
-    await wait(6550);
-    await stage('result');
+    await until(state => state.stage === 'result', '复测范围未完成', 12000);
     await click('continue');
     assert.equal((await snapshot()).measure, 13);
     assert.deepEqual((await snapshot()).range, [13, 40]);
@@ -367,6 +401,9 @@ try {
     checked('中断与定位恢复后不自动播放');
     await board('D07');
     await click('play');
+    const backgroundTarget = JSON.parse(execFileSync(process.execPath, [cli, 'new', 'about:blank'], { encoding: 'utf8' })).targetId;
+    auxiliaryTargets.push(backgroundTarget);
+    execFileSync(process.execPath, [cli, 'activate', backgroundTarget], { stdio: 'ignore' });
     await send('Emulation.setFocusEmulationEnabled', { enabled: false });
     assert.equal(await evaluate('document.hidden'), true);
     await stage('suspended');
@@ -374,6 +411,7 @@ try {
     await wait(1700);
     assert.equal((await snapshot()).measure, backgroundMeasure);
     await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    execFileSync(process.execPath, [cli, 'activate', created.targetId], { stdio: 'ignore' });
     await click('resume');
     await click('relocalized');
     assert.equal((await snapshot()).paused, true);
@@ -383,7 +421,10 @@ try {
     const userAgent = await evaluate('navigator.userAgent');
     await send('Page.navigate', { url: 'http://127.0.0.1:8765/boards/' });
     await wait(600);
-    await evaluate('Promise.all([...document.images].map(image => { image.loading = "eager"; return new Promise((resolve, reject) => { if (image.complete && image.naturalWidth) resolve(); else { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", () => reject(new Error(image.src)), { once: true }); } }); }))');
+    await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    await evaluate('[...document.images].forEach(image => { image.loading = "eager"; }); true');
+    const imagesDeadline = Date.now() + 30000;
+    while (Date.now() < imagesDeadline && !await evaluate('[...document.images].every(image => image.complete && image.naturalWidth > 0)')) await wait(200);
     assert.equal(await evaluate('[...document.images].every(image => image.complete && image.naturalWidth > 0)'), true);
     assert.equal(await evaluate('document.querySelectorAll("section").length'), 10);
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
@@ -399,8 +440,14 @@ try {
     writeFileSync(join(root, '../boards/browser-checks.json'), JSON.stringify(evidence, null, 2) + '\n');
     console.log(`Passed ${checks.length} browser checks; actual captures saved to design/boards/.`);
   }
+} catch (error) {
+  const context = await evaluate('({page:location.origin + location.pathname, ready:document.readyState, stage:window.prototypeReview?.snapshot().stage, hidden:document.hidden})').catch(() => null);
+  console.error('Test page context:', context);
+  throw error;
 } finally {
   socket.close();
   const remaining = await (await fetch('http://127.0.0.1:9222/json/list')).json();
-  if (remaining.some(item => item.id === created.targetId)) execFileSync(process.execPath, [cli, 'close', created.targetId], { encoding: 'utf8' });
+  for (const targetID of [...auxiliaryTargets, created.targetId]) {
+    if (remaining.some(item => item.id === targetID)) execFileSync(process.execPath, [cli, 'close', targetID], { encoding: 'utf8' });
+  }
 }

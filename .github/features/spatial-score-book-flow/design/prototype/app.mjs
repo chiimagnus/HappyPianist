@@ -369,7 +369,16 @@ function setView(view) {
 setView('front');
 
 function button(label, type, value, style = '', disabled = false, extra = '') {
-  return `<button data-action="${type}"${value === undefined ? '' : ` data-value="${value}"`} class="${style}"${disabled ? ' disabled' : ''}${extra}>${label}</button>`;
+  const help = state.stage === 'detail' ? {
+    'page:-1': disabled ? '已经是第一组书页' : '翻到上一组书页，不改变练习进度',
+    'page:1': disabled ? '已经是最后一组书页' : '翻到下一组书页，不改变练习进度',
+    'start:begin': '从第 1 小节开始；先确认钢琴输入与位置',
+    'start:resume': '从上次保存的第 9 小节开始；先确认输入与定位（模拟进度）',
+    'start:focus': '只练第 9–12 小节；这是示例范围，不是当前演奏评价',
+    'return:library': '合拢这本谱，返回空间曲库；不会退出 3D',
+    'listen:undefined': state.audition ? '停止模拟试听状态；本原型没有真实音频' : '查看模拟试听状态；本原型没有真实音频',
+  }[`${type}:${value}`] : undefined;
+  return `<button data-action="${type}"${value === undefined ? '' : ` data-value="${value}"`} class="${style}"${help ? ` data-help="${help}"` : ''}${disabled ? ' disabled' : ''}${extra}>${label}</button>`;
 }
 
 function row(content) { return `<div class="row">${content}</div>`; }
@@ -434,11 +443,11 @@ function updateUI() {
     case 'detail-error': content = button('重试打开', 'open', undefined, 'primary') + button('合拢回曲库', 'cancel'); break;
     case 'detail':
       content = button('↙', 'page', -1, 'page-corner previous', state.spread === 0, ' aria-label="上一组书页"') + button('↘', 'page', 1, 'page-corner next', state.spread === 2, ' aria-label="下一组书页"');
-      content += button('练习', 'start', 'begin', 'practice-bookmark');
-      content += button('上次停在第 9 小节 · 模拟<br><span>从这里继续 →</span>', 'start', 'resume', 'history-mark');
-      if (state.spread === 0) content += button('9–12<br>待练<span>模拟</span>', 'start', 'focus', 'range-mark');
+      content += button('从头练习', 'start', 'begin', 'practice-bookmark');
+      content += button('上次停在第 9 小节 · 模拟<br><span>继续上次进度 →</span>', 'start', 'resume', 'history-mark');
+      if (state.spread === 0) content += button('练习<br>9–12<span>模拟</span>', 'start', 'focus', 'range-mark');
       content += button('合拢', 'return', 'library', 'spine-close');
-      content += button(state.audition ? '□' : '▷', 'listen', undefined, 'title-listen', false, ' aria-label="试听或停止试听（模拟）"');
+      content += button(state.audition ? '停止试听' : '试听', 'listen', undefined, 'title-listen');
       break;
     case 'input': content = row(button('真实钢琴音频', 'input', 'audio', 'primary') + button('Bluetooth MIDI', 'input', 'midi')) + row(button('验证已存定位（模拟）', 'restore') + cancel); break;
     case 'permission': case 'midi': content = button(state.stage === 'permission' ? '模拟允许 / 重试' : '模拟连接 / 重试', 'connect', undefined, 'primary') + cancel; break;

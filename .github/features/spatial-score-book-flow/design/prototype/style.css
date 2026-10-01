@@ -58,7 +58,10 @@ h2 { font-size: 18px; font-weight: 500; margin: 8px 0; }
 #spatial-operations[data-stage='detail'] .range-mark { right: -36px; top: 65px; background: #d8decaaa; border-left: 2px solid #7a8d72; line-height: 1.6; font-size: 10px; }
 #spatial-operations[data-stage='detail'] .range-mark span { display: block; font-size: 8px; color: #7b8171; }
 #spatial-operations[data-stage='detail'] .spine-close { left: 50%; top: 4px; transform: translateX(-50%); font-size: 11px; color: #75806b; }
-#spatial-operations[data-stage='detail'] .title-listen { left: 22px; top: 8px; font-size: 19px; }
+#spatial-operations[data-stage='detail'] .title-listen { left: 16px; top: 8px; font-size: 11px; }
+#spatial-operations[data-stage='detail'] button[data-help]::after { content: attr(data-help); position: absolute; top: 100%; left: 50%; transform: translate(-50%, 7px); width: 190px; padding: 8px 10px; background: #35463af2; color: #fffdf3; font-size: 11px; line-height: 1.7; text-align: left; white-space: normal; border-radius: 5px; box-shadow: 0 3px 10px #35463a20; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 120ms, visibility 120ms; z-index: 8; }
+#spatial-operations[data-stage='detail'] button[data-help]:hover::after { opacity: 1; visibility: visible; transition-delay: 650ms; }
+#spatial-operations[data-stage='detail'] button[data-help]:focus-visible::after { opacity: 1; visibility: visible; }
 #product.review-only { position: static; width: auto; max-width: none; max-height: none; transform: none; background: none; border: 0; box-shadow: none; padding: 8px 0 16px; overflow: visible; }
 #product.review-only h2 { font-size: 15px; }
 footer { position: fixed; left: 30px; right: 30px; bottom: 20px; display: flex; justify-content: space-between; gap: 8px; font-size: 10px; color: #667366; pointer-events: none; }
