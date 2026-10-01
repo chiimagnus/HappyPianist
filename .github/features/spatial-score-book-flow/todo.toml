@@ -1,5 +1,5 @@
 version = 1
-current_task_id = ""
+current_task_id = "P4-T4"
 
 [[tasks]]
 id = "P1-T1"
@@ -93,34 +93,34 @@ note = "用户明确确认左右页缘按钮可见、P3-T4可以完成；曲面�
 [[tasks]]
 id = "P4-T1"
 title = "替换旧 ImmersiveSpace 状态机并让 mode 切换重配 AR providers"
-status = "pending"
+status = "completed"
 plan = "plan-p4.md#p4-t1"
-commit = ""
-note = ""
+commit = "e660df59"
+note = "P4-T1 定向 23/23 + build:simulator 通过；full suite 实跑 1063 passed/13 failed，失败集中于既有手部 motion/rig、notation golden、本地 sampler/recorder，均不在本任务改动链。旧 PracticeImmersive/.inTransition/recover 符号扫描为零。"
 
 [[tasks]]
 id = "P4-T2"
 title = "建立 session-scoped Spatial Library world placement"
-status = "pending"
+status = "completed"
 plan = "plan-p4.md#p4-t2"
-commit = ""
-note = ""
+commit = "a9ffd756"
+note = "yaw-only 世界定位、generation 复用/失效、timeout/retry、suspend/close 生命周期与无 WorldAnchor 已实现；P4-T2 生命周期定向 8/8 + build:simulator 通过。可视 root 验收按依赖移到 P4-T3 实体接入后。"
 
 [[tasks]]
 id = "P4-T3"
 title = "用有界 RealityView Attachments 与空间浏览实现 Book Flow / Spread"
-status = "pending"
+status = "in_progress"
 plan = "plan-p4.md#p4-t3"
 commit = ""
-note = ""
+note = "代码 41ed9140 + 审计修复收口中；build/定向通过，全量1078/1090（12既有失败ID完全匹配基线）。空间确认/横拖/页缘点击与关闭重进待用户实际确认；未进入P5。"
 
 [[tasks]]
 id = "P4-T4"
 title = "Spatial Library 接管选曲并迁移 Window 删除等管理职责"
-status = "pending"
+status = "in_progress"
 plan = "plan-p4.md#p4-t4"
 commit = ""
-note = ""
+note = "代码 0ab530210e4b5cae712dce6d7d8c31a5eba11aac：删除旧 Window carousel/preview/drag-hold，迁移管理确认与 row-target actions；build + 21 tests/26 executions PASS；共同空间交互人工 Gate 待确认。"
 
 [[tasks]]
 id = "P5-T1"

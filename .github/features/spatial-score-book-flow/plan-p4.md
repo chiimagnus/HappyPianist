@@ -353,7 +353,7 @@ If world/device pose is unavailable:
 - pure placement tests；
 - view-model lifecycle tests；
 - `make build:simulator`；
-- Simulator/device inspection of summoned world-stable root。
+- P4-T2 不暴露空白 Library route，因此本任务只验证 world transform / generation 生命周期；真实 summoned root 的 Simulator/device 可视验收在 P4-T3 接入 Spatial Library 实体后执行。
 
 **Atomic commit:** `feat: P4-T2 - 建立空间曲库世界定位`
 
@@ -588,7 +588,7 @@ When Spatial Library is closed:
 
 When Spatial Library is open:
 - do not render a second Book Flow beneath it；
-- window may remain as auxiliary system surface until P5/P6 remove or further reduce it；
+- 有效世界定位后关闭辅助 Window，不允许管理面板与空间书册持续叠加；空间小型管理按钮通过真实 scene close 回到管理 Window，定位失败恢复重试入口；
 - selected song identity still comes from the same `SongLibraryViewModel`。
 
 ### Interim start-practice action
@@ -647,6 +647,23 @@ No feature flag for “2D vs Spatial Library”.
 - manual failure path: cancel immersive open -> retry。
 
 **Atomic commit:** `refactor: P4-T4 - Spatial Library 接管核心选曲`
+
+## 本轮实际证据（2026-10-01）
+
+- P4-T3 接手前次未提交实现，用户明确授权修改并提交；代码提交 `41ed9140c0eb675b8fdf663d4a6ce4a024db726a`。计划/状态未加入提交。
+- 当前 Xcode 27.0 beta、visionOS 27.0，继续使用已有 AVP `28DABA38-C30B-44B1-9C2B-65D50F7FCC55`，不创建新设备；物理 AVP 当前 unavailable。
+- Apple docs 核对 `RealityViewAttachments`、`entity(for:)`、`EntityTargetValue` 与坐标转换契约。命名 metrics 将实际 Attachment bounds 映射为唯一 uniform scale；folio 0.30m、spread 0.42m 高是 Simulator 起始常量，非真机舒适度结论。
+- `make build:simulator` 通过。首轮 `.build/TestResults/P4-T3.xcresult` 为 7 个测试、12 次参数化执行；扩大 `.build/TestResults/P4-T3-Regressions.xcresult` 为 12 个测试、17 次执行（包含 5 个 serialized native 内容测试），全部通过。
+- 扩大命令最初部分函数筛选未命中；未把它们计入结果。随后直接 `xcodebuild test` 用包含括号的正式标识补跑 `.build/TestResults/P4-T3-Boundaries-Actual.xcresult`：8 个测试、13 次执行全部通过，覆盖 placement/generation/retry、预览取消、失败保存/明确丢弃生命周期与 capture route。
+- `rtk make` 对成功 Swift 编译输出显示误导性 error，后续直接原生 `make/xcodebuild`；`.xcresult` 是真实结果证据。Make 的 ONLY_TESTING 插入未转义括号会 shell syntax error，改为直接 xcodebuild 的独立带引号参数，不修改无关构建脚本。
+- 已增加 DEBUG-only `--ui-capture spatial-library/spatial-spread` 复用生产 open/preview owners，未注入 synthetic tracking 或伪造曲谱。`/tmp/hp-p4-spatial-flow-loaded.png` 实际捕获世界空间双页与辅助管理 Window；不以截图证明点击/拖动已通过。
+- Peekaboo 在本机 `--no-remote` 路径对新版 Device Hub 仍报稳定窗口代缺失，无法可靠操控。用户已同意安装完成后协助确认 folio 点击、横向拖动、页缘翻页与关闭重进；这些交互验收仍待实际确认。
+- T4 与 T3 的实体内容依赖已满足，可在同一阶段先完成辅助管理迁移；P4 审计 Go 之前不进入 P5。
+- P4-T4 代码提交 `0ab530210e4b5cae712dce6d7d8c31a5eba11aac`；旧 Window carousel、Window score preview、下拖长按删除与独占测试删除。`.build/TestResults/P4-T4-Actual.xcresult` 21 tests / 26 executions PASS，含 row ID 操作不改 selection、内置保护、真实 repository 清理与导入/scene gate；build PASS。
+- 审计 F-01 先用实际 Observation 回归复现通知计数0，再在唯一 ARTrackingService 上修复 Observation，protocol existential consumer 同样覆盖；F-02 把 reconcile 任务/cleanup 固定到捕获的 runtime；F-03 用实际倾斜 folio 包围盒证明原后方 input plane 不够深，改为正式 metrics 推导；F-04 在 ImmersiveView 汇聚点收口 Library/Calibration/Practice renderer ownership，避免 retained Guide/anchors/异步演示手加载泄漏。
+- 全量 `.build/TestResults/P4-Full.xcresult`：1090 tests，1078 PASS / 12 FAIL / 0 skipped。与 `.build/TestResults/Page-Curl-Full-Recovered-1790838585.xcresult` 的失败 ID 集合完全一致，新增/消失均为空；当前一个 motion 测试记录为 Swift Testing runner crash，不能把相同 ID 解释为所有失败机制已经查清。失败集中于既有 motion/rig、sampler 与标准谱面 golden，未修改 golden/弱化断言掩盖它们。
+- Xcode 全量测试尾部自己的 `simctl diagnose --timeout=600` 停滞；核对 PPID 属于本轮 xcodebuild 后仅 TERM 该诊断子进程，保留真实全量结果。没有停止测试进程、重启设备或共享服务。
+- 审计根因修复提交 `a2f66929d9eee5942ae520bfa7850a475cce6c8f`。最终 `.build/TestResults/P4-Final-Targeted.xcresult` 20 tests / 25 executions、0 failed/skipped；protocol existential Observation 与 Guide 实体 reset 通过，最终 build PASS。最新 App 已安装到原 AVP Simulator 并启动，等待用户实际交互反馈，未把该等待标记为完成。
 
 ---
 
