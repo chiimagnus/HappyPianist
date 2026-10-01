@@ -3,7 +3,7 @@
 **Goal:** 在 P2 稳定 Book Spread 上增加“像翻一张真实纸页”的过渡，同时让：
 
 - Library preview：用户手动前后翻；
-- Practice：演奏位置自动切换 spread；
+- Practice：演奏位置自动切换 spread；手动翻页直接移动同一会话位置并继续自动跟随；
 
 共用同一个 page-turn presentation。
 
@@ -12,16 +12,16 @@
 - `.github/features/spatial-2026-09-30/设计稿/images/04-正常练习.png`（练习时自动跟随当前演奏位置）
 - `.github/features/spatial-2026-09-30/设计稿/images/08-练习结果与重练.png`（结果/重练状态仍在同一 Book Spread 上继续浏览）
 
-P3 只实现手动/自动翻页与 Spread 导航，不改变这三张图定义的谱面视觉体系。
+P3 只实现手动/自动翻页与 Spread 导航，不改变这三张图定义的谱面视觉体系。2026-10-01 用户补充明确纸张必须弯曲卷起，并允许安装 Xcode 官方 Metal 编译组件；原平板旋转实现不再满足验收。
 
 **Non-goals:**
-- 不做 deforming mesh / page curl physics；
+- 不引入 RealityKit mesh 或独立物理时钟；用户于 2026-10-01 明确授权纸张弯曲卷起，以 SwiftUI 实时图层的圆柱投影实现；
 - 不把 page turn 做成新的 practice clock；
 - 不重新引入 continuous scroll；
 - 不让 Library 和 Practice 各写一套翻页 renderer；
-- 不在 Practice 增加会和自动导航冲突的“自由浏览模式”。
+- Practice 手动翻页同步移动同一会话的练习位置，继续自动跟随；不新增自由浏览模式。
 
-**Approach:** 把翻页实现为只消费目标 `spreadIndex` 的共用 presentation；Library 负责手动改变目标，Practice 只把现有离散 navigation tick 映射为目标 spread。
+**Approach:** 翻页只消费目标 `spreadIndex`。Library 手动改变目标；Practice 页缘按钮将目标页起始 tick 交给既有会话位置 owner，再由同一 navigation tick 映射回目标 spread，禁止视图另存页码。
 
 **Rules:** page-turn 不拥有谱面事实、页码真值或播放时钟；快速目标变化只保留最终目标。
 
@@ -81,10 +81,8 @@ Backward：
 ### SwiftUI transition
 
 Use:
-- visionOS 的 `perspectiveRotationEffect`（本机 SDK 中带 perspective 的旧 rotation3DEffect overload 已 deprecated）；
-- perspective；
-- page shadow；
-- front/back surface；
+- SwiftUI 原生 Metal `layerEffect`，实时正反页面按同一圆柱曲面投影，不再使用平纸旋转；
+- 随曲率变化的投影、正反面遮挡、纸面光照和投影阴影；
 - center gutter anchor。
 
 使用 SwiftUI `withAnimation(...completionCriteria:..., completion:...)` 的实际动画完成回调，不用 Task.sleep 猜持续时间；原生 completion API 已核对本机 SDK。completion 同时核对 transition generation 与 score/page-plan identity，避免换曲后相同 spread index 被旧动画回写。
@@ -93,7 +91,7 @@ Use:
 
 Do not:
 - build RealityKit mesh；
-- deform page vertices；
+- 新增独立的物理更新循环；
 - add CADisplayLink/timer；
 - pre-render page bitmap solely for animation unless SwiftUI snapshot proves absolutely necessary and is documented; default is live page surfaces。
 
@@ -280,6 +278,17 @@ Do not add:
 
 The existing Practice session remains sole time owner.
 
+### 用户追加的手动 Practice 导航
+
+- 曲库保留中央册确认和邻册选择；2026-10-01 用户要求删除底部“打开乐谱”，不新增第二入口。
+- Library / Practice 页缘控件由共享 Spread 提供；Practice 仅显示练习范围内可到达相邻页的操作，AI 接管、暂停输入或无合法位置时不接受点击。
+- 会话拥有统一 notation position tick；原 autoplay-only 名称及 API 不保留别名。手动定位核对谱身份与范围，更新步骤/resume checkpoint，不制造跳过小节结果。
+- 纯休止页仍可到达；手动模式停在该页等待继续，自动模式从正式页 tick 重新构建同一 transport。旧代 poll/失败不得改变新目标，明确暂停后翻页仍暂停。
+- 原生曲库测试尊重当前用户已有进度，不以清空真实 progress 或“总是首页”的假设测试恢复。
+- 导航闭环提交 e92f1558，实际 AVP 194/194、0 skipped，`.build/TestResults/Manual-Page-Turn-Verified-1790834502.xcresult`，`/tmp/happy-manual-page-turn-verified.log`；真实磁盘 checkpoint 与 transport load/play 均覆盖，build PASS。
+- 新卷页使用原生实时 Metal layerEffect 圆柱投影，只保留当前有限正反图层，前后投影与阴影同一几何；无截图历史、Timer、CADisplayLink 或第二播放时钟。
+- 组件缺失的首轮 build/package 失败如实保留 `/tmp/happy-page-curl-first-build.log`、`/tmp/happy-page-curl-geometry-test.log`；用户明确允许官方 Metal Toolchain 安装。官方 CDN 的 27A5209h 归档已核对 SHA 并通过 `xcodebuild -importComponent MetalToolchain` 安装，`xcrun metal --version`、正式 shader 编译与最终 build 通过；不取消用户 GUI 下载或删除共享资源。
+
 ### Tests
 
 - manual step next within same spread；
@@ -387,7 +396,7 @@ Verify:
 ## 用户追加的全项目清理与字体统一（2026-10-01）
 
 - 删除全项目专用语义修饰符、描述器、模式 environment、参数、状态、动态分支、专项测试和 golden；清理活跃与归档计划的过时要求。普通 Button 文案、正常手部/钢琴动画、显式放大阅读不属于删除对象。
-- 全仓业务源码、测试、资源与文档扫描零残留；SwiftUI `.font(.system(...))` 为零。界面用系统语义字体，谱内文本从原生 caption 解析并按 staff-space 缩放，测量与绘制共用 metrics；Bravura 音符字体保留。
+- 全仓业务源码、测试、资源与文档扫描零残留；手调界面字号调用为零。界面用系统语义字体，谱内文本从原生 caption 解析并按 staff-space 缩放，测量与绘制共用 metrics；Bravura 音符字体保留。
 - 同步删除墨迹服务中仅供旧菱形标记使用的 0.78 staff-space 预留方框；不留下换名字的兼容路径。
 - macOS package 257/257，`swift test --package-path Packages/HappyPianistCore --triple arm64-apple-macosx26.0`，`/tmp/happy-cleanup-final-package.log`。初次未指定 triple 的命令因 package 未声明 macOS deployment 而默认 macOS 12 不通过，未改项目正式 visionOS 平台声明来绕过。
 - 字体变化更新标准 golden：尺寸 351×229 不变、采样墨迹 1083→1084。首次扩大验证有一次 native 进程 signal kill；没有断言失败或内存终止证据，单独原生复核 5/5 通过，再跑扩大集和最终源码集通过；没有增加延迟或生产恢复补丁。
@@ -396,3 +405,20 @@ Verify:
 - 最终 build PASS：`make build:simulator SIMULATOR_ID=28DABA38-C30B-44B1-9C2B-65D50F7FCC55`，`/tmp/happy-cleanup-final-build.log`。
 - 最终完整实际 target 1048/1059、11 failed、0 skipped，`.build/TestResults/Project-Cleanup-Full-1790832858.xcresult`，`/tmp/happy-cleanup-full-summary.json`、`/tmp/happy-cleanup-full.log`。11 个失败 ID 全部匹配之前完整记录及初始基线；没有新增失败，Recorder 本轮通过但未改实现，不宣称已修复。
 - 完整测试末尾 Xcode 自己的 simctl diagnose 诊断采集卡住；确认 PPID 属于本轮 xcodebuild 后仅停止该采集子进程，保留实际测试结果并完成 xcresult；未停止测试、重启共享服务或关闭设备。
+- 追加清理代码已原子提交：`493d15fd0dea74ab70fb92c1d9cbee41ed812fc6`，51 个源码/测试/长期文档文件，未包含本地计划或归档记录。原 P3-T4 未冒称完成，真实页缘点击仍缺确认。
+- 最新 App 已安装并在唯一指定 AVP 打开；`/tmp/happy-project-cleanup-library-ready.png` 已查看，正常四册曲库、中央选曲与试听条显示正确。不将截图冒称真实页缘点击。
+
+## P3-T4 最终追加收口（2026-10-01）
+
+- 当前产品决定：真实弯曲卷页；Practice 手动翻页移动正式练习位置并继续自动跟随；删除底部打开按钮，保留中央册入口。用户反馈“效果有了”，随后确认“我看了你的测试，目前没有bug”。记录用户对当前结果的确认，不补写未知的曲库/练习点击细节。此节取代早先等待人工确认的结论。
+- 用户最终明确确认能看到左右两页中间的翻页按钮，并表示“这个 P 三 T 四可以完成”；人工入口可见性与完成认可均已补齐。不再等待旧 Peekaboo 点击缺口。
+- `8c32a273` 取消直接定位路径中旧 120ms 延迟高亮，休止页 160ms 后仍为空，实际 AVP 3/3；`752dede0` 删除底部按钮，曲库打开/关闭/恢复 consumer 测试继续通过。
+- `6f3c294d` 将唯一 Notation resource bundle 中的 Metal shader 接入共享 renderer，删除平纸旋转及平台 fallback；实时正反面由单次圆柱逆投影采样选择，固定边界、曲率/透视/遮挡/光照/阴影共用同一几何。无第二页码、clock、Timer、display link 或截图缓存。
+- 相同现有 AVP、24 次往返：`.build/TestResults/Page-Curl-Frame-Before-1790836808.xcresult` 与 `Page-Curl-Frame-After-1790836951.xcresult` 均实际 PASS。回调 p50 38.8→16.7ms，p95 53.0→16.7ms，超过 33ms 的回调 386→2。根因是逐帧改变离屏尺寸并重复两次全幅采样；临时探针已删。此为模拟器回调改善，不冒称真机 GPU 性能。
+- 较大原生窗口暴露 `RBLayer` 8212×5722 纹理失败。核对官方契约：`maxSampleOffset` 是采样距离，不是画布尺寸。按真实逆投影位移修正固定上界，最终几何/逆投影/采样边界和 5 native 通过，后续日志无该错误。drawHierarchy 读回的黑块与用户真实显示证据分层记录，不编造真实缺页。
+- 最终 package 259/259，`/tmp/happy-curl-final-package.log`；AVP 定向 194/195、0 skipped，`.build/TestResults/Page-Curl-Final-Verified-Gate-1790838280.xcresult`，含 5 个串行 native，唯一失败是标准谱面 golden。首次轮在建立连接前 signal kill，不算通过，无证据归因内存：`Page-Curl-Final-Gate-1790838132.xcresult`。
+- golden 实际 `32c220…`/1085，预期 `3e7e12…`/1084，均 351×229。临时恢复 HEAD 的旧平纸 renderer 并排除 Metal 编译仍完全复现：`.build/TestResults/Page-Curl-Golden-Unchanged-Renderer-1790838006.xcresult`。诊断替换已还原；未修改 engraving、字体或 golden 掩盖失败。具体差异原因尚未查明，对照只证明非新卷页差异。
+- 完整实际 target 1051/1063、12 failed、0 skipped：`.build/TestResults/Page-Curl-Full-Recovered-1790838585.xcresult`，`/tmp/happy-curl-full-recovered-summary.json`。逐 ID 对比 11 项与 `/tmp/happy-cleanup-full-summary.json` 完全相同，另有上述 golden；使用最终 xcresult 聚合，不拿示范手旧断言导致 runner 重启后的 554 条 console 数字替代完整结果。不能称 full suite passed。
+- 首次 full 尝试在既有 AVP 进入 shutdown 后中断：`.build/TestResults/Page-Curl-Full-1790838376.xcresult`，132 passed、2 infrastructure failures，非完整验证。只 boot 同一既有设备后重跑；未执行设备新建/删除、共享服务重启或 shutdown。卡住的 Xcode diagnose 仅在核对 PPID 后停止自己的采集子进程，不停止执行中的测试。
+- `make doctor`、`make build:simulator SIMULATOR_ID=28DABA38-C30B-44B1-9C2B-65D50F7FCC55` PASS：`/tmp/happy-curl-final-doctor.log`、`/tmp/happy-curl-final-build.log`。旧翻页旋转/双轨、探针、专项修饰符和手调系统字号扫描无残留，diff check PASS。长期验证边界更新提交 `36577ca`。
+- P1/P2 原 Go 有效；P3 当前产品行为已经交付，依计划的既有全量失败例外明确记录，不冒称旧失败已修复。P4–P6 不在本次授权范围，未推进。

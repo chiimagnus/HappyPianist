@@ -79,6 +79,8 @@ Spatial Book Spread
 
 - Library 中支持手动前后翻页。
 - Practice 中支持随演奏进度自动翻页。
+- 用户于 2026-10-01 追加确认：Practice 也支持手动前后翻页，直接移动同一练习位置，然后继续自动跟随；不新增独立自由浏览模式。
+- 翻页必须表现纸张弯曲卷起、正反面与光影；用户已取消 P3 的平纸旋转限定。
 - 自动翻页由真实练习 / playback 位置驱动，不能新增独立的猜测时钟。
 - 快速跳转时应收敛到最终目标页，不能积压一串过时翻页动画。
 
@@ -195,7 +197,7 @@ Spatial Book Spread
 - 核心曲库不再以唱片 / 唱臂作为 production 浏览体验。
 - Book Spread 每页能显示多个 Grand Staff systems，并保持现有记谱正确性。
 - 相同曲谱在 Library 与 Practice 中拥有稳定一致的分页。
-- Library 可以手动翻页；Practice 可以按真实进度自动翻页。
+- Library 可以手动翻页；Practice 手动翻页同步移动练习位置，也按真实进度自动翻页。
 - 旧连续横向滚谱不再作为 production Practice 谱面。
 
 ### Spatial Library / Score

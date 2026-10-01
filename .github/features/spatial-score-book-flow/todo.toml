@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P3-T4"
+current_task_id = ""
 
 [[tasks]]
 id = "P1-T1"
@@ -85,10 +85,10 @@ note = "126/126 AVP、native 在定向3/3、build；共享消费无需重复业�
 [[tasks]]
 id = "P3-T4"
 title = "收口翻页真实验收并删除取消的专项功能"
-status = "in_progress"
+status = "completed"
 plan = "plan-p3.md#p3-t4"
-commit = ""
-note = "用户追加全项目专项适配清理及系统语义字体统一；原翻页验收中真实页缘点击仍未确认。"
+commit = "6f3c294d500806c35c9527fa75f4f6d7f574d53c"
+note = "用户明确确认左右页缘按钮可见、P3-T4可以完成；曲面卷页、性能与休止高亮根因已收敛，底部入口删除。259 package、5 native、build通过；194/195定向、1051/1063 full保留11项原失败和旧renderer同复现golden。audit-p3 Go；P4-P6未授权。"
 
 [[tasks]]
 id = "P4-T1"
