@@ -51,6 +51,10 @@ final class PracticeLaunchViewModel {
     private(set) var activationIdentity: PracticeLaunchActivationIdentity?
     private(set) var progressAccessFailure: PracticeLaunchFailure?
 
+    var ownsPracticeLifecycle: Bool {
+        requestedSongID != nil || returnContext != nil
+    }
+
     init(
         resolver: any SongLibraryEntryResolving,
         preparationService: any PracticePreparationServiceProtocol,

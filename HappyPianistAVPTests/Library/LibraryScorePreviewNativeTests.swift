@@ -92,7 +92,7 @@ private struct PreviewNativeRoot: View {
     let lifecycle: PreviewNativeLifecycle
 
     var body: some View {
-        LibraryWindowRootView(appState: graph.appState, songLibraryViewModel: graph.songLibraryViewModel, practiceLaunchViewModel: graph.practiceLaunchViewModel, diagnosticsViewModel: graph.diagnosticsViewModel)
+        LibraryWindowRootView(appState: graph.appState, arGuideViewModel: graph.arGuideViewModel, songLibraryViewModel: graph.songLibraryViewModel, practiceLaunchViewModel: graph.practiceLaunchViewModel, diagnosticsViewModel: graph.diagnosticsViewModel)
             .environment(graph.pianoSetupCoordinator)
             .environment(\.scenePhase, lifecycle.phase)
     }

@@ -8,6 +8,8 @@ import Testing
         let songID = UUID(uuid: (17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17))
 
         #expect(AppUICaptureRoute(arguments: ["app", "--ui-capture", "library"]) == .library)
+        #expect(AppUICaptureRoute(arguments: ["app", "--ui-capture", "spatial-library"]) == .spatialLibrary)
+        #expect(AppUICaptureRoute(arguments: ["app", "--ui-capture", "spatial-spread"]) == .spatialSpread)
         #expect(AppUICaptureRoute(arguments: [
             "app", "--ui-capture", "practice", "--song-id", songID.uuidString,
         ]) == .practice(songID: songID))

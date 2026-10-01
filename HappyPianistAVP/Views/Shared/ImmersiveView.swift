@@ -1,10 +1,15 @@
+import Library
 import Practice
 import RealityKit
 import SwiftUI
 
 struct ImmersiveView: View {
     @Bindable var viewModel: ARGuideViewModel
+    @Bindable var songLibraryViewModel: SongLibraryViewModel
+    @Bindable var spatialLibraryViewModel: SpatialLibraryViewModel
     @State private var overlayController: PianoGuideOverlayController
+    @State private var spatialLibrarySceneController: SpatialLibrarySceneController
+    @GestureState private var spatialBrowseDragTranslation: CGFloat = 0
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @State private var neonHandOverlayController = NeonHandOverlayController()
@@ -16,14 +21,24 @@ struct ImmersiveView: View {
     @AppStorage(PianoDemonstrationHandsSettings.userDefaultsKey)
     private var pianoDemonstrationHandsEnabled = PianoDemonstrationHandsSettings.defaultValue
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
 
-    init(viewModel: ARGuideViewModel) {
+    init(
+        viewModel: ARGuideViewModel,
+        songLibraryViewModel: SongLibraryViewModel,
+        spatialLibraryViewModel: SpatialLibraryViewModel
+    ) {
         self.viewModel = viewModel
+        self.songLibraryViewModel = songLibraryViewModel
+        self.spatialLibraryViewModel = spatialLibraryViewModel
         let keyEntityFactory = PianoKeyEntityFactory()
         _overlayController = State(
             initialValue: PianoGuideOverlayController(
                 diagnosticsReporter: viewModel.diagnosticsReporter
             )
+        )
+        _spatialLibrarySceneController = State(
+            initialValue: SpatialLibrarySceneController()
         )
         _virtualPianoOverlayController = State(
             initialValue: VirtualPianoOverlayController(keyEntityFactory: keyEntityFactory)
@@ -47,17 +62,67 @@ struct ImmersiveView: View {
     }
 
     var body: some View {
-        RealityView { content in
+        RealityView { content, attachments in
             updateOverlays(content: content)
-        } update: { content in
+            updateSpatialLibrary(
+                content: content,
+                attachments: attachments
+            )
+        } update: { content, attachments in
             updateOverlays(content: content)
+            updateSpatialLibrary(
+                content: content,
+                attachments: attachments
+            )
+        } attachments: {
+            if viewModel.immersiveMode == .library,
+               songLibraryViewModel.entries.isEmpty == false
+            {
+                if songLibraryViewModel.scorePreview.isOpen {
+                    Attachment(id: SpatialLibraryAttachmentID.spread) {
+                        SpatialLibrarySpreadAttachmentView(
+                            library: songLibraryViewModel
+                        )
+                    }
+                } else {
+                    ForEach(spatialVisibleItems) { item in
+                        if let entry = songLibraryViewModel.entries.first(
+                            where: { $0.id == item.id }
+                        ) {
+                            Attachment(
+                                id: SpatialLibraryAttachmentID.folio(item.id)
+                            ) {
+                                SpatialLibraryFolioAttachmentView(
+                                    presentation: SongLibraryTrackPresentation(
+                                        entry: entry,
+                                        index: item.absoluteIndex
+                                    ),
+                                    isPlaying: songLibraryViewModel
+                                        .isListeningPlaying(entryID: entry.id),
+                                    onConfirm: {
+                                        songLibraryViewModel.confirmFolio(
+                                            entry.id
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
+        .gesture(
+            spatialLibraryBrowseGesture,
+            isEnabled: isSpatialBrowseGestureEnabled
+        )
         .onAppear {
             updateDemonstrationHandsOverlayController()
             viewModel.onImmersiveAppear()
         }
         .onDisappear {
+            songLibraryViewModel.scorePreview.close()
             resetOverlayControllers()
+            spatialLibrarySceneController.reset()
             viewModel.onImmersiveDisappear()
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -66,16 +131,104 @@ struct ImmersiveView: View {
                 updateDemonstrationHandsOverlayController()
                 viewModel.resumeImmersiveRuntimeIfNeeded()
             case .inactive, .background:
+                songLibraryViewModel.scorePreview.close()
                 resetOverlayControllers()
+                spatialLibrarySceneController.reset()
                 viewModel.suspendImmersiveRuntime()
             @unknown default:
+                songLibraryViewModel.scorePreview.close()
                 resetOverlayControllers()
+                spatialLibrarySceneController.reset()
                 viewModel.suspendImmersiveRuntime()
             }
         }
         .onChange(of: pianoDemonstrationHandsEnabled) {
             updateDemonstrationHandsOverlayController()
         }
+        .onChange(of: viewModel.appState.arTrackingService.worldTrackingGeneration) {
+            guard viewModel.immersiveMode == .library else { return }
+            spatialLibraryViewModel.enterLibraryMode()
+        }
+        .onChange(of: songLibraryViewModel.entries.isEmpty) { _, isEmpty in
+            guard isEmpty, viewModel.immersiveMode == .library else { return }
+            Task { @MainActor in
+                songLibraryViewModel.scorePreview.close()
+                await viewModel.closeImmersive(using: makeImmersiveSpaceDismissHandler(dismissImmersiveSpace))
+            }
+        }
+    }
+
+    private var spatialVisibleItems: [SpatialLibraryVisibleItem] {
+        SpatialLibraryVisibleSlice.items(
+            orderedEntryIDs: songLibraryViewModel.entries.map(\.id),
+            selectedEntryID: songLibraryViewModel.selectedEntryID
+        )
+    }
+
+    private var spatialPlacement: SpatialLibraryPlacement? {
+        guard case let .placed(placement) = spatialLibraryViewModel.state else {
+            return nil
+        }
+        guard placement.worldTrackingGeneration == viewModel.appState.arTrackingService.worldTrackingGeneration,
+              viewModel.appState.arTrackingService.providerStateByName["world"] == .running
+        else { return nil }
+        return placement
+    }
+
+    private var isSpatialBrowseGestureEnabled: Bool {
+        viewModel.immersiveMode == .library
+            && songLibraryViewModel.scorePreview.isOpen == false
+            && spatialVisibleItems.count > 1
+    }
+
+    private var spatialLibraryBrowseGesture: some Gesture {
+        DragGesture(minimumDistance: 16)
+            .targetedToEntity(spatialLibrarySceneController.interactionEntity)
+            .updating($spatialBrowseDragTranslation) { value, translation, _ in
+                translation = value.gestureValue.translation.width
+            }
+            .onEnded { value in
+                let translation = value.gestureValue.translation.width
+                guard isSpatialBrowseGestureEnabled,
+                      let direction = SpatialLibraryBrowseDecision.direction(
+                          horizontalTranslation: translation
+                      )
+                else {
+                    return
+                }
+                browseSpatialLibrary(direction: direction)
+            }
+    }
+
+    private func browseSpatialLibrary(
+        direction: SpatialLibraryBrowseDirection
+    ) {
+        guard let target = SpatialLibraryBrowseDecision.targetEntryID(
+            orderedEntryIDs: songLibraryViewModel.entries.map(\.id),
+            selectedEntryID: songLibraryViewModel.selectedEntryID,
+            direction: direction
+        ) else { return }
+        songLibraryViewModel.selectEntry(target)
+    }
+
+    private func updateSpatialLibrary(
+        content: RealityViewContent,
+        attachments: RealityViewAttachments
+    ) {
+        let isActive = viewModel.immersiveMode == .library
+            && songLibraryViewModel.entries.isEmpty == false
+
+        spatialLibrarySceneController.update(
+            isActive: isActive,
+            placement: spatialPlacement,
+            visibleItems: spatialVisibleItems,
+            showsSpread: songLibraryViewModel.scorePreview.isOpen,
+            browseDragProgress: SpatialLibraryBrowseDecision.progress(
+                horizontalTranslation: spatialBrowseDragTranslation
+            ),
+            attachments: attachments,
+            content: content
+        )
     }
 
     private func updateOverlays(content: RealityViewContent) {
@@ -191,5 +344,10 @@ struct ImmersiveView: View {
         pianoModeRegistry: pianoModeRegistry,
         makePracticeSessionViewModel: makePracticeSessionViewModel
     )
-    ImmersiveView(viewModel: viewModel)
+    let songLibraryViewModel = LiveAppGraph.make().songLibraryViewModel
+    ImmersiveView(
+        viewModel: viewModel,
+        songLibraryViewModel: songLibraryViewModel,
+        spatialLibraryViewModel: viewModel.spatialLibraryViewModel
+    )
 }

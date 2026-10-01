@@ -4,6 +4,8 @@ import SwiftUI
 #if DEBUG
     enum AppUICaptureRoute: Equatable {
         case library
+        case spatialLibrary
+        case spatialSpread
         case practice(songID: UUID)
 
         init?(arguments: [String]) {
@@ -13,6 +15,10 @@ import SwiftUI
             switch destination {
             case "library":
                 self = .library
+            case "spatial-library":
+                self = .spatialLibrary
+            case "spatial-spread":
+                self = .spatialSpread
             case "practice":
                 guard let rawSongID = Self.value(after: "--song-id", in: arguments),
                       let songID = UUID(uuidString: rawSongID)
@@ -80,7 +86,11 @@ struct HappyPianistAVPApp: App {
         .windowResizability(.contentSize)
 
         ImmersiveSpace(id: appState.immersiveSpaceID) {
-            ImmersiveView(viewModel: graph.arGuideViewModel)
+            ImmersiveView(
+                viewModel: graph.arGuideViewModel,
+                songLibraryViewModel: graph.songLibraryViewModel,
+                spatialLibraryViewModel: graph.spatialLibraryViewModel
+            )
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
@@ -101,6 +111,7 @@ struct HappyPianistAVPApp: App {
     private var libraryWindowRoot: some View {
         LibraryWindowRootView(
             appState: appState,
+            arGuideViewModel: graph.arGuideViewModel,
             songLibraryViewModel: graph.songLibraryViewModel,
             practiceLaunchViewModel: graph.practiceLaunchViewModel,
             diagnosticsViewModel: graph.diagnosticsViewModel
@@ -111,13 +122,15 @@ struct HappyPianistAVPApp: App {
         @ViewBuilder
         private func uiCaptureRoot(for route: AppUICaptureRoute) -> some View {
             switch route {
-            case .library:
+            case .library, .spatialLibrary, .spatialSpread:
                 LibraryWindowRootView(
                     appState: appState,
+                    arGuideViewModel: graph.arGuideViewModel,
                     songLibraryViewModel: graph.songLibraryViewModel,
                     practiceLaunchViewModel: graph.practiceLaunchViewModel,
                     diagnosticsViewModel: graph.diagnosticsViewModel
                 )
+                .modifier(SpatialLibraryCaptureModifier(graph: graph, route: route))
             case .practice:
                 PracticeWindowRootView(
                     arGuideViewModel: graph.arGuideViewModel,
@@ -127,3 +140,23 @@ struct HappyPianistAVPApp: App {
         }
     #endif
 }
+
+#if DEBUG
+    private struct SpatialLibraryCaptureModifier: ViewModifier {
+        let graph: LiveAppGraph
+        let route: AppUICaptureRoute
+        @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+
+        func body(content: Content) -> some View {
+            content.task {
+                guard route == .spatialLibrary || route == .spatialSpread else { return }
+                await graph.songLibraryViewModel.loadLibrary()
+                guard !graph.songLibraryViewModel.entries.isEmpty else { return }
+                let failure = await graph.arGuideViewModel.openImmersive(mode: .library, using: makeImmersiveSpaceOpenHandler(openImmersiveSpace))
+                if failure == nil, route == .spatialSpread {
+                    graph.songLibraryViewModel.openSelectedScore()
+                }
+            }
+        }
+    }
+#endif

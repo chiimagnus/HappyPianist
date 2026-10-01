@@ -94,6 +94,7 @@ func failedRecorderFinalizeBlocksReturnUntilUserDiscardsPendingDelta() async thr
     await sessionRepository.failNextWrites(1)
 
     let failedOperation = fixture.owner.beginReturn()
+    #expect(fixture.owner.ownsPracticeLifecycle)
     let failedStatus = await fixture.owner.finishReturn(operationID: failedOperation)
 
     guard case .failed = failedStatus else {
@@ -101,6 +102,7 @@ func failedRecorderFinalizeBlocksReturnUntilUserDiscardsPendingDelta() async thr
         return
     }
     #expect(fixture.owner.requestedSongID == fixture.songA)
+    #expect(fixture.owner.ownsPracticeLifecycle)
     #expect(fixture.applicator.clearCount == clearCountBeforeReturn)
     #expect(fixture.applicator.returnCommitCount == 0)
     #expect(await sessionRepository.records().last?.termination == .open)
@@ -112,6 +114,7 @@ func failedRecorderFinalizeBlocksReturnUntilUserDiscardsPendingDelta() async thr
     #expect(await sessionRepository.abandonedIDs() == [visitID])
     #expect(fixture.applicator.returnCommitCount == 1)
     #expect(fixture.owner.currentVisitID == nil)
+    #expect(!fixture.owner.ownsPracticeLifecycle)
 }
 
 @MainActor

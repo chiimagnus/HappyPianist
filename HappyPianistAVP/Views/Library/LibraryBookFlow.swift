@@ -285,10 +285,10 @@ private struct LibraryBookFlowItemView: View {
             }
             .buttonStyle(.plain)
             .hoverEffect()
-            .perspectiveRotationEffect(.degrees(presentation.rotationDegrees), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
+            .perspectiveRotationEffect(.degrees(presentation.yawDegrees), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
             .scaleEffect(presentation.scale)
             .opacity(presentation.opacity)
-            .offset(x: presentation.horizontalOffset)
+            .offset(x: presentation.lateralOffsetUnits * itemWidth)
             .offset(y: isSelected ? verticalOffset : 0)
         }
         .frame(
