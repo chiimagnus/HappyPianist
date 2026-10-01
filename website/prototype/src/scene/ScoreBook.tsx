@@ -6,17 +6,15 @@ import {
   Mesh,
   type CanvasTexture,
 } from 'three';
-import { pageCount, type PrototypeSong } from '../model/data.ts';
+import type { PrototypeSong } from '../model/data.ts';
 import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
 import {
   BOOK_HEIGHT,
   BOOK_WIDTH,
   bookPose,
 } from './bookPose.ts';
-import {
-  createCoverTexture,
-  createPageTexture,
-} from './bookTextures.ts';
+import { createCoverTexture } from './bookTextures.ts';
+import { PageTurn } from './PageTurn.tsx';
 
 interface ScoreBookProps {
   index: number;
@@ -36,23 +34,7 @@ export function ScoreBook({ index, song, state, dispatch, reducedMotion }: Score
   const hingeRef = useRef<Group>(null);
   const target = bookPose(state, index);
   const selected = index === state.selected;
-  const pageSpread = selected ? state.spread : 0;
-  const pageMeasure = selected ? state.measure : 1;
-  const pageStage = selected ? state.stage : 'library';
-  const pageSession = selected && state.session;
-  const pageFeedback = selected ? state.feedback : 'observed';
-  const leftPage = pageSpread * 2 + 1;
-  const rightPage = pageSpread * 2 + 2;
-
   const coverTexture = useDisposableTexture(useMemo(() => createCoverTexture(song, index), [index, song]));
-  const leftTexture = useDisposableTexture(useMemo(
-    () => createPageTexture({ song, page: leftPage, pageCount, measure: pageMeasure, stage: pageStage, session: pageSession, feedback: pageFeedback }),
-    [leftPage, pageFeedback, pageMeasure, pageSession, pageStage, song],
-  ));
-  const rightTexture = useDisposableTexture(useMemo(
-    () => createPageTexture({ song, page: rightPage, pageCount, measure: pageMeasure, stage: pageStage, session: pageSession, feedback: pageFeedback }),
-    [pageFeedback, pageMeasure, pageSession, pageStage, rightPage, song],
-  ));
 
   useFrame((_, delta) => {
     const root = rootRef.current;
@@ -99,16 +81,17 @@ export function ScoreBook({ index, song, state, dispatch, reducedMotion }: Score
           <planeGeometry args={[BOOK_WIDTH, BOOK_HEIGHT]} />
           <meshStandardMaterial map={coverTexture} roughness={1} />
         </mesh>
-        <mesh position={[BOOK_WIDTH / 2, 0, -0.0012]} rotation={[0, Math.PI, 0]} receiveShadow>
-          <planeGeometry args={[BOOK_WIDTH, BOOK_HEIGHT]} />
-          <meshStandardMaterial map={leftTexture} roughness={1} />
-        </mesh>
       </group>
 
-      <mesh position={[BOOK_WIDTH / 2, 0, 0.006]} receiveShadow>
-        <planeGeometry args={[BOOK_WIDTH, BOOK_HEIGHT]} />
-        <meshStandardMaterial map={rightTexture} roughness={1} />
-      </mesh>
+      {selected && (
+        <PageTurn
+          song={song}
+          state={state}
+          dispatch={dispatch}
+          open={target.open}
+          reducedMotion={reducedMotion}
+        />
+      )}
 
       <mesh>
         <cylinderGeometry args={[0.003, 0.003, BOOK_HEIGHT, 8]} />
