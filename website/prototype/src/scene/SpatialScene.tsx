@@ -2,6 +2,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { Color, Fog, GridHelper } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
+import { BookFlow } from './BookFlow.tsx';
 import {
   CAMERA_TARGET,
   CAMERA_VIEWS,
@@ -10,9 +12,12 @@ import {
 
 interface SpatialSceneProps {
   view: CameraView;
+  state: PrototypeState;
+  dispatch: (event: PrototypeEvent) => void;
+  reducedMotion: boolean;
 }
 
-function CameraRig({ view }: SpatialSceneProps) {
+function CameraRig({ view }: { view: CameraView }) {
   const camera = useThree((state) => state.camera);
   const domElement = useThree((state) => state.gl.domElement);
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -96,11 +101,12 @@ function Environment() {
   );
 }
 
-export function SpatialScene({ view }: SpatialSceneProps) {
+export function SpatialScene({ view, state, dispatch, reducedMotion }: SpatialSceneProps) {
   return (
     <>
       <CameraRig view={view} />
       <Environment />
+      <BookFlow state={state} dispatch={dispatch} reducedMotion={reducedMotion} />
     </>
   );
 }

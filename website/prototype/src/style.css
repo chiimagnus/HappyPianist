@@ -16,7 +16,8 @@ button:disabled { opacity: .42; cursor: not-allowed; }
 :focus-visible { outline: 3px solid #6da7dc; outline-offset: 3px; }
 
 .app-shell { position: relative; background: radial-gradient(circle at 50% 40%, #20242d 0%, #111318 68%); }
-.app-shell > canvas { position: absolute !important; inset: 0; z-index: 0; touch-action: none; }
+.scene-canvas { position: absolute !important; inset: 0; z-index: 0; }
+.scene-canvas canvas { width: 100% !important; height: 100% !important; touch-action: none; }
 .prototype-label { position: absolute; z-index: 3; top: 24px; left: 28px; display: flex; gap: 10px; align-items: baseline; pointer-events: none; }
 .prototype-label span { color: #9da5b3; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
 

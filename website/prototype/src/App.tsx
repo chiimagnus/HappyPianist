@@ -15,12 +15,13 @@ export function App() {
       </header>
       <ProductControls state={runtime.state} dispatch={runtime.dispatch} />
       <Canvas
+        className="scene-canvas"
         camera={{ position: [0, 1.46, 1.75], fov: 43, near: 0.02, far: 12 }}
         dpr={[1, 2]}
         shadows
         gl={createRenderer}
       >
-        <SpatialScene view="front" />
+        <SpatialScene view="front" state={runtime.state} dispatch={runtime.dispatch} reducedMotion={runtime.reducedMotion} />
       </Canvas>
       <footer className="prototype-footer">曲谱、设备、演奏、手部、保存均为模拟 · 不读写 App 数据</footer>
     </main>
