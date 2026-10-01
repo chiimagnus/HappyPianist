@@ -1,55 +1,7 @@
-import Notation
 import Practice
 import SwiftUI
 
-struct LibraryScorePreviewView: View {
-    @Bindable var library: SongLibraryViewModel
-    let title: String
-
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text(title).font(.title2).bold()
-                Spacer()
-                Button("返回曲库", systemImage: "books.vertical") { library.scorePreview.close() }
-            }
-            Group {
-                switch library.scorePreview.state {
-                case .idle:
-                    EmptyView()
-                case .loading:
-                    ProgressView("正在打开曲谱")
-                case let .failure(failure):
-                    ContentUnavailableView {
-                        Label(failure.title, systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(failure.explanation)
-                    } actions: {
-                        Button("重试", systemImage: "arrow.clockwise", action: library.openSelectedScore)
-                    }
-                case .ready:
-                    if let plan = library.scorePreview.pageOwner.plan,
-                       let identity = library.scorePreview.identity {
-                        let annotations = if case let .overview(overview) = library.practiceSnapshotState {
-                            LibraryScorePreviewViewModel.annotations(overview: overview, plan: plan, selection: identity)
-                        } else {
-                            [GrandStaffNotationMeasureAnnotation]()
-                        }
-                        GrandStaffNotationSpreadView(plan: plan, targetIndex: library.scorePreview.targetSpreadIndex, annotations: annotations,
-                            onTurnBackward: library.scorePreview.canTurnBackward ? { library.scorePreview.turn(forward: false) } : nil,
-                            onTurnForward: library.scorePreview.canTurnForward ? { library.scorePreview.turn(forward: true) } : nil)
-                            .padding(.horizontal)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            LibraryScoreHistoryView(library: library)
-        }
-        .padding(.horizontal)
-    }
-}
-
-private struct LibraryScoreHistoryView: View {
+struct LibraryScoreHistoryView: View {
     @Bindable var library: SongLibraryViewModel
     @State private var pendingResetIdentity: SongPracticeLibrarySelectionIdentity?
     @State private var isResetConfirmationPresented = false

@@ -1,5 +1,6 @@
-import Library
 import Foundation
+@testable import HappyPianistAVP
+import Library
 import MusicXML
 import Notation
 import Observation
@@ -7,12 +8,11 @@ import Practice
 import SwiftUI
 import Testing
 import UIKit
-@testable import HappyPianistAVP
 
 extension NativeBookWindowTests {
     @Test
     @MainActor
-    func productionLibraryOpensRealSpreadAndReturnsToSameFolioInExistingWindow() async throws {
+    func spatialSpreadContentOpensRealScoreAndReturnsToSameFolioInNativeHost() async throws {
         let graph = LiveAppGraph.make()
         let library = graph.songLibraryViewModel
         let lifecycle = PreviewNativeLifecycle()
@@ -52,7 +52,9 @@ extension NativeBookWindowTests {
         try await Task.sleep(for: .seconds(1))
         let expectedInitial = overview?.resumeOccurrenceID.flatMap { overview?.scoreRevision == plan.input.identity.scoreRevision ? plan.spreadIndex(containing: $0) : nil } ?? 0
         #expect(library.scorePreview.targetSpreadIndex == expectedInitial)
-        while library.scorePreview.canTurnBackward { library.scorePreview.turn(forward: false) }
+        while library.scorePreview.canTurnBackward {
+            library.scorePreview.turn(forward: false)
+        }
         library.scorePreview.turn(forward: true)
         #expect(library.scorePreview.targetSpreadIndex == 1)
         try await Task.sleep(for: .seconds(1))
@@ -78,7 +80,6 @@ extension NativeBookWindowTests {
         #expect(plansMatch)
         #expect(library.scorePreview.targetSpreadIndex == expectedInitial)
     }
-
 }
 
 @MainActor
@@ -92,8 +93,13 @@ private struct PreviewNativeRoot: View {
     let lifecycle: PreviewNativeLifecycle
 
     var body: some View {
-        LibraryWindowRootView(appState: graph.appState, arGuideViewModel: graph.arGuideViewModel, songLibraryViewModel: graph.songLibraryViewModel, practiceLaunchViewModel: graph.practiceLaunchViewModel, diagnosticsViewModel: graph.diagnosticsViewModel)
-            .environment(graph.pianoSetupCoordinator)
-            .environment(\.scenePhase, lifecycle.phase)
+        ZStack {
+            LibraryWindowRootView(appState: graph.appState, arGuideViewModel: graph.arGuideViewModel, songLibraryViewModel: graph.songLibraryViewModel, practiceLaunchViewModel: graph.practiceLaunchViewModel, diagnosticsViewModel: graph.diagnosticsViewModel)
+                .environment(graph.pianoSetupCoordinator)
+                .environment(\.scenePhase, lifecycle.phase)
+            if graph.songLibraryViewModel.scorePreview.isOpen {
+                SpatialLibrarySpreadAttachmentView(library: graph.songLibraryViewModel)
+            }
+        }
     }
 }

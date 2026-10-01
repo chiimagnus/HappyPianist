@@ -38,13 +38,17 @@ struct LibraryWindowRootView: View {
         LibraryContentView(
             songLibraryViewModel: songLibraryViewModel,
             diagnosticsViewModel: diagnosticsViewModel,
-            isPracticeSetupReady: pianoSetupCoordinator.isSetupReady,
+            isPracticeSetupReady: pianoSetupCoordinator.isSetupReady && !practiceLaunchViewModel.ownsPracticeLifecycle,
             onChoosePiano: {
+                guard !practiceLaunchViewModel.ownsPracticeLifecycle else {
+                    openWindow(id: WindowID.practice)
+                    return
+                }
                 pianoSetupCoordinator.reset()
                 pushWindow(id: WindowID.preparation)
             },
             onStartPractice: { songID in
-                guard pianoSetupCoordinator.isSetupReady else { return }
+                guard pianoSetupCoordinator.isSetupReady, !practiceLaunchViewModel.ownsPracticeLifecycle else { return }
                 practiceLaunchViewModel.request(songID: songID)
                 pushWindow(id: WindowID.practice)
             }

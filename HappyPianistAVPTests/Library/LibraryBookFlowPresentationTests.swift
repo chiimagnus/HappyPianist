@@ -4,11 +4,11 @@ import Testing
 
 @Test
 func bookFlowPresentationHasSymmetricClampedDepthAndCenterEmphasis() {
-    let center = LibraryBookFlowPresentation(centerDistance: 0, itemExtent: 200)
-    let left = LibraryBookFlowPresentation(centerDistance: -200, itemExtent: 200)
-    let right = LibraryBookFlowPresentation(centerDistance: 200, itemExtent: 200)
-    let far = LibraryBookFlowPresentation(centerDistance: 400, itemExtent: 200)
-    let beyond = LibraryBookFlowPresentation(centerDistance: 2000, itemExtent: 200)
+    let center = LibraryBookFlowPresentation(signedDistance: 0)
+    let left = LibraryBookFlowPresentation(signedDistance: -1)
+    let right = LibraryBookFlowPresentation(signedDistance: 1)
+    let far = LibraryBookFlowPresentation(signedDistance: 2)
+    let beyond = LibraryBookFlowPresentation(signedDistance: 10)
     #expect(center.yawDegrees == 0)
     #expect(center.scale == 1 && center.opacity == 1)
     #expect(left.yawDegrees == -right.yawDegrees)
@@ -17,6 +17,6 @@ func bookFlowPresentationHasSymmetricClampedDepthAndCenterEmphasis() {
     #expect(left.scale == right.scale && left.opacity == right.opacity)
     #expect(center.scale > right.scale && right.scale > far.scale)
     #expect(center.opacity > right.opacity && right.opacity > far.opacity)
-    #expect(center.depthPriority > right.depthPriority && right.depthPriority > far.depthPriority)
+    #expect(center.depthOffsetUnits > right.depthOffsetUnits && right.depthOffsetUnits > far.depthOffsetUnits)
     #expect(far == beyond)
 }

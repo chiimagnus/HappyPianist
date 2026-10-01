@@ -17,10 +17,11 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - 共用 Spread 仅根据目标双页驱动单张纸的实时正反面；SwiftUI 原生 Metal layerEffect 对同一圆柱曲面逆投影，一次采样选择可见正面或背面，保留正确页码、文字朝向、曲率光照和纸面阴影。离屏边界按完整过渡的最大投影固定，不随动画逐帧改变页面布局或缓冲尺寸。采样距离上界来自真实逆投影位移，不用画布尺寸代替，以免框架扩张出过大纹理。相邻翻动，大跳或翻动期间新目标直接收敛。原生动画完成核对谱身份与 generation，关闭/换谱拒绝旧完成；不缓存位图、不增加时钟。用户显式放大阅读直接换页。
 - 界面文字使用系统语义字体。谱内文本使用系统 caption 字体，测量与绘制共用 engraving metrics，按 staff-space 几何比例缩放；音符使用 Bravura 音乐字体。不能把记谱几何字号换成窗口字号，否则会破坏墨迹边界与分页。
 
-曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策。
+Spatial Book Flow 是唯一核心选曲入口：独立 folio Attachment 仅投影当前选择附近最多七册；RealityKit 承载实际 yaw/depth 和等比物理尺寸。邻册确认与后方专用横向拖动均提交到原曲库 selection owner。辅助 Window 仅提供 MusicXML 导入、文件管理、音频绑定/试听、诊断与钢琴设置；管理行直接使用目标 entry ID，不改变核心选择。
 
-- 邻册点击只选曲，点击中央已选册打开真实双页预览，不另设底部打开按钮。预览与练习共用 canonical 分页；只替换窗口内容，不重建试听条、导入器或外层 owner。预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
-- 预览只保留当前一份准备结果和 PagePlan；解析前后都核对 song ID、文件版本与请求 generation。关闭、换曲、删除、导入开始、窗口离开或 scene 非 active 取消并清理，迟到结果不能恢复旧谱。重新打开重新准备，没有永久缓存。
+- 邻册点击只选曲，点击中央已选册打开空间双页预览，不另设 Window 看谱入口。预览与练习共用 canonical 分页；预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
+- 预览只保留当前一份准备结果和 PagePlan；解析前后都核对 song ID、文件版本与请求 generation。关闭、换曲、删除、导入开始或沉浸空间 suspend/关闭取消并清理；辅助 Window 失去焦点不撤销空间预览。迟到结果不能恢复旧谱。重新打开重新准备，没有永久缓存。
+- 管理窗口删除只在明确系统确认后调用原 `deleteEntry`；内置曲谱保护、导入期间阻止删除、文件/索引/历史清理与 selection 修复仍由原业务链负责。曲库变空关闭共享 Library ImmersiveSpace，后续导入不自动重开。
 - 曲库历史仍只读取一次 snapshot；同一当前 revision 的真实小节事实共同派生汇总与逐 source 标记，双手稳定或左右分别稳定合并为已稳定。预览再核对 selection/file version 与准备结果的 revision，并按正式 occurrence 映射到分页 rect（包括空休止）；未知 revision 不伪装成未练习。标记、继续位置与重点可叠加，不改变分页或持久化数据。
 - 预览仅保存当前 target spread；首次 ready 从匹配 selection/file version/revision 的精确 resume occurrence 打开，否则首双页。迟到历史只更新标记，不夺走浏览位置；focus 不自动跳转。外页缘 Button 驱动导航，前后边界停止；关闭清空目标，重开重新准备，不持久化自由浏览页码，也不改变试听。
 - Practice 复用同一页缘按钮，但翻页移动会话的正式 notation position tick，而非独立浏览页码。目标受当前练习范围约束，更新下一演奏步骤与 checkpoint，不把跳过的小节记为成功或失败。纯休止页保留目标位置；手动模式等待继续，自动模式从该 tick 重建既有 transport，旧代采样不能夺回页面。显式暂停后翻页仍暂停，继续后恢复原自动跟随；关闭、换谱和步骤前进清理旧定位。AI 演奏接管时不接受手动定位。

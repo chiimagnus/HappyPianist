@@ -14,6 +14,7 @@ struct SongLibraryView: View {
     @State private var isAudioImporterPresented = false
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingImportConfirmationID: UUID?
+    @State private var pendingDeletionEntry: SongLibraryEntry?
     @State private var isDiagnosticsPresented = false
 
     private var audioImporterTypes: [UTType] {
@@ -43,8 +44,8 @@ struct SongLibraryView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
-                .padding()
-                
+                    .padding()
+
                 Spacer()
                 Button("诊断", systemImage: "stethoscope") {
                     isDiagnosticsPresented = true
@@ -52,27 +53,54 @@ struct SongLibraryView: View {
                 .padding()
             }
 
-            if viewModel.scorePreview.isOpen {
-                LibraryScorePreviewView(library: viewModel, title: selectedPresentation?.title ?? "曲谱")
-            } else if entries.isEmpty {
+            if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
-            } else if selectedEntry != nil, selectedPresentation != nil {
-                LibraryBookFlow(
-                    entries: entries,
-                    selectedEntryID: viewModel.selectedEntryID,
-                    playingEntryID: viewModel.currentListeningEntryID,
-                    isPlaying: selectedIsPlaying,
-                    allowsDestructiveActions: viewModel.importState.isActive == false,
-                    onSelectEntry: viewModel.selectEntry,
-                    onConfirmFolio: viewModel.confirmFolio,
-                    onImportMusicXML: viewModel.didTapImportMusicXML,
-                    onImmediateDelete: deleteWithoutConfirmation
-                )
+            } else {
+                HStack {
+                    Text("曲谱管理").font(.title2).bold()
+                    Spacer()
+                    Button("导入 MusicXML", systemImage: "plus", action: viewModel.didTapImportMusicXML)
+                        .disabled(viewModel.importState.isActive)
+                }
+                .padding(.horizontal)
+                Text("在空间曲库中选曲和看谱；这里仅管理文件与音频。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding()
+                List {
+                    ForEach(entries) { entry in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(entry.displayName).bold()
+                                Text(entry.isBundled == true ? "内置曲谱" : "已导入曲谱")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if entry.audioFileName != nil {
+                                Button(viewModel.isListeningPlaying(entryID: entry.id) ? "暂停试听" : "试听", systemImage: viewModel.isListeningPlaying(entryID: entry.id) ? "pause.fill" : "play.fill") {
+                                    togglePlayback(entry.id)
+                                }
+                            }
+                            if entry.isBundled != true {
+                                Button(entry.audioFileName == nil ? "绑定音频" : "替换音频", systemImage: "waveform.badge.plus") {
+                                    presentAudioImporter(entry.id)
+                                }
+                                .disabled(viewModel.importState.isActive)
+                                Button("删除曲谱", systemImage: "trash", role: .destructive) {
+                                    pendingDeletionEntry = entry
+                                }
+                                .disabled(viewModel.importState.isActive)
+                            }
+                        }
+                    }
+                }
+                LibraryScoreHistoryView(library: viewModel)
+                    .padding(.horizontal)
             }
         }
         .frame(
-            minWidth: 1240,
-            minHeight: 1000
+            minWidth: 680,
+            minHeight: 540
         )
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
@@ -147,7 +175,6 @@ struct SongLibraryView: View {
             await viewModel.loadLibrary()
         }
         .onDisappear {
-            viewModel.scorePreview.close()
             viewModel.stopListening()
             Task { @MainActor in
                 await viewModel.cancelAllImports()
@@ -175,6 +202,24 @@ struct SongLibraryView: View {
             Button("好", action: viewModel.dismissError)
         } message: {
             Text(viewModel.errorMessage ?? "未知错误")
+        }
+        .confirmationDialog(
+            "删除“\(pendingDeletionEntry?.displayName ?? "曲谱")”？",
+            isPresented: Binding(
+                get: { pendingDeletionEntry != nil },
+                set: { if !$0 { pendingDeletionEntry = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let entry = pendingDeletionEntry {
+                Button("删除曲谱", role: .destructive) {
+                    pendingDeletionEntry = nil
+                    Task { await viewModel.deleteEntry(entryID: entry.id) }
+                }
+            }
+            Button("取消", role: .cancel) { pendingDeletionEntry = nil }
+        } message: {
+            Text("将删除曲谱、绑定音频和该曲目的练习历史。此操作无法撤销。")
         }
         .confirmationDialog(
             importConflictTitle,
@@ -299,19 +344,6 @@ struct SongLibraryView: View {
             }
         } catch {
             viewModel.errorMessage = "导入音频失败：\(error.localizedDescription)"
-        }
-    }
-
-    private func deleteWithoutConfirmation(_ entryID: UUID) {
-        guard viewModel.importState.isActive == false,
-              let entry = viewModel.entries.first(where: { $0.id == entryID }),
-              entry.isBundled != true
-        else {
-            return
-        }
-
-        Task { @MainActor in
-            await viewModel.deleteEntry(entryID: entryID)
         }
     }
 }

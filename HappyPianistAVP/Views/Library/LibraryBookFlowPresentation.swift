@@ -6,7 +6,6 @@ struct LibraryBookFlowPresentation: Equatable {
     let opacity: Double
     let lateralOffsetUnits: CGFloat
     let depthOffsetUnits: CGFloat
-    let depthPriority: Double
 
     init(signedDistance: CGFloat) {
         let distance = min(abs(signedDistance), 2)
@@ -17,12 +16,5 @@ struct LibraryBookFlowPresentation: Equatable {
         opacity = Double(1 - distance * 0.2)
         lateralOffsetUnits = -direction * min(distance, 1) * 0.12
         depthOffsetUnits = -distance
-        depthPriority = Double(2 - distance)
-    }
-
-    init(centerDistance: CGFloat, itemExtent: CGFloat) {
-        self.init(
-            signedDistance: itemExtent > 0 ? centerDistance / itemExtent : 0
-        )
     }
 }
