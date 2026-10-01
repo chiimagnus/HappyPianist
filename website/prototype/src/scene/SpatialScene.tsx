@@ -4,6 +4,7 @@ import { Color, Fog, GridHelper } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
 import { BookFlow } from './BookFlow.tsx';
+import { PianoScene } from './PianoScene.tsx';
 import {
   CAMERA_TARGET,
   CAMERA_VIEWS,
@@ -107,6 +108,7 @@ export function SpatialScene({ view, state, dispatch, reducedMotion }: SpatialSc
       <CameraRig view={view} />
       <Environment />
       <BookFlow state={state} dispatch={dispatch} reducedMotion={reducedMotion} />
+      <PianoScene state={state} reducedMotion={reducedMotion} />
     </>
   );
 }
