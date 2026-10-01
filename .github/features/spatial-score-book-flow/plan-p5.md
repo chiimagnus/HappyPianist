@@ -31,13 +31,13 @@
 3. 从 actual replay timeline 生成 contacts→fingering→motion，重用现 off-main builder 与质量拒绝，geometry/range/revision/generation 更新拒绝旧结果。
 4. 若需泛化 sample/rig 应在现共享内核最小位置提取，新/旧 renderer 都消费；不复制 IK/骨架/asset loader，不删除仍被原 2D 使用的 public timing/settings/APIs。
 5. 3D 只有一个左右手 root，teaching 先接这对。legacy demonstration/Neon/VirtualPerformer 不在新 scene composition；没有全局删除计划。
-6. 只对当前确实可见且有有效 contact coverage 的音符 suppress Guide；单手资产/coverage/Reduce Motion 不显示时对应 Guide 恢复。用户真实手不重绘，虚拟手不参与输入/碰撞/判定/progress。
+6. 只对当前确实可见且有有效 contact coverage 的音符 suppress Guide；单手资产/coverage 不显示时对应 Guide 恢复。用户真实手不重绘，虚拟手不参与输入/碰撞/判定/progress。
 7. replay 完成、停止、seek/范围变、新曲、后台/reset、退出取消加载/build、停声音并移 root，late asset 不恢复；识别恢复沿原 effect handler，不能只把 UI 关掉。
 
 **验证：**
 - 真实 replay fixture 与 sound fake currentSeconds，不以 timer 驱动：lead-in/首击/休止/结束、左右手 independent coverage、停止/重播/乱序 build。
 - samples 不再“manual 永远空”，clip identity 与当前 transport 匹配；实际 rig transform 和 Guide visibility 恢复，不只 callback 命中。
-- asset 单手失败、coverage 拒绝、Reduce Motion、reset late load；共享旧 renderer/timing/replay 仍通过。
+- asset 单手失败、coverage 拒绝、reset late load；共享旧 renderer/timing/replay 仍通过。
 - 真正 xcodebuild test/build；实际 D08 teaching 操作；现质量 corpus 阈值复用，physical AVP 音画/键面对齐单独留证。
 
 **Gate / 原子提交：** 一次示范声音、手、Guide 与结束链真实成立；`feat: P5-T1 - 接入真实时序的空间教学手`。
@@ -99,7 +99,7 @@
 4. cue 贴当前谱中对应小节，未知/证据不足/低置信度不涂错误；coaching 一次一个范围/动作/完成条件。反馈事件不写新 progress 字段。
 5. Completed 在同一 book 显示真实 summary、小节事实与 focus；不跳旧 Alert、不造 dashboard。选择合法小节/建议调用 existing nextAction/configuration；按 perform 的结果继续或走 P4 的安全返回。
 6. 重练/继续/扩大范围/降低速度/跳过建议产生真实 session config/retest 关联；page target 由新音乐位置更新，不只是把高亮移过去。晚到 cue/result 不能盖新轮。
-7. 完成不等于已经保存，所有回库/退出仍 P4 gate；无第二份 progress/summary JSON。隐藏颜色有形状/文本，large text 与 VoiceOver 可操作整个结果。
+7. 完成不等于已经保存，所有回库/退出仍 P4 gate；无第二份 progress/summary JSON。
 
 **验证：**
 - 所有 controls 实际 effect：play/stop、record start/stop、排斥冲突 playback、配置重建失败保留会话；不仅 Button closure。

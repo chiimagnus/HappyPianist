@@ -36,7 +36,7 @@
 - 0/1/少量/大曲库，首尾、搜索命中/无结果、删除当前选择后的真实修复、邻册选择和独立试听。
 - entity 数量上界与总条目数无关；正/斜/侧视看到 Z 后退，邻册命中准确。
 - bootstrap 并发一次成功安装；重复加载不盖未持久化选择；失败重试；原 2D selection debounce/恢复正常。
-- 快速选曲/拖动/退出无过期姿态归位、无动画队列和 detach 后动画；Reduce Motion 不取消选择功能。
+- 快速选曲/拖动/退出无过期姿态归位、无动画队列和 detach 后动画。
 - 音频 fake + 实际既有 playback consumer 验证试听 start/stop，不仅验证 UI closure。
 - 真实 Simulator 场景 D02 与定向 xcodebuild test/build；真机 world stability/远距捏合与纸面尺度延续 P1 证据。
 

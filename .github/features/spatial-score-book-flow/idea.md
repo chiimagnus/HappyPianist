@@ -57,7 +57,7 @@ Book Flow 中每本 folio 是独立空间对象；中心书展开为双页谱；
 1. **入口与返回**：App 仍默认打开原 2D 曲库，用户主动进入 3D。打开失败/取消保留原页面；有效空间挂载和摆放后才隐藏原窗。退出恢复 2D 与当前选择，不自动开始练习。
 2. **空间曲库**：不依赖钢琴、不迫使走动；独立 world-locked folio，支持大库浏览/查找、选择/打开，试听独立。空库/管理可明确返回 2D，保持现有事务与删除保护。
 3. **双页谱**：真实 MusicXML 排为多个 systems/page 与双页；已有记谱事实不丢。3D Detail 与 3D Practice 共享同一分页和书册身份；2D 滚谱保留，不要求两种呈现同页码。
-4. **导航**：Detail 手动翻页、resume/focus；Practice 由真实执行位置自动翻页，repeat occurrence、seek/range/reset 正确。没有独立时钟；快速变化收敛最新目标；Reduce Motion 直接换页。
+4. **导航**：Detail 手动翻页、resume/focus；Practice 由真实执行位置自动翻页，repeat occurrence、seek/range/reset 正确。没有独立时钟；快速变化收敛最新目标。
 5. **准备**：Real Audio / Bluetooth MIDI 复用现有 A0/C8 校准、连接/权限与 readiness；选择、A0、C8、Ready、失败/重试/取消都有空间表达。stored calibration 不能冒充 runtime ready；取消回同书详情。
 6. **连续书册**：复用唯一 launch/preparation/applicator，正式身份与校准确认后将同一 Spread 移到琴上；可换父节点，不复制第二 practice owner，不以动画完成启动判定。
 7. **位置**：谱以 keyboard-local transform 面向演奏者，位置可有限微调/重置，不跟头、不保存会话 world transform。物理尺寸、距离、倾角经空间原型/真机测量，旧窗口像素实验不作证据。
@@ -73,7 +73,7 @@ Book Flow 中每本 folio 是独立空间对象；中心书展开为双页谱；
 - PreparedPractice 必须有 steps 与小节结构，不新增 legacy preparation fallback。
 - import-active 门禁、bundled 不可删、事务恢复、source/performed identity、revision、取消/代次隔离、DiagnosticsReporting 脱敏均保留。
 - Virtual Piano 和完整小程角色不是本次 3D 新体验验收对象，原 2D 功能保留；选择该输入时明确使用原路径，不替用户改模式。
-- Swift 6、VoiceOver、Dynamic Type、Differentiate Without Color、Reduce Motion 从首个接入 task 生效。
+- Swift 6 严格并发检查从首个接入 task 生效。
 
 ## 非目标
 
@@ -98,7 +98,7 @@ Book Flow 中每本 folio 是独立空间对象；中心书展开为双页谱；
 | P3 | 仅供 3D 的真实分页 Book Spread、详情和空间翻页；2D 滚谱不删 |
 | P4 | 同空间准备/校准、唯一 launch、琴上谱、基础练习与安全返回闭环 |
 | P5 | 同一双 Companion Hands、真实时序、空间控制/反馈/结果与重练 |
-| P6 | 2D/3D 共存、无障碍、真机走查与文档收口 |
+| P6 | 2D/3D 共存、真机走查与文档收口 |
 
 本次源码读取基于 `ed77b659`：已有一个 mixed ImmersiveSpace，`AppState.ImmersiveMode` 只有 calibration/practice，Library 仍 Vinyl，Practice 仍 `GrandStaffNotationView`。旧审计描述的分页/SpatialLibrary 文件在当前树不存在；计划“新增”不表示已经实现。
 

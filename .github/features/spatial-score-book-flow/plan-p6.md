@@ -1,7 +1,7 @@
 # Plan P6 — 共存回归、完整设计验收与证据收口
 
 **Goal:** 证明完整 3D 产品成立，原 2D 仍可用；把设计板、软件/硬件证据与长期文档收口。
-**Non-goals:** 不在此补前期遗漏的保存安全/无障碍基础，不借收口删除 2D，不修复无关基线失败。
+**Non-goals:** 不在此补前期遗漏的保存安全，不借收口删除 2D，不修复无关基线失败。
 **Approach:** 对照两条真实路径和公共职责回归；随后逐板走查 physical AVP，记录未通过项而非用图片代替结果。
 **Acceptance:** D01–D10 与全部需求有可追溯证据；2D/3D 无争用/数据丢失；长期 docs 描述实际交付，而非未来计划。
 **Rules:** 每个 owning task 已有自己的 tests/build/原子提交。P6 用于查遗漏和全链路验证，不替代前期理解；真机未跑不能给最终 Go。
@@ -32,7 +32,6 @@
 | flush 失败 / recorder finalize 失败 | 用户返回不离开/丢增量，重试后读到真实落盘数据 |
 | 明确 discard / 已保存 checkpoint | 仅未保存增量丢弃，既有文件/小节聚合保留 |
 | 后台/系统退出/恢复/快速新请求 | 无旧输入输出/tasks/动画复活；不能把 forced close 当保存成功 |
-| VoiceOver/Reduce Motion/Dynamic Type/不只颜色 | 每个关键动作有等价语义，动画不是功能必要条件，无装饰重复阅读 |
 
 **验证命令与证据规则（各 phase 同样适用）：**
 1. `rtk make doctor`、`rtk make destinations` 获取实际环境，使用现有 destination；不照抄 archive 的设备 UUID/Xcode 版本。
@@ -60,7 +59,6 @@
 3. D05/D06 Audio/MIDI 实际准备/权限/连接/A0/C8、锚点恢复与琴上方向、用户微调重置；无不当遮手/键盘。
 4. D07 全部高频控制与错误/未知，D08 同一 Teaching/Duet 手、Guide 降级、respond/yield/停止的实际音画同步。
 5. D09 从结果选择 focus→真实重练→复测完成；D10 保存失败/重试/discard/辅助设置/回库与恢复 2D，旧窗口不误关。
-6. VoiceOver/Dynamic Type/Reduce Motion/Differentiate Without Color 真实操作，不只截图控件存在。
 
 **证据格式：** 日期、commit、Xcode/OS/device、score revision、input/output route、calibration、动作步骤、测量/结果、截图/短片、Pass/Fail/Not Run、复现与限制。只按项目允许保存聚合；不用原始音频/MIDI/手帧、绝对路径、密钥或 AI 正文写 exportable logs。
 

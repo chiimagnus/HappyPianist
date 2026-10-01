@@ -31,7 +31,7 @@
 7. 不删除原 2D scroll/context/API/tests；只删除被抽取内核替代的重复内部算法。原 golden 不随便更新来盖回归。
 
 **针对性验证：**
-- 原 viewport/golden 在相同输入输出 parity；原 continuous notation view 与 highlight/accessibility 真消费通过。
+- 原 viewport/golden 在相同输入输出 parity；原 continuous notation view 与 highlight 真消费通过。
 - full score 首末/纯休止/跨 staff、clef/key/meter change、source vs meter beam、tie/slur/nested tuplet、反复 occurrence；split-part grand staff 事实不变。
 - overlay/range/tick 改变绝对 layout 不变；system 边界完整且 continuation 正确；布局不依赖宿主 size。
 - `swift test --package-path Packages/HappyPianistCore --filter Notation`；Apple target 现 notation/glyph consistency 的真正 xcodebuild test + build。package 成功不能代替 Apple consumer。
@@ -83,12 +83,12 @@
 1. navigation 的真值为目标 spread，page turn 只为 presentation；不拿 animation timer 修改音乐位置。
 2. RealityKit page entity 围书脊翻动，正/背面关系按 spatial-design 第5节，文字正向；不使用 Window perspectiveRotationEffect 作为 3D 主实现，不做 deforming mesh/纸物理。
 3. 相邻目标转单 sheet，大跨度直接最终页；翻动中 retarget 取消旧过渡直接最新合法页。same target 不重启，new score/plan/reset 清 animation。completion 校验当前 book/plan/transition，有限页层，不缓存历史页。
-4. 页缘局部 Button 与 VoiceOver adjustable navigation 从第一次接入就可用，decorative/source/背面视觉不重复暴露 semantics。Reduce Motion 直接换 target。
+4. 页缘局部 Button 从第一次接入就可用。
 5. 动画完成用平台原生完成/取消事实，不用 sleep 猜；controller teardown 停 native animations，detach/suspend/新曲迟到回调不能写回。
 
 **验证：**
 - forward/backward 正背面与页码、首末/奇数空面、same target、大跳、rapid retarget、旧 completion、reset/detach。
-- page layers 上界；target 与当前书真实 identity；VoiceOver 无重复、Reduce Motion 仍完整翻页。
+- page layers 上界；target 与当前书真实 identity。
 - 实际 RealityView D04 短录屏观察前后面/文字/阴影，不只纯状态函数；定向 xcodebuild test + build。
 - 原 GrandStaffNotationView/PracticeStepView 继续用原滚谱，没有新 page-turn runtime 被塞回 2D。
 
