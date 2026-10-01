@@ -1,7 +1,9 @@
 import CoreGraphics
+import CoreText
 @testable import MusicXML
 @testable import Notation
 import Testing
+import SwiftUI
 
 @Test
 func glyphCatalogKeepsSupportedSMuFLCodePointsCentralized() {
@@ -156,4 +158,19 @@ func rhythmicGlyphsExposeStemEligibilityAndSystemBounds() {
     #expect(abs(layout.smuflFontSize - 14 * metrics.smuflEmSize) < 0.0001)
     #expect(abs(layout.noteheadColumnWidth - 14 * metrics.noteheadColumnWidth) < 0.0001)
     #expect(layout.size.height > layout.bassBottomLineY)
+}
+
+@Test
+func engravingTextUsesNativeCaptionAndScalesWithStaffGeometry() {
+    let metrics = GrandStaffEngravingMetrics()
+    let caption = Font.caption.resolve(in: EnvironmentValues().fontResolutionContext).ctFont
+    let unit = metrics.textFont(size: 1)
+    let displayed = metrics.textFont(size: 14)
+    #expect(CTFontCopyFamilyName(unit) == CTFontCopyFamilyName(caption))
+    #expect(CTFontGetSize(unit) == 1)
+    #expect(CTFontGetSize(displayed) == 14)
+    #expect(abs(CTFontGetAscent(displayed) - CTFontGetAscent(unit) * 14) < 0.0001)
+    let emphasized = metrics.textFont(size: 14, bold: true, italic: true)
+    #expect(CTFontGetSymbolicTraits(emphasized).contains(.traitBold))
+    #expect(CTFontGetSymbolicTraits(emphasized).contains(.traitItalic))
 }

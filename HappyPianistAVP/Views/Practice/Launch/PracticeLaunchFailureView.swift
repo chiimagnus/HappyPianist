@@ -22,7 +22,8 @@ struct PracticeLaunchFailureView: View {
                     Text("技术详情")
                         .font(.headline)
                     Text(failure.technicalDetails)
-                        .font(.system(.footnote, design: .monospaced))
+                        .font(.footnote)
+                        .fontDesign(.monospaced)
                         .textSelection(.enabled)
                 }
 

@@ -31,7 +31,7 @@ func pageTurnLiveSurfacesEndAtExactUprightTargetInBothDirections() throws {
 extension NativeBookWindowTests {
     @Test
     @MainActor
-    func nativeSharedSpreadActuallyAnimatesAndAccessibleReadingConvergesInExistingWindow() async throws {
+    func nativeSharedSpreadActuallyAnimatesAndRapidNavigationConvergesInExistingWindow() async throws {
         let plan = try turnPresentationPlan()
         let navigation = TurnNativeNavigation()
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -55,13 +55,8 @@ extension NativeBookWindowTests {
         navigation.target = 2
         try await Task.sleep(for: .milliseconds(800))
         let finalJump = try windowFrame(window)
-        navigation.accessibleReading = true
-        navigation.target = 0
         try await Task.sleep(for: .milliseconds(150))
-        let reduced = try windowFrame(window)
-        try await Task.sleep(for: .milliseconds(650))
-        #expect(reduced == (try windowFrame(window)))
-        #expect(reduced != finalJump)
+        #expect(finalJump == (try windowFrame(window)))
     }
 
 }
@@ -89,7 +84,6 @@ private func turnPresentationPlan() throws -> GrandStaffNotationPagePlan {
 @Observable
 private final class TurnNativeNavigation {
     var target = 0
-    var accessibleReading = false
 }
 
 private struct TurnNativeRoot: View {
@@ -98,6 +92,5 @@ private struct TurnNativeRoot: View {
     var body: some View {
         GrandStaffNotationSpreadView(plan: plan, targetIndex: navigation.target)
             .padding(30)
-            .environment(\.dynamicTypeSize, navigation.accessibleReading ? .accessibility3 : .large)
     }
 }

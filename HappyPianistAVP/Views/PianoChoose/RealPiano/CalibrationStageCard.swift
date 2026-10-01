@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct CalibrationStageCard: View {
-    @ScaledMetric private var statusIconSize: CGFloat = 72
-
     let stage: CalibrationCardStage
     let phase: ARGuideViewModel.CalibrationPhase
     let storedCalibration: StoredWorldAnchorCalibration?
@@ -72,7 +70,7 @@ struct CalibrationStageCard: View {
     private var completionBody: some View {
         VStack {
             Image(systemName: "checkmark.circle")
-                .font(.system(size: statusIconSize, weight: .semibold))
+                .font(.largeTitle)
                 .foregroundStyle(.green)
 
             Text("校准完成")
@@ -89,7 +87,7 @@ struct CalibrationStageCard: View {
     private var errorBody: some View {
         VStack {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: statusIconSize, weight: .semibold))
+                .font(.largeTitle)
                 .foregroundStyle(.red)
 
             VStack {

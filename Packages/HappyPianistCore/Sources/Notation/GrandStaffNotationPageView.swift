@@ -15,7 +15,7 @@ struct GrandStaffNotationPageView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let page {
                 Text("第 \(index + 1) 页 / \(plan.pages.count)")
-                    .font(.system(size: 1.3 * staffSpace))
+                    .font(.caption)
                     .frame(height: 3 * staffSpace, alignment: .topLeading)
                 VStack(alignment: .leading, spacing: geometry.systemGap * staffSpace) {
                     ForEach(page.systems) { system in
@@ -34,7 +34,6 @@ struct GrandStaffNotationPageView: View {
                         .strokeBorder(.black.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                         .frame(width: measure.rect.width * staffSpace, height: measure.rect.height * staffSpace)
                         .position(x: measure.rect.midX * staffSpace, y: measure.rect.midY * staffSpace)
-                        .accessibilityHidden(true)
                 }
             }
         }
@@ -48,12 +47,10 @@ struct GrandStaffNotationPageView: View {
                             if annotation.isResume { Image(systemName: "bookmark") }
                             if annotation.isFocus { Image(systemName: "scope") }
                         }
-                        .font(.system(size: staffSpace))
+                        .font(.caption2)
                         .foregroundStyle(.black)
                         .frame(width: measure.rect.width * staffSpace, alignment: .leading)
                         .position(x: measure.rect.midX * staffSpace, y: (measure.rect.minY - 0.8) * staffSpace)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(annotation.label)
                     }
                 }
             }
@@ -61,8 +58,5 @@ struct GrandStaffNotationPageView: View {
         .background(Color(red: 0.98, green: 0.965, blue: 0.92))
         .environment(\.colorScheme, .light)
         .environment(\.layoutDirection, .leftToRight)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(page == nil ? "" : "第 \(index + 1) 页，共 \(plan.pages.count) 页")
-        .accessibilityHidden(page == nil)
     }
 }

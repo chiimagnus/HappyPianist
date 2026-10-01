@@ -91,7 +91,8 @@ final class KeyboardAxesDebugOverlayController {
         let entity = Entity()
         entity.components.set(ViewAttachmentComponent(
             rootView: Text(text)
-                .font(.system(size: 48, weight: .semibold))
+                .font(.largeTitle)
+                .bold()
                 .foregroundStyle(color)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)

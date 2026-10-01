@@ -10,7 +10,6 @@ struct LibraryBookFlow: View {
     let selectedEntryID: UUID?
     let playingEntryID: UUID?
     let isPlaying: Bool
-    let reduceMotion: Bool
     let allowsDestructiveActions: Bool
     let onSelectEntry: (UUID) -> Void
     let onConfirmFolio: (UUID) -> Void
@@ -22,7 +21,6 @@ struct LibraryBookFlow: View {
         selectedEntryID: UUID?,
         playingEntryID: UUID?,
         isPlaying: Bool,
-        reduceMotion: Bool,
         allowsDestructiveActions: Bool,
         onSelectEntry: @escaping (UUID) -> Void,
         onConfirmFolio: @escaping (UUID) -> Void,
@@ -33,7 +31,6 @@ struct LibraryBookFlow: View {
         self.selectedEntryID = selectedEntryID
         self.playingEntryID = playingEntryID
         self.isPlaying = isPlaying
-        self.reduceMotion = reduceMotion
         self.allowsDestructiveActions = allowsDestructiveActions
         self.onSelectEntry = onSelectEntry
         self.onConfirmFolio = onConfirmFolio
@@ -41,7 +38,7 @@ struct LibraryBookFlow: View {
         self.onImmediateDelete = onImmediateDelete
     }
 
-    @ScaledMetric(relativeTo: .body) private var itemWidth: CGFloat = 200
+    private let itemWidth: CGFloat = 200
     @State private var scrollTargetID: UUID?
     @State private var viewportWidth: CGFloat = 0
     @State private var liftOffset: CGFloat = 0
@@ -85,7 +82,6 @@ struct LibraryBookFlow: View {
                             selectedEntryID: selectedEntryID,
                             playingEntryID: playingEntryID,
                             isPlaying: isPlaying,
-                            reduceMotion: reduceMotion,
                             verticalOffset: downwardDragOffset - liftOffset,
                             viewportWidth: viewportWidth,
                             itemWidth: itemWidth,
@@ -113,7 +109,6 @@ struct LibraryBookFlow: View {
                     .padding(.bottom, 54)
             }
             .zIndex(35)
-            .accessibilityHidden(true)
         }
         .frame(
             maxWidth: .infinity,
@@ -163,27 +158,6 @@ struct LibraryBookFlow: View {
         .onAppear {
             synchronizeScrollTarget(with: selectedEntryID)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("乐谱库，左右滚动选曲")
-        .accessibilityAction(named: "删除曲目") {
-            guard let selectedEntry,
-                  selectedEntry.isBundled != true,
-                  allowsDestructiveActions
-            else {
-                return
-            }
-            onImmediateDelete(selectedEntry.id)
-        }
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                select(index: selectedIndex + 1)
-            case .decrement:
-                select(index: selectedIndex - 1)
-            @unknown default:
-                break
-            }
-        }
         .clipped()
     }
 
@@ -215,7 +189,7 @@ struct LibraryBookFlow: View {
                     onImportMusicXML()
                 }
 
-                withAnimation(reduceMotion ? nil : Self.animation) {
+                withAnimation(Self.animation) {
                     liftOffset = 0
                     downwardDragOffset = 0
                 }
@@ -252,18 +226,6 @@ struct LibraryBookFlow: View {
         onConfirmFolio(entryID)
     }
 
-    private func select(index: Int) {
-        guard entries.indices.contains(index) else { return }
-        select(entryID: entries[index].id)
-    }
-
-    private func select(entryID: UUID) {
-        withAnimation(reduceMotion ? nil : Self.animation) {
-            scrollTargetID = entryID
-        }
-        onSelectEntry(entryID)
-    }
-
     private func commitSettledScrollSelection() {
         guard let entryID = LibraryBookFlowSelectionDecision.selectionToCommit(
             scrollTargetID: scrollTargetID,
@@ -281,7 +243,7 @@ struct LibraryBookFlow: View {
             return
         }
         guard scrollTargetID != entryID else { return }
-        withAnimation(reduceMotion ? nil : Self.animation) {
+        withAnimation(Self.animation) {
             scrollTargetID = entryID
         }
     }
@@ -294,7 +256,6 @@ private struct LibraryBookFlowItemView: View {
     let selectedEntryID: UUID?
     let playingEntryID: UUID?
     let isPlaying: Bool
-    let reduceMotion: Bool
     let verticalOffset: CGFloat
     let viewportWidth: CGFloat
     let itemWidth: CGFloat
@@ -311,8 +272,7 @@ private struct LibraryBookFlowItemView: View {
     var body: some View {
         let presentation = LibraryBookFlowPresentation(
             centerDistance: centerDistance,
-            itemExtent: itemWidth,
-            reduceMotion: reduceMotion
+            itemExtent: itemWidth
         )
         ZStack {
             Button {
@@ -330,9 +290,6 @@ private struct LibraryBookFlowItemView: View {
             .opacity(presentation.opacity)
             .offset(x: presentation.horizontalOffset)
             .offset(y: isSelected ? verticalOffset : 0)
-            .accessibilityLabel(trackPresentation.title)
-            .accessibilityHint(isSelected ? "打开曲谱预览" : "选中这首曲目")
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
         .frame(
             width: itemWidth,
@@ -364,7 +321,6 @@ enum LibraryBookFlowSelectionDecision {
         selectedEntryID: LibraryBookFlowPreviewFixture.entries[1].id,
         playingEntryID: LibraryBookFlowPreviewFixture.entries[1].id,
         isPlaying: true,
-        reduceMotion: false,
         allowsDestructiveActions: true,
         onSelectEntry: { _ in },
         onConfirmFolio: { _ in },

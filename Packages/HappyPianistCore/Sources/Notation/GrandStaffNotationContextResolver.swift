@@ -32,7 +32,7 @@ struct GrandStaffNotationSignatureLayout: Equatable, Sendable {
         let point: CGPoint
         let size: Double
         var bounds: CGRect {
-            let font = CTFontCreateUIFontForLanguage(.system, size, nil) ?? CTFontCreateWithName("Helvetica" as CFString, size, nil)
+            let font = GrandStaffEngravingMetrics().textFont(size: size)
             let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.init(kCTFontAttributeName as String): font]))
             var ascent = CGFloat.zero
             var descent = CGFloat.zero

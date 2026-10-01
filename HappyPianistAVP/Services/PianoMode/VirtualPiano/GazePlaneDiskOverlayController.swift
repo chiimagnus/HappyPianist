@@ -163,7 +163,8 @@ final class GazePlaneDiskOverlayController {
         guard let textAttachmentEntity else { return }
         textAttachmentEntity.components.set(ViewAttachmentComponent(
             rootView: Text(statusText)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.title2)
+                .bold()
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 14)

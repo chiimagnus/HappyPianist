@@ -33,7 +33,7 @@ func pageTurnMapsBothFacesAndKeepsOnlyOneFiniteTransition() throws {
 }
 
 @Test
-func pageTurnRejectsOldCompletionAfterReplacementResetAndReducedMotion() throws {
+func pageTurnRejectsOldCompletionAfterReplacementResetAndDirectDisplay() throws {
     let identity = GrandStaffNotationPageTurnIdentity(song: .init(songID: UUID(), scoreRevision: "turn"), pageIDs: ["a", "b", "c", "d", "e"])
     var state = GrandStaffNotationPageTurnState()
     state.request(identity: identity, target: 0, animated: true)

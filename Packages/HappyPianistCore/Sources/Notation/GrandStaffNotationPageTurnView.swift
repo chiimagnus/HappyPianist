@@ -54,6 +54,5 @@ struct GrandStaffNotationPageTurnView: View, Animatable {
 
     private func page(_ index: Int) -> some View {
         GrandStaffNotationPageView(plan: plan, index: index, staffSpace: staffSpace, overlay: overlay, practiceHandMode: practiceHandMode, annotations: annotations)
-            .accessibilityHidden(true)
     }
 }

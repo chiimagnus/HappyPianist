@@ -4,11 +4,11 @@ import Testing
 
 @Test
 func bookFlowPresentationHasSymmetricClampedDepthAndCenterEmphasis() {
-    let center = LibraryBookFlowPresentation(centerDistance: 0, itemExtent: 200, reduceMotion: false)
-    let left = LibraryBookFlowPresentation(centerDistance: -200, itemExtent: 200, reduceMotion: false)
-    let right = LibraryBookFlowPresentation(centerDistance: 200, itemExtent: 200, reduceMotion: false)
-    let far = LibraryBookFlowPresentation(centerDistance: 400, itemExtent: 200, reduceMotion: false)
-    let beyond = LibraryBookFlowPresentation(centerDistance: 2000, itemExtent: 200, reduceMotion: false)
+    let center = LibraryBookFlowPresentation(centerDistance: 0, itemExtent: 200)
+    let left = LibraryBookFlowPresentation(centerDistance: -200, itemExtent: 200)
+    let right = LibraryBookFlowPresentation(centerDistance: 200, itemExtent: 200)
+    let far = LibraryBookFlowPresentation(centerDistance: 400, itemExtent: 200)
+    let beyond = LibraryBookFlowPresentation(centerDistance: 2000, itemExtent: 200)
     #expect(center.rotationDegrees == 0)
     #expect(center.scale == 1 && center.opacity == 1)
     #expect(left.rotationDegrees == -right.rotationDegrees)
@@ -19,13 +19,4 @@ func bookFlowPresentationHasSymmetricClampedDepthAndCenterEmphasis() {
     #expect(center.opacity > right.opacity && right.opacity > far.opacity)
     #expect(center.depthPriority > right.depthPriority && right.depthPriority > far.depthPriority)
     #expect(far == beyond)
-}
-
-@Test
-func bookFlowReduceMotionKeepsEmphasisWithoutRotationOrDisplacement() {
-    let center = LibraryBookFlowPresentation(centerDistance: 0, itemExtent: 200, reduceMotion: true)
-    let neighbor = LibraryBookFlowPresentation(centerDistance: -200, itemExtent: 200, reduceMotion: true)
-    #expect(neighbor.rotationDegrees == 0 && neighbor.horizontalOffset == 0)
-    #expect(center.scale > neighbor.scale)
-    #expect(center.depthPriority > neighbor.depthPriority)
 }

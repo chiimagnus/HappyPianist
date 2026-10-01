@@ -4,26 +4,22 @@ import Practice
 
 struct GrandStaffNotationRenderer {
     private let displayScale: CGFloat
-    private let differentiateWithoutColor: Bool
     private let activeTickRange: Range<Int>?
     private let engravingMetrics = GrandStaffEngravingMetrics()
     private let chordLayoutService = GrandStaffChordLayoutService()
 
-    init(displayScale: CGFloat = 1, differentiateWithoutColor: Bool = false, activeTickRange: Range<Int>? = nil) {
+    init(displayScale: CGFloat = 1, activeTickRange: Range<Int>? = nil) {
         self.displayScale = displayScale
-        self.differentiateWithoutColor = differentiateWithoutColor
         self.activeTickRange = activeTickRange
     }
 
     func draw(
         presentation: GrandStaffNotationPresentation,
         in context: GraphicsContext,
-        displayScale: CGFloat,
-        differentiateWithoutColor: Bool = false
+        displayScale: CGFloat
     ) {
         let renderer = GrandStaffNotationRenderer(
             displayScale: displayScale,
-            differentiateWithoutColor: differentiateWithoutColor,
             activeTickRange: presentation.activeTickRange
         )
         renderer.drawInternal(presentation, in: context)
@@ -134,7 +130,7 @@ struct GrandStaffNotationRenderer {
             drawGlyph(glyph.token, baselineAt: CGPoint(x: (musicRelative ? layout.contentMinX : 0) + glyph.point.x * layout.lineSpacing, y: layout.trebleBottomLineY + glyph.point.y * layout.lineSpacing), centeredOnAdvance: false, scale: glyph.scale, color: .primary, opacity: 0.8, in: context, layout: layout)
         }
         for label in signature.labels {
-            context.draw(Text(label.text).font(.system(size: label.size * layout.lineSpacing)), at: CGPoint(x: (musicRelative ? layout.contentMinX : 0) + label.point.x * layout.lineSpacing, y: layout.trebleBottomLineY + label.point.y * layout.lineSpacing), anchor: .leading)
+            context.draw(Text(label.text).font(Font(engravingMetrics.textFont(size: label.size * layout.lineSpacing))), at: CGPoint(x: (musicRelative ? layout.contentMinX : 0) + label.point.x * layout.lineSpacing, y: layout.trebleBottomLineY + label.point.y * layout.lineSpacing), anchor: .leading)
         }
     }
 
@@ -228,10 +224,7 @@ struct GrandStaffNotationRenderer {
         }
         guard let text = mark.text, text.isEmpty == false else { return }
         let size = layout.lineSpacing * (mark.kind == .dynamic ? 1.15 : 0.92)
-        var rendered = Text(text).font(.system(size: size))
-        if mark.kind == .dynamic {
-            rendered = rendered.italic().bold()
-        }
+        let rendered = Text(text).font(Font(engravingMetrics.textFont(size: size, bold: mark.kind == .dynamic, italic: mark.kind == .dynamic)))
         context.draw(
             rendered.foregroundStyle(Color.primary.opacity(0.72)),
             at: point,
@@ -297,7 +290,7 @@ struct GrandStaffNotationRenderer {
         }
         if let text = mark.text {
             context.draw(
-                Text(text).font(.system(size: layout.lineSpacing * 0.92)).foregroundStyle(Color.primary.opacity(0.65)),
+                Text(text).font(Font(engravingMetrics.textFont(size: layout.lineSpacing * 0.92))).foregroundStyle(Color.primary.opacity(0.65)),
                 at: CGPoint(x: x, y: layout.trebleTopLineY - layout.lineSpacing * 1.3),
                 anchor: .center
             )
@@ -334,7 +327,7 @@ struct GrandStaffNotationRenderer {
             )
             if let text = mark.text {
                 context.draw(
-                    Text(text).font(.system(size: layout.lineSpacing * 0.92)).bold().foregroundStyle(Color.primary.opacity(0.7)),
+                    Text(text).font(Font(engravingMetrics.textFont(size: layout.lineSpacing * 0.92, bold: true))).foregroundStyle(Color.primary.opacity(0.7)),
                     at: CGPoint(x: startX + layout.lineSpacing * 0.35, y: y + layout.lineSpacing * 0.15),
                     anchor: .topLeading
                 )
@@ -554,8 +547,7 @@ struct GrandStaffNotationRenderer {
             if let displayNumber = tuplet.displayNumber {
                 context.draw(
                     Text(displayNumber, format: .number)
-                        .font(.system(size: layout.lineSpacing * 1.1))
-                        .bold()
+                        .font(Font(engravingMetrics.textFont(size: layout.lineSpacing * 1.1, bold: true)))
                         .foregroundStyle(Color.primary.opacity(0.7)),
                     at: CGPoint(x: centerX, y: outwardY),
                     anchor: .center
@@ -646,16 +638,6 @@ struct GrandStaffNotationRenderer {
                         layout: layout
                     )
                 }
-            }
-            if rest.isHighlighted, differentiateWithoutColor {
-                drawHighlightIndicator(
-                    at: CGPoint(
-                        x: layout.xPosition(rest.xPosition),
-                        y: layout.yPosition(staffStep: rest.staffStep, staffNumber: rest.staffNumber)
-                    ),
-                    in: context,
-                    layout: layout
-                )
             }
         }
     }
@@ -809,9 +791,6 @@ struct GrandStaffNotationRenderer {
             in: context,
             layout: layout
         )
-        if item.isHighlighted, differentiateWithoutColor {
-            drawHighlightIndicator(at: CGPoint(x: x, y: y), in: context, layout: layout)
-        }
 
         if let accidentalToken = item.displayedAccidental?.glyphToken,
            let accidentalXOffset = item.accidentalXOffsetStaffSpaces
@@ -850,30 +829,6 @@ struct GrandStaffNotationRenderer {
                 )
             }
         }
-    }
-
-    private func drawHighlightIndicator(
-        at center: CGPoint,
-        in context: GraphicsContext,
-        layout: GrandStaffNotationSystemCanvasLayoutService.Layout
-    ) {
-        // ponytail: one outline serves every glyph; add glyph-specific shapes only if VoiceOver testing finds ambiguity.
-        let radius = layout.lineSpacing * 0.72
-        var path = Path()
-        path.move(to: CGPoint(x: center.x, y: center.y - radius))
-        path.addLine(to: CGPoint(x: center.x + radius, y: center.y))
-        path.addLine(to: CGPoint(x: center.x, y: center.y + radius))
-        path.addLine(to: CGPoint(x: center.x - radius, y: center.y))
-        path.closeSubpath()
-        context.stroke(
-            path,
-            with: .color(.primary.opacity(0.82)),
-            style: .init(
-                lineWidth: strokeWidth(0.12, layout: layout),
-                lineCap: .round,
-                lineJoin: .round
-            )
-        )
     }
 
     private func drawGlyph(

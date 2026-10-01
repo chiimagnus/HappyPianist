@@ -19,8 +19,6 @@ struct PracticeMeasureMapView: View {
                     .padding(6)
                     .background(item.isCurrentPassage ? .thinMaterial : .regularMaterial, in: .rect(cornerRadius: 8))
                     .overlay { if item.isCurrentMeasure { RoundedRectangle(cornerRadius: 8).stroke(.primary) } }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("第 \(item.displayNumber) 小节，\(label(for: item.state))\(item.isHotspot ? "，建议重练" : "")")
                 }
             }
         }
@@ -31,7 +29,4 @@ struct PracticeMeasureMapView: View {
         switch state { case .notStarted: "circle"; case .learning: "circle.lefthalf.filled"; case .pitchStepStable: "checkmark.circle.fill" }
     }
 
-    private func label(for state: MeasurePitchStepLearningState) -> String {
-        switch state { case .notStarted: "尚未开始"; case .learning: "正在练习"; case .pitchStepStable: "音符步骤已稳定" }
-    }
 }

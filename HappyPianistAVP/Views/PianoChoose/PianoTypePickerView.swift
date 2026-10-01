@@ -27,7 +27,7 @@ struct PianoTypePickerView: View {
             let card = mode.pickerCard
             VStack(spacing: 16) {
                 Image(systemName: card.iconSystemName)
-                    .font(.system(size: 48))
+                    .font(.largeTitle)
 
                 Text(card.title)
                     .font(.title2.weight(.semibold))

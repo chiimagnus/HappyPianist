@@ -13,7 +13,7 @@ final class PracticeRestorationEffectRenderer {
         self.sleeper = sleeper
     }
 
-    func update(event: PracticeFeedbackEvent?, parent: Entity, reduceMotion: Bool) {
+    func update(event: PracticeFeedbackEvent?, parent: Entity) {
         guard event != lastEvent else { return }
         lastEvent = event
         guard event != nil else {
@@ -25,7 +25,7 @@ final class PracticeRestorationEffectRenderer {
         var material = UnlitMaterial(
             color: event.kind.representsPitchStepStability ? .systemYellow : .systemTeal
         )
-        material.blending = .transparent(opacity: .init(floatLiteral: reduceMotion ? 0.35 : 0.65))
+        material.blending = .transparent(opacity: .init(floatLiteral: 0.65))
         let mesh: MeshResource = event.kind.representsPitchStepStability
             ? .generateSphere(radius: 0.025)
             : .generateBox(size: SIMD3<Float>(0.12, 0.002, 0.025))

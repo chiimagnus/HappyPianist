@@ -6,13 +6,6 @@ public struct GrandStaffNotationMeasureAnnotation: Equatable, Sendable {
         case learning
         case unpracticed
 
-        var label: String {
-            switch self {
-            case .stable: "已稳定"
-            case .learning: "学习中"
-            case .unpracticed: "未练习"
-            }
-        }
         var symbol: String {
             switch self {
             case .stable: "checkmark.circle"
@@ -34,7 +27,4 @@ public struct GrandStaffNotationMeasureAnnotation: Equatable, Sendable {
         self.isFocus = isFocus
     }
 
-    var label: String {
-        "小节 \(occurrenceID.sourceMeasureID.sourceNumberToken ?? String(occurrenceID.sourceMeasureID.sourceMeasureIndex + 1))，\(state.label)\(isResume ? "，继续练习位置" : "")\(isFocus ? "，重点小节" : "")"
-    }
 }

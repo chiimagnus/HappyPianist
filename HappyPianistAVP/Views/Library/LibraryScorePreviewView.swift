@@ -47,13 +47,6 @@ struct LibraryScorePreviewView: View {
                                     .labelStyle(.iconOnly)
                                     .disabled(!library.scorePreview.canTurnForward)
                             }
-                            .accessibilityAdjustableAction { direction in
-                                switch direction {
-                                case .increment: library.scorePreview.turn(forward: true)
-                                case .decrement: library.scorePreview.turn(forward: false)
-                                @unknown default: break
-                                }
-                            }
                     }
                 }
             }

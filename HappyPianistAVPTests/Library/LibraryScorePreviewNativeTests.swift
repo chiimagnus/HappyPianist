@@ -30,7 +30,6 @@ extension NativeBookWindowTests {
         }
         scene.requestGeometryUpdate(.Vision(size: CGSize(width: 1240, height: 1000), minimumSize: CGSize(width: 1240, height: 1000), maximumSize: CGSize(width: 1240, height: 1000)))
         let controller = UIHostingController(rootView: PreviewNativeRoot(graph: graph, lifecycle: lifecycle))
-        controller.traitOverrides.accessibilityContrast = .high
         window.rootViewController = controller
         await TestAsyncWait.until("production library loaded") { !library.entries.isEmpty && window.bounds.width >= 1239 }
         let entry = try #require(library.entries.first { $0.id == UUID(uuidString: "3d7487e7-0cc0-578f-9581-9dc847f85f62") })

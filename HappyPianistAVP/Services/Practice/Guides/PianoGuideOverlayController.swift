@@ -33,7 +33,6 @@ final class PianoGuideOverlayController {
         suppressedMIDINotes: Set<Int>,
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
-        differentiateWithoutColor: Bool,
         content: RealityViewContent?
     ) {
         if let content {
@@ -66,16 +65,12 @@ final class PianoGuideOverlayController {
         for descriptor in descriptors {
             let beam = beamEntity(for: descriptor)
             activeDescriptorsByMIDINote[descriptor.midiNote] = descriptor
-            configure(
-                beam,
-                descriptor: descriptor,
-                differentiateWithoutColor: differentiateWithoutColor
-            )
+            configure(beam, descriptor: descriptor)
         }
     }
 
-    func updateRestorationEffect(event: PracticeFeedbackEvent?, reduceMotion: Bool) {
-        restorationRenderer.update(event: event, parent: keyboardRootEntity, reduceMotion: reduceMotion)
+    func updateRestorationEffect(event: PracticeFeedbackEvent?) {
+        restorationRenderer.update(event: event, parent: keyboardRootEntity)
     }
 
     func reset() {
@@ -123,29 +118,12 @@ final class PianoGuideOverlayController {
 
     private func configure(
         _ beam: ModelEntity,
-        descriptor: PianoGuideBeamDescriptor,
-        differentiateWithoutColor: Bool
+        descriptor: PianoGuideBeamDescriptor
     ) {
         beam.model?.materials = [beamMaterial(for: descriptor)]
 
-        var scale = descriptor.sizeLocal
-        var position = descriptor.positionLocal
-        if differentiateWithoutColor {
-            scale.x *= 0.5
-            let staffOffset: Float = switch descriptor.staffNumber {
-            case 1: 0.25
-            case 2: -0.25
-            default: 0
-            }
-            position.x += descriptor.sizeLocal.x * staffOffset
-            if descriptor.phase == .triggered {
-                scale.z *= 0.65
-                position.z += descriptor.sizeLocal.z * 0.175
-            }
-        }
-
-        beam.scale = scale
-        beam.position = position
+        beam.scale = descriptor.sizeLocal
+        beam.position = descriptor.positionLocal
     }
 
     private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> UnlitMaterial {

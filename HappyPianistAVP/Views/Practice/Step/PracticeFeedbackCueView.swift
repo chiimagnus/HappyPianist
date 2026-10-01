@@ -34,17 +34,6 @@ struct PracticeFeedbackCueView: View {
         }
         .padding()
         .glassBackgroundEffect()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel(for: presentation))
-    }
-
-    private func accessibilityLabel(for presentation: PracticeFeedbackCuePresentation) -> String {
-        [
-            presentation.title,
-            coachingPresentation?.actionLabel,
-            coachingPresentation?.fingeringText.map { "指法 \($0)" },
-            coachingPresentation?.sourceLabel,
-        ].compactMap(\.self).joined(separator: "，")
     }
 }
 

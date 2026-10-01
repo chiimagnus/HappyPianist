@@ -1,4 +1,6 @@
+import CoreText
 import Foundation
+import SwiftUI
 
 struct GrandStaffGlyphBounds: Equatable, Sendable {
     let minX: Double
@@ -31,6 +33,14 @@ struct GrandStaffEngravingMetrics: Equatable {
     let accidentalColumnGap = 0.20
     let dotNoteheadGap = 0.35
     let dotSpacing = 0.55
+
+    func textFont(size: CGFloat, bold: Bool = false, italic: Bool = false) -> CTFont {
+        var style = Font.caption
+        if bold { style = style.bold() }
+        if italic { style = style.italic() }
+        let base = style.resolve(in: EnvironmentValues().fontResolutionContext).ctFont
+        return CTFontCreateCopyWithAttributes(base, size, nil, nil)
+    }
 
     var noteheadViewportBounds: GrandStaffGlyphBounds {
         GrandStaffGlyphBounds(minX: -0.844, minY: -0.50, maxX: 0.844, maxY: 0.50)

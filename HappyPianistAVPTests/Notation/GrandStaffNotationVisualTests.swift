@@ -13,43 +13,11 @@ import Testing
 @Test
 func grandStaffNotationStandardImageRendererMatchesVisualGolden() throws {
     let model = try visualNotationModel()
-    let standard = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .large,
-        differentiateWithoutColor: false
-    )
+    let standard = try visualSnapshot(model: model)
     let expected = try visualGoldenLines()[0]
 
     #expect(standard.description == expected)
     #expect(standard.sampledInkPixelCount > 100)
-}
-
-@MainActor
-@Test
-func grandStaffNotationAccessibleImageRendererMatchesVisualGolden() throws {
-    let model = try visualNotationModel()
-    let accessible = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .accessibility3,
-        differentiateWithoutColor: true
-    )
-    let goldenLines = try visualGoldenLines()
-    let expected = goldenLines[1]
-    let dynamicTypeOnly = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .accessibility3,
-        differentiateWithoutColor: false
-    )
-    let standard = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .large,
-        differentiateWithoutColor: false
-    )
-
-    #expect(accessible.description == expected)
-    #expect(accessible.sampledInkPixelCount > 100)
-    #expect(goldenLines[0].contains(accessible.hash) == false)
-    #expect(dynamicTypeOnly.hash != standard.hash)
 }
 
 private func visualGoldenLines() throws -> [String] {
@@ -71,11 +39,10 @@ func bookSpreadRendersMultipleSystemsWithReadableInkInEveryAppearance() throws {
     let plan = try GrandStaffNotationPaginationService().makePlan(score: makeNotationScoreFixture(projection: projection, measureSpans: score.measures, attributeTimeline: timeline))
     #expect(plan.pages.contains { $0.systems.count > 1 })
     var normalHashes: [String] = []
-    for (index, appearance) in [(ColorScheme.light, DynamicTypeSize.large), (.dark, .large)].enumerated() {
+    for (index, appearance) in [ColorScheme.light, .dark].enumerated() {
         let content = GrandStaffNotationSpreadView(plan: plan, targetIndex: 0)
             .frame(width: 1180, height: 820)
-            .environment(\.colorScheme, appearance.0)
-            .environment(\.dynamicTypeSize, appearance.1)
+            .environment(\.colorScheme, appearance)
         let renderer = ImageRenderer(content: content)
         let rendered = try #require(renderer.cgImage)
         let bitmap = try #require(CGContext(data: nil, width: rendered.width, height: rendered.height, bitsPerComponent: 8, bytesPerRow: rendered.width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue))
@@ -92,32 +59,6 @@ func bookSpreadRendersMultipleSystemsWithReadableInkInEveryAppearance() throws {
     #expect(normalHashes[0] == normalHashes[1])
 }
 
-@Test
-func grandStaffNotationAccessibilityDescribesMeasureNotation() throws {
-    let model = try visualNotationModel()
-    let layout = try makeNotationSystemFixture(
-        projection: model.projection,
-        overlay: model.overlay,
-        measureSpans: model.score.measures,
-        context: model.context,
-        sliceWidthStaffSpaces: 52,
-        sliceCenterTick: 960
-    )
-    let descriptor = GrandStaffNotationAccessibilityDescriptor.make(
-        projection: model.projection,
-        layout: layout,
-        measureSpans: model.score.measures,
-        currentTick: 960
-    )
-    let labels = descriptor.elements.map(\.label)
-
-    #expect(descriptor.containerValue.contains("第 1 小节"))
-    #expect(labels.contains { $0.contains("上谱表") && $0.contains("音符") && $0.contains("当前高亮") })
-    #expect(labels.contains { $0.contains("下谱表") && $0.contains("当前高亮") })
-    #expect(labels.contains { $0.contains("指法 1") })
-    #expect(labels.contains { $0.contains("休止符") })
-    #expect(labels.contains { $0.contains("不支持的记谱内容") } == false)
-}
 
 private struct VisualNotationModel {
     let score: MusicXMLScore
@@ -139,23 +80,18 @@ private struct VisualSnapshot {
 }
 
 @MainActor
-private func visualSnapshot(
-    model: VisualNotationModel,
-    dynamicTypeSize: DynamicTypeSize,
-    differentiateWithoutColor: Bool
-) throws -> VisualSnapshot {
+private func visualSnapshot(model: VisualNotationModel) throws -> VisualSnapshot {
     try requireBundledBravura()
     let timeline = MusicXMLAttributeTimeline(timeSignatureEvents: model.score.timeSignatureEvents, keySignatureEvents: model.score.keySignatureEvents, clefEvents: model.score.clefEvents)
     let plan = try GrandStaffNotationPaginationService().makePlan(score: makeNotationScoreFixture(projection: model.projection, measureSpans: model.score.measures, attributeTimeline: timeline))
     let system = try #require(plan.pages.first?.systems.first)
-    let presentation = GrandStaffNotationPresentationViewModel().makePresentation(system: system, staffSpace: dynamicTypeSize.isAccessibilitySize ? 22 : 14, projection: model.projection, overlay: model.overlay, practiceHandMode: .both)
+    let presentation = GrandStaffNotationPresentationViewModel().makePresentation(system: system, staffSpace: 14, projection: model.projection, overlay: model.overlay, practiceHandMode: .both)
     let viewport = presentation.canvasLayout.size
     let content = Canvas { context, _ in
         GrandStaffNotationRenderer().draw(
             presentation: presentation,
             in: context,
-            displayScale: 2,
-            differentiateWithoutColor: differentiateWithoutColor
+            displayScale: 2
         )
     }
     .frame(width: viewport.width, height: viewport.height)
@@ -163,11 +99,10 @@ private func visualSnapshot(
     .foregroundStyle(.black)
     .environment(\.colorScheme, .light)
     .environment(\.displayScale, 2)
-    .environment(\.dynamicTypeSize, dynamicTypeSize)
 
     let renderer = ImageRenderer(content: content)
     renderer.proposedSize = ProposedViewSize(width: viewport.width, height: viewport.height)
-    let name = differentiateWithoutColor ? "accessibility3-differentiate" : "standard"
+    let name = "standard"
     var snapshot: VisualSnapshot?
     renderer.render(rasterizationScale: 1) { size, render in
         let width = Int(ceil(size.width))

@@ -96,7 +96,7 @@ make test:simulator
 - 复杂视图拆成新的 `View` struct，不用 computed property 堆叠视图片段。
 - 使用 `NavigationStack` 与 `navigationDestination(for:)`，不要使用 `NavigationView`。
 - 使用新的 `Tab` API，不要使用 `tabItem()`。
-- 图标按钮必须提供可访问文本标签。
+- 图标按钮保留清楚的产品文本名称。
 - 渲染 SwiftUI 视图时优先使用 `ImageRenderer`。
 - 加粗优先使用 `bold()`，没有充分理由不要使用 `fontWeight()`。
 - 有 `containerRelativeFrame()`、`visualEffect()` 等替代方案时避免 `GeometryReader`。
@@ -104,7 +104,7 @@ make test:simulator
 - 隐藏滚动条使用 `.scrollIndicators(.hidden)`。
 - 优先使用静态成员查找，例如 `.circle`、`.borderedProminent`。
 - 避免 `AnyView`、无依据的硬编码尺寸/间距以及 UIKit 颜色。
-- 适配 Dynamic Type、VoiceOver、Reduce Motion 与 Differentiate Without Color。
+- 使用系统语义字体；不新增系统辅助模式的专用分支、修饰符、测试或资源。普通按钮文字与显式放大阅读保留。
 
 ## 文档真源
 

@@ -10,7 +10,7 @@ import UIKit
 extension NativeBookWindowTests {
     @Test
     @MainActor
-    func nativeBookSpreadKeepsPaperAndInkInAccessibleScrollingAndIncreasedContrast() async throws {
+    func nativeBookSpreadKeepsPaperAndInkInLightAndDarkAppearance() async throws {
         let source = try MusicXMLParser().parse(fileURL: testFixtureURL("NotationFidelityPiano.musicxml"))
         let projection = ScoreNotationProjection(plan: makeTestScorePerformancePlan(from: source), sourceScore: source)
         let timeline = MusicXMLAttributeTimeline(timeSignatureEvents: source.timeSignatureEvents, keySignatureEvents: source.keySignatureEvents, clefEvents: source.clefEvents)
@@ -27,10 +27,9 @@ extension NativeBookWindowTests {
         }
         scene.requestGeometryUpdate(.Vision(size: CGSize(width: 1240, height: 1000), minimumSize: CGSize(width: 1240, height: 1000), maximumSize: CGSize(width: 1240, height: 1000)))
         await TestAsyncWait.until("native book window geometry") { window.bounds.width >= 1239 && window.bounds.height >= 999 }
-        for textSize in [DynamicTypeSize.large, .accessibility3] {
-            let controller = UIHostingController(rootView: GrandStaffNotationSpreadView(plan: plan, targetIndex: 0).padding(30).environment(\.dynamicTypeSize, textSize))
-            controller.traitOverrides.accessibilityContrast = .high
-            controller.overrideUserInterfaceStyle = .dark
+        for appearance in [UIUserInterfaceStyle.light, .dark] {
+            let controller = UIHostingController(rootView: GrandStaffNotationSpreadView(plan: plan, targetIndex: 0).padding(30))
+            controller.overrideUserInterfaceStyle = appearance
             window.rootViewController = controller
             controller.view.layoutIfNeeded()
             try await Task.sleep(for: .seconds(1))

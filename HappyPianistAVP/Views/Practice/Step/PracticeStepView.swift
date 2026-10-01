@@ -68,7 +68,6 @@ struct PracticeStepView: View {
                     coachingPresentation: viewModel.practiceFeedbackViewModel.coachingPresentation
                 )
                 .transition(.opacity)
-                .accessibilityAddTraits(.updatesFrequently)
             }
         }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in

@@ -30,7 +30,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 每次实际运行记录 commit、Xcode、OS、destination、命令、退出结果、score/fixture revision 和适用的 calibration。跳过的私有 SoundFont、CoreML 或 SeedScores 资源测试不等于资源集成通过。
 
-会替换既有 App key window 的 Book/Library 原生测试统一放在 `NativeBookWindowTests` 的 serialized suite 中，完成后恢复原 root 与窗口限制。Xcode 的单 simulator destination 不等于 Swift Testing 的函数串行；普通纯值和 ViewModel 测试无需因此串行化。只使用现有指定 AVP，不创建验证设备。曲库页缘真实点击、系统 Reduce Motion 与 VoiceOver 操作仍需单独记录，不能用 VM 方法调用或只读 environment 的伪造值代替。
+会替换既有 App key window 的 Book/Library 原生测试统一放在 `NativeBookWindowTests` 的 serialized suite 中，完成后恢复原 root 与窗口限制。Xcode 的单 simulator destination 不等于 Swift Testing 的函数串行；普通纯值和 ViewModel 测试无需因此串行化。只使用现有指定 AVP，不创建验证设备。曲库页缘真实点击仍需单独记录，不能用 VM 方法调用代替。
 
 ## 必须覆盖的自动化边界
 
@@ -50,7 +50,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 ## 手工与真机记录
 
-日常 smoke 至少检查：导入/恢复和冲突、单一练习入口、range/tempo/loop、正确/错误/未知分流、切换或断开输入输出、stop/seek/后台/窗口关闭后的无残留发声、progress 脱敏、VoiceOver/Dynamic Type/Reduce Motion。
+日常 smoke 至少检查：导入/恢复和冲突、单一练习入口、range/tempo/loop、正确/错误/未知分流、切换或断开输入输出、stop/seek/后台/窗口关闭后的无残留发声、progress 脱敏、界面文字及谱面可读性。
 
 真机按独立设备、OS、route、score revision 与 calibration 记录 p50/p95/p99 latency/jitter、miss/false-positive/stuck-note、断连/中断/route change 恢复。无可靠同步、tracking 或 onset 的样本标 `insufficient`，不计为 miss；仅保存聚合桶与样本数，不保存原始 MIDI、音频、手部帧、序列号或绝对路径。
 
@@ -61,7 +61,9 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 | 证据 | 状态 | 不能替代 |
 | --- | --- | --- |
 | Simulator 自动化 suite | `failed`：2026-09-30，基于 `3ba1f4e`；visionOS 27.0 新建 Apple Vision Pro Simulator 上 1033 tests，1022 通过、11 失败、0 skipped。失败集中在 hand rig / hand motion / local sampler / demonstration hands；`make build:simulator` 通过 | 真机、听感、教师或教学证据 |
-| Book Flow / 双页 / 翻页集成 | `passed`：2026-10-01，Xcode 27 beta、visionOS 27.0；现有 Apple Vision Pro（28DABA38…）上实际定向 174/174、0 skipped，含 serialized 原生窗口与 live 纸面动画检查；build 通过。实际 Library 页缘和 Practice 手动/恢复/休止跨页截图已检查；系统 Reduce Motion / VoiceOver 人工验收待确认 | 系统无障碍人工操作、真机 Immersive 与听感；定向成功不等于全量通过 |
+| Book Flow / 双页 / 翻页集成 | `passed`：2026-10-01，项目清理前，Xcode 27 beta、visionOS 27.0；现有 Apple Vision Pro（28DABA38…）上实际定向 174/174、0 skipped，含 serialized 原生窗口与 live 纸面动画检查；build 通过。实际 Library 页缘和 Practice 手动/恢复/休止跨页截图已检查 | 真实页缘点击、真机 Immersive 与听感；定向成功不等于全量通过 |
+| 全项目专项清理 / 系统字体 | `passed`：2026-10-01，现有同一 AVP 上实际定向 191/191、0 failed/skipped，含 4 个串行原生窗口测试、guide/反馈/角色生命周期；`.build/TestResults/Project-Cleanup-Verified-Gate-1790832767.xcresult`。macOS package 257/257，包含字体来源、几何缩放与粗斜体检查；`make build:simulator` 通过。标准视觉 golden 按原生 caption 字体更新，图像尺寸保持 351×229 | 完整 target、真实页缘点击、真机追踪及听感；不修改系统控件的原生行为 |
+| 清理后完整 Simulator target | `failed`：2026-10-01，同一 AVP 上 1059 tests，1048 通过、11 失败、0 skipped；`.build/TestResults/Project-Cleanup-Full-1790832858.xcresult`。11 个失败 ID 全部匹配原基线，仍为 hand rig/motion/local sampler/demonstration hands；本次没有新增失败。Recorder 调度敏感测试本轮通过，未宣称修复 | 不能声称全量通过，也不能用定向通过掩盖原失败 |
 | 本轮完整 Simulator target | `failed`：2026-10-01，执行前 HEAD `e16d3fe1` 加本轮测试串行收口；1062 tests，1050 通过、12 失败、0 skipped，`.build/TestResults/BookFlow-P3-full-1790804842.xcresult`。11 个失败 ID 与 `3ba1f4e` 基线一致；另首次观察到 `recorderSemanticEventsReturnBeforeSlowPersistenceCompletes()` 失败，其测试及 Recorder 实现与基线完全相同，定向复核 1/1 通过。该测试用固定 20 次 yield 观察调度完成，结果具有调度敏感性；不将其冒称已修复 | 不能声称全量通过，也不将旧 rig/资源或未改动 Recorder 的偶发失败归因于翻页 |
 | Qwen / Companion 定向回归 | `passed`：2026-09-30；Qwen 已固定为本地 NF4 4-bit，Python Qwen/Stage A/service-E2E 定向回归 26/26；Stage A 固定 120 cases，延迟仅记录；服务级 E2E 固定 60 cases 双跑均为 0 action mismatch、11/11 Aria 生成成功、0 generation failure，生成 MIDI 均通过重解析与 note-on/off 配平；最新 visionOS Simulator 全量 suite 中 Qwen/Companion 相关测试无失败 | `settled_end` 语义质量缺口、Vision Pro 真实设备网络与产品 playback E2E |
 | Aria true-streaming P3 probe | `No-Go`：2026-09-30；P2 的 11 个 generating cases 上，oracle-compatible incremental decoder 与最终 `AbsTokenizer.detokenize()` 11/11 完全一致；first complete event median 75.9ms，但安全 `<T>` commit median 820.9ms，3/11 在 full completion 前没有安全 boundary；350ms 内安全 commit 仅 2/11，其中仅 1/11 含 note | 单个完整 token/event 不能替代安全 playable window；当前继续保留 HTTP full-response，不宣称产品实时 streaming |

@@ -35,6 +35,5 @@ struct LibraryScoreFolioView: View {
             RoundedRectangle(cornerRadius: 5).stroke(.white.opacity(0.3), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.25), radius: 8, y: 6)
-        .accessibilityHidden(true)
     }
 }

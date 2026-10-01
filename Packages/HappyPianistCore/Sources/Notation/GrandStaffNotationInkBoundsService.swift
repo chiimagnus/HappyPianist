@@ -32,10 +32,8 @@ struct GrandStaffNotationInkBoundsService {
                 width: abs(end.x - start.x), height: abs(end.y - start.y)
             ).insetBy(dx: -thickness / 2, dy: -thickness / 2))
         }
-        func text(_ id: String, _ value: String, _ point: CGPoint, size: Double, leading: Bool = false, bold: Bool = false) {
-            let base = CTFontCreateUIFontForLanguage(.system, size, nil)
-                ?? CTFontCreateWithName("Helvetica" as CFString, size, nil)
-            let font = bold ? CTFontCreateCopyWithSymbolicTraits(base, size, nil, .traitBold, .traitBold) ?? base : base
+        func text(_ id: String, _ value: String, _ point: CGPoint, size: Double, leading: Bool = false, bold: Bool = false, italic: Bool = false) {
+            let font = metrics.textFont(size: size, bold: bold, italic: italic)
             let attributed = NSAttributedString(string: value, attributes: [.init(kCTFontAttributeName as String): font])
             let shaped = CTLineCreateWithAttributedString(attributed)
             var ascent: CGFloat = 0
@@ -59,7 +57,6 @@ struct GrandStaffNotationInkBoundsService {
         for item in notation.items {
             let point = center(item)
             let scale = metrics.glyphScale(isGrace: item.isGrace)
-            add(item.id, CGRect(x: point.x - 0.78, y: point.y - 0.78, width: 1.56, height: 1.56))
             if let token = item.noteheadGlyphToken { glyph(item.id, token, point, scale: scale) }
             if let token = item.displayedAccidental?.glyphToken, let offset = item.accidentalXOffsetStaffSpaces {
                 glyph(item.id, token, CGPoint(x: item.xPosition + offset, y: point.y), scale: scale)
@@ -75,7 +72,6 @@ struct GrandStaffNotationInkBoundsService {
         }
         for rest in notation.rests {
             guard let token = rest.glyphToken else { continue }
-            add(rest.id, CGRect(x: rest.xPosition - 0.78, y: y(rest.staffStep, rest.staffNumber) - 0.78, width: 1.56, height: 1.56))
             glyph(rest.id, token, CGPoint(x: rest.xPosition, y: y(rest.staffStep, rest.staffNumber)))
             if let bounds = metrics.bounds(for: token), let dot = metrics.bounds(for: .augmentationDot) {
                 for index in 0..<rest.dotCount {
@@ -207,7 +203,7 @@ struct GrandStaffNotationInkBoundsService {
                     glyph(mark.id, token, point, scale: mark.kind == .pedalStart || mark.kind == .pedalStop ? 0.75 : 0.72)
                 } else if let value = mark.text {
                     text(mark.id, value, point, size: mark.kind == .dynamic ? 1.15 : 0.92,
-                         leading: mark.kind == .tempo || mark.kind == .text, bold: mark.kind == .dynamic)
+                         leading: mark.kind == .tempo || mark.kind == .text, bold: mark.kind == .dynamic, italic: mark.kind == .dynamic)
                 }
             }
         }
