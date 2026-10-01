@@ -370,6 +370,8 @@ export function transition(previous: PrototypeState, event: PrototypeEvent): Pro
       if (event.failure === 'rig') {
         state.companion = 'off';
         state.guide = true;
+        state.teachingBeat = 0;
+        state.yielding = false;
         state.message = '手部动作不可用，保留琴键 Guide。';
         break;
       }

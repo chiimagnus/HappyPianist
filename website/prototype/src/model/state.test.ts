@@ -112,9 +112,13 @@ test('一次示范自动结束；示范和陪弹只有一个模式，失败保�
   for (let beat = 0; beat < 4; beat += 1) state = transition(state, { type: 'tick' });
   assert.equal(state.companion, 'off');
   assert.equal(state.paused, true);
-  state = transition(boardState('D07'), { type: 'companion', value: 'teaching', failure: 'rig' });
+  state = run(boardState('D07'), { type: 'companion', value: 'duet' }, { type: 'yield' });
+  assert.equal(state.yielding, true);
+  state = transition(state, { type: 'companion', value: 'teaching', failure: 'rig' });
   assert.equal(state.companion, 'off');
   assert.equal(state.guide, true);
+  assert.equal(state.yielding, false);
+  assert.equal(state.teachingBeat, 0);
   state = transition(boardState('D07'), { type: 'companion', value: 'duet', failure: 'ai' });
   assert.equal(state.companion, 'off');
   assert.match(state.message, /未切换/);
