@@ -1,310 +1,77 @@
-# Plan P1 - Book Flow 替换唱片曲库
-
-**Goal:** 在不重写曲库业务状态的前提下，把现有 Vinyl Carousel 替换成 Cover-Flow-style Book Flow，并在替换任务内彻底移除唱片/唱臂/Record/Crate 的旧 UI 语义。
-
-**Visual acceptance reference:**
-- `.github/features/spatial-2026-09-30/设计稿/images/01-Book-Flow曲库.png`
-
-本图约束 Book Flow 的中心 folio、两侧倾斜/后退、信息层级和整体书册隐喻；P1 只实现 Window 中可验证的基础，不要求此阶段已经 world-lock。
-
-**Important scope:** P1 仍运行在当前 Library Window。这里实现的是未来空间 Book Flow 可复用的 SwiftUI 视觉/交互基础，**不是最终 world-locked RealityKit 深度对象**。不要为了“看起来更 3D”提前引入 RealityKit。
-
-**Non-goals:**
-- 不做 Book Spread；
-- 不解析 MusicXML；
-- 不把 Library 搬进 ImmersiveSpace；
-- 不改导入事务、selection persistence、播放服务；
-- 不删除 destructive delete / import transaction 等真实数据安全边界。
-
-**Approach:** 只替换当前 Library Window 的视觉/交互呈现：先把当前 carousel 的纯值几何替换成 Book Flow 模型并立即接入，再用 folio UI 接管当前生产 caller；不新增第二个曲库状态 owner。
-
-**Rules:** 新实现接管当前 caller 的同一 task 就删除被替代的 Vinyl/Record/Crate presentation；导入、删除、试听、selection persistence 仍由现有业务 owner 决策，UI 不复制 gate。
-
-**Phase acceptance:** Window 中核心曲库已经是 Book Flow；导入/删除/试听/选择仍正常；production 不再依赖 Vinyl/Turntable/Record/Crate 核心视觉语义。
-
----
-
-## P1-T1 建立 Book Flow 纯值呈现模型
-
-**Files:**
-- Add: `HappyPianistAVP/Views/Library/LibraryBookFlowPresentation.swift`
-- Add: `HappyPianistAVPTests/Library/LibraryBookFlowPresentationTests.swift`
-- Update: `HappyPianistAVP/Views/Library/LibraryRecordCarousel.swift` 的现有 item 呈现；本 task 当场使用新值模型，不等 T2。
-- Delete in this task: current `LibraryRecordScrollPresentation` definition/tests after the new presentation model takes its only production consumer
-
-### Current behavior / root cause
-
-当前 `LibraryRecordScrollPresentation` 只有：
-
-- scale；
-- opacity；
-- saturation。
-
-所有 item 仍然正面朝向用户，所以不是 Cover Flow。
-
-原型要求的是：
-
-- 中间 folio 正面；
-- 左右 item 相反方向 Y-axis rotation；
-- 越远越弱；
-- 明确前后视觉层级。
-
-### Implementation
-
-建立纯值 `LibraryBookFlowPresentation`。
-
-输入：
-- item 相对 viewport center 的 signed distance；
-- item extent；
-- Reduce Motion。
-
-输出至少包括：
-- `rotationDegrees`；
-- `scale`；
-- `opacity`；
-- `horizontalOffset` 或等价压缩；
-- `depthPriority` / 可映射的 zIndex。
-
-`item extent` 是本布局提供的正有限值；signed distance 来自当前 viewport 的几何测量。不要让未完成测量的零尺寸变成除数，再声称这是“不可能输入”。尺寸尚未 ready 时由宿主正常延后测量；不新增异常数值 fallback 树。
-
-### 当场接入与平台 API
-
-本 task 立即替换现有 carousel 中 `LibraryRecordScrollPresentation` 的消费点，使旋转/缩放/层级在真实曲库出现；T2 再换乐谱册形态与命名，不创建临时 parallel carousel。
-
-本机 visionOS SDK 已核对：带 `perspective` 的旧 `rotation3DEffect` overload 已 deprecated；窗口中的克制透视使用 `perspectiveRotationEffect`，不要把真正三维 rotation 与二维透视混为一谈。
-
-`visualEffect` closure 只返回 VisualEffect，`zIndex` 是 View modifier，不能在 closure 内套普通 View API。需要重叠层级时使用 item 内的几何呈现值（例如 `onGeometryChange` 得到的 signed distance）统一驱动 View modifiers；它不是第二 selected index。纯测量不写 selection、不回推 layout 尺寸、不触发每项业务 task。scrollTargetID 是平台滚动绑定，必须保留，不能误删为重复业务状态。
-
-先在当前 consumer 编译并验证 scroll/hover/垂直导入删除不会与倾斜 hit target 冲突，再进入 T2；默认保留系统 Button/hover affordance，不用定时器或手写渲染循环。
-
-规则：
-
-1. center distance == 0：
-   - rotation = 0；
-   - scale 最大；
-   - depth priority 最大。
-
-2. 左右第一邻居：
-   - rotation 方向相反；
-   - 角度约 50–65° 的视觉目标由 Simulator 调参，但纯值函数先有 deterministic clamp；
-   - 不能依赖 item index，只依赖 signed distance。
-
-3. 更远 item：
-   - rotation 不继续无限增加；
-   - scale / opacity 单调降低；
-   - 不需要模拟真实三维米制 Z 坐标；当前 Window 只做 perspective/depth presentation。
-
-4. Reduce Motion：
-   - 取消强 3D rotation / 大位移；
-   - 保留 center emphasis、selection 和层级；
-   - 不额外维护第二套 layout。
-
-### Cleanup in this task
-
-- `LibraryRecordScrollPresentation` 被新 presentation 替换后立即删除；
-- 对应旧测试立即删除/迁移；
-- 不留 typealias、deprecated wrapper 或 compatibility alias。
-
-### Tests
-
-覆盖：
-
-- center；
-- left/right first neighbor；
-- far neighbor；
-- symmetry；
-- monotonic scale/opacity；
-- distance clamp；
-- Reduce Motion；
-- NaN/inf 不作为公开输入契约，不为“不可能输入”增加额外 runtime fallback；测试只覆盖实际 GeometryProxy 可产生的有限值。
-
-### Gate
-
-- Library presentation targeted tests；
-- 当前 production carousel 已消费该模型，旧模型引用为零；
-- `make build:simulator`。
-
-**Atomic commit:** `feat: P1-T1 - 建立 Book Flow 呈现模型`
-
----
-
-## P1-T2 用 Book Flow 替换 Vinyl UI，并当场清掉旧唱片语义
-
-**Files:**
-- Replace/Rename: `HappyPianistAVP/Views/Library/LibraryRecordCarousel.swift` → `LibraryBookFlow.swift`
-- Replace/Rename: `HappyPianistAVP/Views/Library/LibraryRecordCarouselActions.swift` → `LibraryBookFlowActions.swift`
-- Add: `HappyPianistAVP/Views/Library/LibraryScoreFolioView.swift`
-- Update: `HappyPianistAVP/Views/Library/SongLibraryView.swift`
-- Update: `HappyPianistAVP/Views/Library/LibraryNowPlayingBar.swift`
-- Update: `HappyPianistAVP/Views/Library/SongLibraryTrackPresentation.swift`
-- Delete: `HappyPianistAVP/Views/Library/VinylRecordView.swift`
-- Delete: `HappyPianistAVP/Views/Library/TurntableTonearmView.swift`
-- Rename/Update: `HappyPianistAVPTests/Library/LibraryRecordScrollSelectionTests.swift` → Book Flow equivalent
-- Update: `HappyPianistAVPTests/Library/LibraryDeletionHoldPolicyTests.swift`
-- Update any previews/accessibility strings that still say 唱片 / 唱片架 / record / crate
-
-### Current behavior / root cause
-
-唱片语义目前不只在两个 View：
-
-- `VinylRecordView`；
-- `TurntableTonearmView`；
-- `LibraryRecordLayout`；
-- `LibraryRecordScrollItemView`；
-- `LibraryRecordScrollSelectionDecision`；
-- `LibraryCrateDragConfiguration`；
-- “唱片架，左右滚动选曲”；
-- “上拽唱片导入乐谱”；
-- “下拽唱片删除”；
-- `LibraryNowPlayingBar` 的 `record.circle`；
-- 空曲库的 `record.circle` 与“黑胶唱片形式”文案；
-- `SongLibraryTrackPresentation.labelColor`。
-
-只删 Vinyl/Tonearm 会留下大量半旧状态，不允许。
-
-### Implementation
-
-#### A. Book Flow container
-
-继续复用已经可靠的：
-
-- `ScrollView(.horizontal)`；
-- `LazyHStack`；
-- `scrollTargetLayout()`；
-- `scrollTargetBehavior(.viewAligned(anchor: .center))`；
-- `scrollPosition(id:anchor:)`；
-- `selectedEntryID`；
-- scroll phase idle 后 commit selection；
-- VoiceOver adjustable next/previous。
-
-用 P1-T1 presentation 驱动 item：
-
-- Y rotation；
-- scale；
-- offset；
-- opacity；
-- center layering。
-
-不要另建：
-- 第二套 selected index；
-- RealityKit mirror collection；
-- duplicated scroll state。
-
-#### B. Score folio
-
-`LibraryScoreFolioView`：
-
-- 薄乐谱册比例；
-- title / subtitle；
-- 窄书脊 / 少量 page edge；
-- 简单 deterministic cover treatment；
-- 不做厚书；
-- 不引入封面资源商店或 texture pipeline。
-
-曲名/来源取既有 entry；没有真实作者事实就不补假作者。参考图的插画不是授权要求导入的资源，不为模仿图建立封面 store。狭窄窗口/Dynamic Type 下标题与命中区域仍可用；5–7 本是常规尺寸视觉目标，不是以固定宽度裁掉控制的契约。
-
-#### C. 试听行为
-
-P1 阶段先保持现有“selected item 再确认可试听”的行为，保证阶段提交仍完整可用。
-
-但：
-- 所有类型名改为 Book Flow 中性命名；
-- `LibraryNowPlayingBar` 是正式试听控制；
-- P2-T4 当 Book Spread detail 可用时，selected-item confirm 将正式改为“打开乐谱”，并删除 toggle-playback tap 路径。
-
-不要为了阶段过渡创建：
-- legacy mode switch；
-- compatibility flag；
-- old/new tap runtime toggle。
-
-#### D. 导入 / 删除
-
-保留当前能力，但去掉唱片隐喻：
-
-- `LibraryCrateDragConfiguration` → 中性 `LibraryBookFlowDragConfiguration` 或更贴职责的名称；
-- “上拽唱片” → “上拽导入乐谱”；
-- “下拽唱片删除” → “下拽删除乐谱”；
-- preview / a11y 改成“乐谱库 / Book Flow”。
-
-### Must-delete in this task
-
-完成替换后，全仓 production path 中不得再有：
-
-- `VinylRecordView`
-- `TurntableTonearmView`
-- `LibraryRecordLayout`
-- `LibraryRecordScrollPresentation`
-- `LibraryRecordScrollItemView`
-- `LibraryCrate*`
-- “唱片架”
-- “黑胶唱片形式”
-- `record.circle` 作为 Library 产品隐喻
-
-如果 `SongLibraryTrackPresentation.labelColor` 仍只是 cover accent：
-- rename 为 `accentColor`；
-- 同 task 更新所有 caller/test；
-- 不留旧 property alias。
-
-### Real safety rails that remain
-
-不要删：
-
-- bundled entry deletion block；
-- import active gating；
-- destructive deletion hold；
-- selection persistence debounce/generation；
-- import transaction recovery。
-
-这些不是“多余围栏”。
-
-尤其删除手势要在 hold 完成和异步 mutation 时核对资格；Button disabled/第一次读取 importState 不能替代 service 检查。只删除已证明在同一无悬挂段冗余的纯表现守卫，不把 `.isBundled`、file/index validation、取消检查当成兼容代码。
-
-### Tests
-
-迁移/新增：
-
-- presentation geometry tests；
-- center/neighbor selection commit；
-- external selectedEntryID → scroll target；
-- selected item stage-P1 audition behavior；
-- next/previous accessibility；
-- delete eligibility；
-- hold threshold；
-- import/delete callbacks；
-- bundled delete protection；
-- Reduce Motion。
-
-### Manual Simulator acceptance
-
-- center folio 正面；
-- 两侧明显倾斜；
-- 同时可见约 5–7 本；
-- scroll 时视觉稳定；
-- 不像普通平面 LazyHStack；
-- 没有唱片、唱臂、唱片文案。
-
-### Gate
-
-- targeted Library tests；
-- `make build:simulator`；
-- Simulator 真实滚动。
-
-**Atomic commit:** `feat: P1-T2 - 将曲库重构为 Book Flow`
-
----
-
-## P1 Phase completion checklist
-
-执行完 P1 立即审：
-
-1. `rg 'VinylRecord|TurntableTonearm|LibraryRecord|LibraryCrate|唱片|record.circle'`
-   - production UI 不应再保留旧唱片隐喻；
-   - 若第三方/历史文档无关，不机械删除。
-
-2. Book Flow 是否仍只有一套 selection state。
-
-3. 导入/删除是否真实可用。
-
-4. 没有为了未来空间化提前加 RealityKit / protocol / feature flag。
-
-5. P1 不声称完成原型 02/03/04。
+# Plan P1 — 先验证 3D 空间，再接最小入口
+
+**Goal:** 在世界空间证明书册、双页、连续变换与交互成立；从原 2D 曲库主动进入独立 3D 壳。
+**Non-goals:** 不改唱片曲库/滚谱，不接正式分页与音乐练习，不把原页面挂成 attachment。
+**Approach:** 先做有停止条件的空间原型与完整流程板；原型结论支持后接唯一 scene 所有权和 2D 入口。
+**Acceptance:** D01/D02/D03/D06 有多视角/动态证据；3D 成功进入/退出、取消/失败恢复入口；原 2D 正常。
+**Rules:** 默认仍 2D；不能抢现有 practice/calibration；只用现有 mixed ImmersiveSpace。真机空间证据和软件测试分别记录，不伪称已通过。
+
+## P1-T1 补完整流程板并验证 RealityView 空间原型
+
+**类型：探索，交付证据与决定，不交正式音乐能力。**
+
+**源码锚点：**
+- `HappyPianistAVP/Views/HappyPianistAVPApp.swift`：唯一 mixed ImmersiveSpace。
+- `HappyPianistAVP/Views/Shared/ImmersiveView.swift`：现有实体/renderer 汇聚。
+- `HappyPianistAVP/Services/ARSession/ARTrackingService.swift`：deviceWorldTransform 与 provider 生命周期。
+- `spatial-design.md` D01–D10 与三张真实存在的参考图。
+
+**交付文件：**
+- 本 feature 新增 `design/flow-boards.md`：完整流程低保真板、全部失败/退出动作与对象归属。
+- 本 feature 新增 `design/spatial-prototype-report.md`：测量条件、参数、截图/录屏路径、结论/未知。
+- 原型代码限本 feature 的临时实验文件；运行时临时接到现有 ImmersiveSpace 的独立实验 root，不覆写 legacy renderer。App 内临时挂载在实验结束撤回，不提交未消费的生产文件。
+
+**要回答的问题与方法：**
+1. 每本薄书册独立 mesh/entity，在 world-fixed LibraryRoot 中布置中心正面、邻册 Y 旋转/Z 后退；用真实曲名/纸面排版，不用彩色卡片壳。正、斜、侧视检查书芯/书脊、遮挡与选中命中区。
+2. 中心书展开两页，页上先用明确标注的几何/文字测试内容，不冒充 MusicXML。验证页/attachment 的米制比例、文字清晰度、书脊前后面和局部 Button/targeted gesture。
+3. 远距捏合、邻册切换、快速 retarget、合拢、Reduce Motion；验证不必靠近/悬臂/绕到侧面，不贴脸。
+4. 同一 root 从书库变换到注入的 keyboard frame 占位，验证坐/站阅读与真实手可见空间；占位不能进入练习输入、校准存储或音乐判定。
+5. 检查从纯 Library world tracking 切到 calibration/practice requirements：当前 service 会重启 providers，测量是否需要重新摆放/定位，不能把旧 world transform 当连续事实。
+6. 交付全流程板 D01–D10；D01/D02/D03/D06 交动态/多视角原型。其余板先清楚写操作/错误，再由所属 phase 补真实高保真状态。
+
+**成本/停止条件：** 只做以上对象、局部交互与一轮必要的表面实现比较，不做资产商城/厚书物理/整页 UI。得到可复现的空间性与可读性结论就停止；不能成立则改 3D 表面/尺度重新验证，不能退回先重做 2D。没有真机，报告明确 pending，不能放行“空间视觉已验收”。
+
+**验证：** 本机 SDK 核对 RealityView/attachments/AccessibilityComponent/targeted gesture 的 visionOS 26 可用性；当前 App 临时实验真实运行；physical AVP 测量 world stability、可读性、坐站姿/远距捏合。报告明确 Simulator 与真机各自证明的内容。
+
+**Gate：** 参数和动作决定有证据，临时代码已撤回；未验证内容不写成实现事实。若关键空间结论 No-Go，先修改设计，不启动依赖该结论的正式 UI。
+
+**提交：** 仅本地探索记录，无代码变更则不造提交。实施时用 feature_tool 的 no-commit reason 与真实证据登记，不把“写完报告”视为实验完成。
+
+## P1-T2 增加最小 2D 入口与单一空间所有权
+
+**当前行为/根因：**
+- `LibraryWindowRootView` 通过 pushWindow 启动 legacy preparation/practice。
+- `AppState` 只有 calibration/practice mode；App 的 onAppear/onDisappear 写 mounted state。
+- `ARGuidePracticeViewModel.openImmersiveForStep` 有 inTransition/yield/recover；实际 open result 与 mounted fact 不可混淆。
+- `PracticeWindowRootView.activateCurrentRequest` 会先关闭已有空间；准备完成/CalibrationStepView 消失也会关闭空间。若仅加 library enum，会互相误关。
+
+**Files / 稳定锚点：**
+- Modify: `Views/HappyPianistAVPApp.swift`、`Views/Library/LibraryWindowView.swift`（以上均在 HappyPianistAVP）。
+- Modify: `ViewModels/AppState.swift`、`ViewModels/LiveAppGraph.swift`、`ViewModels/ARGuideViewModel.swift`、`ViewModels/Practice/Launch/ARGuidePracticeViewModel.swift`。
+- Modify 必要 ownership hook：`Views/Practice/PracticeWindowRootView.swift`、`Views/PianoChoose/PreparationWindowRootView.swift`、`Views/PianoChoose/RealPiano/CalibrationStepView.swift`；不改变原产品 UI。
+- Add: `HappyPianistAVP/ViewModels/Spatial/SpatialExperienceViewModel.swift`、`HappyPianistAVP/Views/Spatial/SpatialExperienceView.swift`。
+- Tests: 新 `HappyPianistAVPTests/Spatial/SpatialExperienceEntryTests.swift`，现 `Tracking/ARGuideImmersiveLifecycleTests.swift`、`Practice/PracticeLaunchLifecycleTests.swift`、`Piano/PianoModePreparationRouteTests.swift`。
+- Docs: `docs/architecture.md`、`docs/data-flow.md`：本 task 只说明新增入口/scene ownership，不提前宣称 3D 完成。
+
+**实施：**
+1. 复用 AppState 的全局 mounted fact，设最小互斥活动路径（legacy preparation/practice 或 spatial）；空间子模式与呈现拥有者分开，不凭 enum 判断窗口有权 teardown。
+2. 打开/关闭仍走唯一 SwiftUI action/adapter。只在现有拥有者汇聚点收口 pending operation、真实 mounted fact 与取消/失败，删除被替代的 yield 猜测分支，不另造 parallel coordinator。若新增最小共享 presentation owner，它必须同 task 替换所有 open/close caller，不遗留两套 writer。
+3. 3D View 同 task 由 App scene 挂载、LiveAppGraph 注入现有业务对象。Library 子模式只请求 world；legacy calibration/practice renderer 路由不变。3D 壳用 P1 原型已验证的独立书册结构和真实曲目元数据，暂不假装可以正式读谱/练习。
+4. Library 原页面仅新增有文本/VoiceOver 标签的“进入 3D”。import-active 或当前 legacy operation/session 占用时拒绝进入；3D active 时旧开始/准备动作在其真实动作汇聚处拒绝，不只 disabled 按钮。
+5. 打开成功且有效摆放后隐藏原 Library Window，空间始终有“返回 2D”；cancel/error/pose failure 不关原窗。退出恢复原窗与选择；早退时 late open 必须被当前 operation 收回，不挂孤儿空间。
+6. legacy Window 的 disappearance 只允许清自己拥有的 session；这不是禁掉所有旧 cleanup。P1 暂无 3D practice，也必须验证 legacy 正常退出仍 flush/stop/close。
+7. 显式 mode enter/exit hook；不把 provider 重启后的旧 placement 标 ready。后台/suspend 取消任务、移除实体，恢复按新 pose 明确摆放；不保存 world transform。
+8. 不重构原 2D View、设置、手 renderer；原型临时挂载已退出，不留实验 flag 作为长期兼容。
+
+**针对性验证：**
+- 2D 默认启动；取消/失败/连续点击/打开期间退出；有效摆放前原窗未被关闭。
+- legacy practice/calibration 已占用时 3D 无额外 open/applicator/audio；3D active 时 legacy 请求无第二 session。
+- 成功退出恢复原窗/selection；新旧窗口重建不误关当前空间；legacy 原退出仍停止音频并保存。
+- world provider 缺失不给假摆放，scene suspend/reopen 无迟到 entity。
+- 真正 `xcodebuild test`（用 make ONLY_TESTING 逐 suite 运行）+ `make build:simulator`；实际 Simulator 入口/窗口流程，不把 action 调用次数当可见结果。
+
+**Gate / 原子提交：** 定向测试、可见入口与 legacy 回归通过；`feat: P1-T2 - 保留二维流程并新增三维空间入口`，只提交本 task 代码/长期 docs，不含本地 feature 文件。
+
+## Phase Audit
+
+P1 所有任务真实完成后创建新版 `audit-p1.md`，进入 plan-task-auditor。不能使用 archive 的旧 audit。入口软件通过不代替 P1-T1 真机空间性。

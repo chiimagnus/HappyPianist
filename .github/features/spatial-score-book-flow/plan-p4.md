@@ -1,666 +1,108 @@
-# Plan P4 - Spatial Library：把 Book Flow / Book Spread 放进现实空间
+# Plan P4 — 同一空间的准备、琴上练习与安全返回
+
+**Goal:** 完成真实 3D 主链：详情→必要准备/校准→琴上谱/Guide→基础练习→安全回库/退出。
+**Non-goals:** 不启动旧 Practice Window 承载 3D lifecycle，不删旧 Window，不做 Companion 新动画。
+**Approach:** 先在同一 scene 复用真实准备/校准并收口坐标 invariant；随后直接调用唯一 launch，连同自动页、基础控制与安全结束一次交齐；最后加有限位置编辑。
+**Acceptance:** D05/D06/D07 基础/D10 安全链可操作；保存失败不退出；2D 原准备/练习完整；Real Audio/MIDI 同一坐标。
+**Rules:** setupReady、launchReady、runtime calibration ready 是三个真实条件，不相互冒充；书册 identity/plan 唯一，进度最终保存先于空间归属变化。
+
+依赖：P3 的真实书册、分页/导航与 P1 全局空间所有权。不使用旧计划“push Practice 后移交”的中间路径。
+
+## P4-T1 在空间详情接通准备与校准并验证琴坐标
+
+**现有入口和失效不变量：**
+- `PianoSetupCoordinator.selectedMode/isSetupReady` 复用 mode registry 和 PracticeSetupState。
+- `CalibrationGuideViewModel` 持 A0/C8 capture；`AppState.saveCalibrationIfPossible/resolveRuntimeCalibrationFromTrackedAnchors` 持正式存储/定位。
+- 当前 AppState 先查 3D 端点距离，但 KeyboardFrame 要有效水平跨度；frame 无法构造或演奏者侧不确定时会写 zero offset 仍返回 resolved。
+- `PianoKeyGeometryService` 会把 zero offset 猜为 +Z。这无法可靠决定新谱面朝向，也会虚假宣称有效空间几何。
+- 原 `PreparationWindowRootView.finishSetup` 与 `CalibrationStepView.onDisappear` 会关空间，不能直接整体复用为 3D UI。
+
+**Files：**
+- Add: `HappyPianistAVP/Views/Spatial/SpatialPianoPreparationView.swift`，局部控件同 task 接在 SpatialExperienceView。
+- Modify: `HappyPianistAVP/ViewModels/Spatial/SpatialExperienceViewModel.swift`、`Views/Spatial/SpatialExperienceView.swift` 的 preparation/calibration mode。
+- Modify: `HappyPianistAVP/ViewModels/AppState.swift`、`ViewModels/ARGuideViewModel.swift`、`ViewModels/Practice/Launch/PracticeLocalizationViewModel.swift`、`ARGuidePracticeViewModel.swift`。
+- 核对/必要最小修改: `HappyPianistAVP/Services/PianoMode/RealPiano/PianoKeyGeometryService.swift`、`Models/Calibration/CalibrationModels.swift`；相关真实 production caller/fixture 同步。
+- Reuse: `ViewModels/PianoSetupCoordinator.swift`、`ViewModels/PianoChoose/RealPiano/CalibrationGuideViewModel.swift`、`Services/PianoMode/Bluetooth/CoreMIDISourceMonitoringService.swift` 及既有 Bluetooth preflight。
+- Tests: 新 `HappyPianistAVPTests/Spatial/SpatialPreparationTests.swift`；现 `Calibration/CalibrationFlowViewModelTests.swift`、`Piano/AppModelKeyboardGeometryTests.swift`、`Piano/PianoKeyGeometryServiceTests.swift`、`Practice/PracticeLocalizationViewModelTests.swift`、`Piano/PianoModePreparationRouteTests.swift`。
+- Docs: `docs/data-flow.md`、`docs/architecture.md` 的 mode/坐标边界。
+
+**实施：**
+1. Detail 开始意图若 setup 未 ready，原书暂退，局部输入选择/连接/权限/校准提示出现。复用既有 mode、source monitoring、真实权限动作，不模拟 Bluetooth ready，不另造 setup VM。
+2. 3D 优先 Real Audio/Bluetooth MIDI；原选 Virtual Piano 时明确引导原 2D，不静默改模式/清设置。取消回同书/同浏览目标，不破坏有效 persisted calibration。
+3. 同 scene 的 calibration entry/exit 明确启动/停止 capture/polling、provider requirements 与 renderer；只 calibration reticle/A0/C8 可见。完成恢复 Detail readiness，不 close/reopen ImmersiveSpace。
+4. 在拥有坐标职责的 AppState 校验与 KeyboardFrame 一致的水平跨度、有效 finite frame、device 在键盘演奏侧的非歧义 separation。歧义返回可恢复 typed resolution，而非 zero + resolved；通过现有 localization bounded retry 映射提示“回到演奏侧并重试”。
+5. 生产 real calibration 只发布有效 nonzero interior offset；PianoKeyGeometryService 对真实未解方向不再默认猜 +Z。核对全部直接 caller，保留 Virtual Piano 的独立几何契约，不通过改其输入模式或删旧能力规避类型检查。
+6. 新失败沿 AppState→PracticeLocalizationViewModel→ARGuidePracticeViewModel→新/旧可恢复 UI 全链贯通；不另造 score pose/retry owner。既有合法 calibration 和旧 2D setup 行为保持，只有真正无效输入不再假成功。
+7. ARTrackingService 当前改 requirements 会重启 providers。遵守 session/providers 不可停止后复用；重启后失效 world content 不继续贴琴，等待实际锚点恢复。P1 实验若证明需优化切换，只做经当前 SDK 验证的最小调整，不预埋增量 provider 框架。
+8. Bluetooth MIDI 实际不要求手部输入时不为“书册交互”额外请求 hands 权限；平台 gaze+pinch 与读取手部追踪不同。必须权限按 mode 实际需求请求。
+
+**验证：**
+- Audio/MIDI ready 与 not-ready、权限拒绝/连接断开、A0/C8 捕获/取消/存储失败/重校准；实际 repository 保存与保留旧校准。
+- 水平退化/大垂直跨度/歧义演奏侧不 resolved；正负方向、失踪/未 tracked anchors、device pose 缺失与 retry。
+- mode 切换不靠 onAppear：provider/capture/reticle 副作用真发生；返回 Detail 不丢原 book。
+- 原 2D/Virtual Piano 几何与准备 route 测试；真正 Apple tests/build；D05 实际运行、physical AVP A0/C8 和方向对齐证据。
+
+**Gate / 原子提交：** 不再以猜方向的几何宣称 ready，两条产品准备可用；`feat: P4-T1 - 复用空间准备并校验真实钢琴坐标`。
+
+## P4-T2 直接启动空间练习并闭合导航与安全退出
+
+**真实 launch/保存链：**
+- `SongLibraryViewModel.startPractice → PracticeLaunchViewModel.request/activateCurrentRequest → resolver/prepare/history → ARGuideViewModel.applyPreparedPracticeForLaunch → session install/restore`。
+- activate 会 beginVisit、flush/finish 原 progress、校验 steps/measureSpans、bindIdentity、写 metadata；不能用只读 Detail prepared 直接 bypass。
+- `PracticeWindowReturnCoordinator` 当前先 flush，再 `PracticeLaunchViewModel.finishReturn`（sessionRecorder.finalize），最后 close/teardown/dismiss。
+- finishReturn 调 `commitPreparedPracticeReturn` 清 runtime prepared；3D 只读 book/plan 必须独立保留同一谱内容用于回库，不能把“唯一谱”误做依赖被清掉的 runtime。
+- `PracticeWindowRootView.activateCurrentRequest/closeForSystemDisappear` 与 `PracticeStepView` 的 onAppear/open 不适合作新空间宿主。
+
+**Files：**
+- Modify: `HappyPianistAVP/ViewModels/Spatial/SpatialExperienceViewModel.swift`、`SpatialScoreBookViewModel.swift`、`Views/Spatial/SpatialExperienceView.swift`、`Services/Spatial/SpatialScoreBookSceneController.swift`。
+- Add: `HappyPianistAVP/Services/Spatial/SpatialScorePlacementResolver.swift`、`Views/Spatial/SpatialPracticeView.swift`；resolver 同 task 被书册 handoff 消费。
+- Reuse/必要最小修改: `ViewModels/Practice/Launch/PracticeLaunchViewModel.swift`、`ViewModels/ARGuideViewModel.swift`、`ViewModels/Practice/Launch/ARGuidePracticeViewModel.swift`、`PracticeLocalizationViewModel.swift`；`Views/Shared/ImmersiveView.swift` 的 renderer composition。
+- 共享返回编排需要复用时，将 `PracticeWindowReturnCoordinator` 的非 Window 保存顺序移到 `HappyPianistAVP/Services/Practice/PracticeReturnCoordinator.swift` 并同 task 接新/旧 consumer；Window-specific close/dismiss 仍由旧 route 提供，不留两份保存算法。
+- Modify 必要 ownership hooks: `Views/Practice/PracticeWindowRootView.swift`、`Views/PianoChoose/PreparationWindowRootView.swift`；不删 UI。
+- Tests: 新 `HappyPianistAVPTests/Spatial/SpatialPracticeLifecycleTests.swift`、`SpatialScorePlacementTests.swift`、`SpatialPracticeReturnIntegrationTests.swift`；现 `Practice/PracticeLaunchLifecycleTests.swift`、`PracticeResumeLifecycleTests.swift`、`PracticeProgressRepositoryTests.swift`、`PracticeSessionRecorderTests.swift`。
+- Docs: `docs/architecture.md`、`docs/data-flow.md`、`docs/storage.md`（事实边界，不改业务 schema）。
+
+**实施：**
+1. 从 Detail 的 start action 经过原 import/entry gate 与共享 occupancy，在现 3D owner 内直接 request/activate；不 push Practice Window，不创建第二 launch/applicator/session recorder。
+2. loading/failure/history unavailable/corruption 给空间明确动作；blocked guiding 不误当成功。ready identity/revision 与只读 book 匹配才 handoff；如 revision 已改，更新同一 book owner 的谱/plan，不显示旧曲而启动新曲。
+3. 复用既有 real/MIDI localization 与输入；其失败 close 策略按所属路径区分：legacy 保留原关闭/恢复，spatial 只退回准备/详情并保留 scene。core localization 判断不复制，route 决定空间归属。
+4. 同一 OpenBookRoot 移到 KeyboardRoot；纯 resolver 使用已确认 keyboard frame、实际键中心/宽度/interior sign，计算面对演奏者的 local height/depth/pitch；P1 验证的米制规格落入命名常量，不猜 ±Z、不按 head 更新。
+5. 正常练习只组合 book + Piano Guide + 局部基础暂停/停止、手模式/范围/速度入口和返回。3D 分支不安装 Neon user hands/VirtualPerformer/legacy demonstration；legacy ImmersiveView renderer/settings 继续正常。不复制 Guide 判断、评分、输入或音频。
+6. 实际 `PracticeSessionViewModel.notationViewportTick`/current step-occurrence 导航映射 PagePlan，负责 seek、range/loop、repeat occurrence、pause、session replacement。必要的无声尾部/小节边界位置由现 transport 层补正式 position fact，新旧消费都回归；不新增空间计时器或靠 animation 推进。
+7. 接通基本 round-complete 表达与返回，可清楚结束，不依赖旧 Alert；丰富谱上结果/建议重练在 P5，但保存/退出能力不能延后。
+8. 复用真实返回顺序：beginReturn→session flush→launch finishReturn/recorder finalize→停止实际输入输出/teardown→改变空间归属。回 3D Library 不 dismiss space，exit-to-2D 才关空间/恢复原窗；selectedEntryID 与只读书 identity 仍在。
+9. flush 或 finalize 失败则 abortReturn、保留 pending facts/书/位置与会话，给重试/留在练习/明确 discard confirmation。discard 同时清未保存 progress 和 session delta，保留已落盘 checkpoint；不能只清一个 owner 假成功。
+10. active/suspend/system dismiss 由 spatial 真实 scene owner 编排，与辅助/legacy Window 的 scenePhase/disappear 分离。非 active 取消生成/动作、停输入输出、按现策略 flush；恢复重新定位、明确可继续，不自动恢复声音。当前 launch.closeForSystemDisappear 忽略 finalize 返回后清请求，不能照搬为新路径的成功结束：forced system dismiss 无法“留在可见 scene”，进程仍存活时保留未保存事实的 owner 与失败结果，在入口提示重试，不因 UI 清空丢失、不伪装成功保存。进程被终止后只能依赖现已落盘 checkpoint/session 恢复，不承诺恢复纯内存增量，也不为此另造持久化框架。
+11. 旧窗口迟到 disappear/open/close/recovery 只操作自己的有效 ownership；正常 legacy 开始/结束仍完整。return 重复操作合并，过时操作不能清新 request/session。
+
+**验证：**
+- 从真实 entry/fixture 经过唯一 launch 最终 install+restore+input/Guide 可用，revision 变化/取消/迟到 apply 不写错曲。
+- Audio/MIDI、已有校准/需校准/定位失败重试，real keyboard-local transform 正负朝向/世界变换/实际宽度。
+- 自动页 repeat、休止/无声尾/measure boundary、seek/range/loop/pause/reset；PagePlan 不重建，原 2D viewport/playback parity。
+- progress flush failure 与 recorder finalize failure 分别注入：无 close/回库/丢增量；retry 后重读真实文件和 session facts；discard 只保留已保存 checkpoint。
+- successful return 不关 scene；退出恢复 2D；legacy window disappear 不关新 scene；后台/强制关闭/重入/连续点击无第二 session/残音。
+- reuse 真 File repository 临时目录和现 fakes；不仅断言 callback/open count。真正 xcodebuild test + build，实际 Simulator D06/D07/D10；真机琴上对齐/定位恢复单独验收。
+
+**Gate / 原子提交：** 正式开始与安全结束在同一 task 可用，无待后续补的数据安全；`feat: P4-T2 - 打通三维练习与安全返回闭环`。
+
+## P4-T3 增加有限谱位编辑、重置与局部偏好
+
+**Files：**
+- Modify: `HappyPianistAVP/Services/Spatial/SpatialScorePlacementResolver.swift`、`SpatialScoreBookSceneController.swift`、`ViewModels/Spatial/SpatialScoreBookViewModel.swift`、`Views/Spatial/SpatialPracticeView.swift`。
+- Tests: 现 SpatialScorePlacementTests、增加 `HappyPianistAVPTests/Spatial/SpatialScoreManipulationTests.swift`。
+- Docs: `docs/configuration.md`、`docs/storage.md` 的 UI preference 边界。
+
+**实施：**
+1. 明确唤外缘移动柄进入编辑，暂停判定/播放按现会话策略，不把页正文/琴键变拖柄。
+2. targeted gesture 转 keyboard-local 有限平移与已验证可读倾角范围，完成/取消/重置。不允许随意 roll/离开舒适区域；修改的是 local transform，不是 ARKit world calibration。
+3. 用本机 SDK 核对可用 manipulation 或原生 targeted drag，选满足约束最简单实现，不无依据追加组件/依赖。
+4. UI 偏好使用现偏好机制/小型 UserDefaults 值，完成编辑才写；只存有限 local offset，不存 world pose，不新增业务 JSON/repository/protocol。无效偏好用合法默认并提示可重置，不掩盖无效 calibration。
+5. 退出/新曲/重校准/suspend 清 transient gesture；重新定位用新 frame ×同 local 偏移，旧 drag completion 不能移动新书。
+
+**验证：** 旋转/平移 keyboard frame 下 local offset 一致、两演奏侧、clamp/取消/重置/有效偏好恢复；无 world 坐标落盘；误捏页不移动谱、编辑不判错、退出无迟到 drag；原校准/2D 回归。定向 Apple tests/build + 真机 D06 可读范围与手/键不遮挡。
 
-**Goal:** 把 P1–P3 已经稳定的 Book Flow、Book Spread 和翻页能力从普通 Window 中提升为真正的 visionOS mixed-reality 核心选曲体验。
+**Gate / 原子提交：** 用户真可微调和重置，有限偏好与硬件对齐成立；`feat: P4-T3 - 增加琴上乐谱微调与重置`。
 
-用户最终看到：
+## Phase Audit
 
-```text
-现实环境
-   +
-Spatial Book Flow
-   ↓ confirm
-Spatial Book Spread
-```
-
-**Visual acceptance references:**
-- `.github/features/spatial-2026-09-30/设计稿/images/01-Book-Flow曲库.png`
-- `.github/features/spatial-2026-09-30/设计稿/images/02-双页Book-Spread曲目详情.png`
-
-P4 的验收重点是把前两张图从“Window 中的视觉模拟”变成真正处于 passthrough 世界坐标中的 Spatial Book Flow / Spatial Book Spread；不复制图中的房间背景。
-
-**Non-goals:**
-- 本 phase 不把乐谱定位到现实钢琴；那是 P5。
-- 不做 A0/C8 校准；复用现有校准系统。
-- 不做琴键 AR Guide / Companion Hands；那是 P6。
-- 不给每一本 folio 建独立 WorldAnchor。
-- 不持久化“曲库在房间里的永久位置”。
-- 不把整个 SwiftUI Library Window 作为一张平面截图贴进 RealityView。
-- 不保留 Window Book Flow 与 Spatial Book Flow 两套核心选曲路径。
-
-**Approach:** 先用一个共享 ImmersiveSpace presentation/runtime owner 替换旧 Practice 专属 open/close/recover 状态机，并让 mode 切换显式迁移 mode-owned runtime + 增量重配 AR providers；再建立 session-scoped world placement，最后用有界 RealityView Attachments 承载 Book Flow/Spread，并让 Window 收敛为辅助管理入口。
-
-**Rules:**
-- SwiftUI 负责 folio / Book Spread 内容与页内交互；RealityKit 负责 3D transform/depth/placement；ARKit 只提供 tracking facts。
-- 同一 ImmersiveSpace 内切 `.library/.calibration/.practice` 不依赖新的 `onAppear/onDisappear`；旧 mode tasks 必须退出，新 mode tasks 必须显式进入。
-- Spatial Library 第一版只保存 session-scoped world placement，不给每本 folio 建永久 WorldAnchor。
-- Spatial Library 接管核心选曲后不保留 Window Book Flow 第二条核心路径。
-
-**Phase acceptance:** Spatial Book Flow 在 head movement 后保持 world-fixed；大曲库可浏览；Library/Calibration/Practice 在同一 scene 内可靠切 mode；旧 `.inTransition/yield/recover` workaround 与重复 close coordinator 均已删除。
-
----
-
-## P4-T1 替换旧 ImmersiveSpace 状态机并增加 library mode
-
-**Goal:** Library 与现有 calibration/practice 共用一套 ImmersiveSpace 打开/关闭状态机，不复制当前 Practice 专属实现。
-
-### Current source facts
-
-当前：
-- `HappyPianistAVPApp` 已有唯一 `.mixed` `ImmersiveSpace`。
-- `AppState.ImmersiveMode` 只有 `.calibration / .practice`。
-- `AppState` 已拥有 `immersiveSpaceState`；当前 `.inTransition` 只服务旧 open/close workaround，没有独立产品语义。
-- 打开/关闭状态机实现在 `ARGuidePracticeViewModel.openImmersiveForStep / closeImmersiveForStep / recoverImmersiveStateIfStuck`；其中 `.inTransition` 分支通过最多 40 次 `Task.yield()` + recursive retry / force-closed 修补状态。`PracticeWindowRootView` 又叠了一层 `PracticeImmersiveCloseCoordinator` 来串行化 `close + recover`。这两层都是同一个旧 workaround，P4-T1 必须一起删除，而不是把其中任何一层抽进新 coordinator。
-- `HappyPianistAVPApp` 目前还在 ImmersiveSpace 外层 `.onAppear/.onDisappear` 直接写 `appState.immersiveSpaceState`，同时 `ImmersiveView -> ARGuideViewModel` 已拥有真实 scene lifecycle 回调；P4-T1 必须收成单一 mounted-fact writer，不能保留双写。
-- 同一个 ImmersiveSpace 已打开时切 `.library/.calibration/.practice` 不会再次触发 `ImmersiveView.onAppear/onDisappear`。因此只重配 AR providers 不够：进入/离开 calibration 时还要启动/停止 `CalibrationGuideViewModel` 的 polling/capture，离开 Practice/Virtual Piano 时还要取消 localization/guidance/hand consumer 等 mode-specific runtime。P4-T1 必须显式迁移这些 runtime side effects，不能等 scene lifecycle 偶然补触发。
-- Library 目前没有 `openImmersiveSpace` 路径。
-- `ARTrackingService.deviceWorldTransform(...)` 已能从 WorldTrackingProvider 查询当前设备 pose。
-
-### Files
-
-Expected:
-- Add: `HappyPianistAVP/ViewModels/Shared/ImmersiveSpacePresentationCoordinator.swift`
-- Add: `HappyPianistAVP/Models/Immersive/ImmersiveSpacePresentationContracts.swift` (or an equivalently neutral shared location)
-- Update: `HappyPianistAVP/Services/Practice/Session/PracticeSessionContracts.swift` to remove the misplaced Practice-prefixed immersive action enum/typealiases
-- Update: `HappyPianistAVP/ViewModels/AppState.swift`
-- Update: `HappyPianistAVP/Services/ARSession/ARTrackingService.swift` (incremental provider reconciliation；retain world provider across mode switches)
-- Update: `HappyPianistAVP/Services/ARSession/ARTrackingServiceProtocol.swift`: add the one production lifecycle fact `worldTrackingGeneration` and **remove protocol-only leaks with no production consumer** (`activeRequirements`, `authorizationStatusByType`)；the concrete service may keep private desired-requirement/authorization bookkeeping internally
-- Update: `HappyPianistAVP/Models/Immersive/ImmersiveModels.swift` to represent the real `.paused` provider state
-- Update provider-state consumers: `PracticeLocalizationViewModel.swift` / `ARGuidePracticeViewModel.swift`, `VirtualPianoPlacementViewModel.swift`, `CalibrationGuideViewModel.swift`
-- Update: `HappyPianistAVP/ViewModels/Practice/Launch/ARGuidePracticeViewModel.swift`
-- Update: `HappyPianistAVP/ViewModels/Practice/Launch/PracticeLocalizationViewModel.swift`
-- Update: `HappyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- Update: `HappyPianistAVP/ViewModels/LiveAppGraph.swift`
-- Update: `HappyPianistAVP/Views/Shared/ImmersiveActionAdapters.swift`
-- Update: `HappyPianistAVP/Views/HappyPianistAVPApp.swift`
-- Update: `HappyPianistAVP/Views/PianoChoose/RealPiano/CalibrationStepView.swift`
-- Update: `HappyPianistAVP/Views/PianoChoose/VirtualPiano/VirtualPianoPreparationView.swift`
-- Update: `HappyPianistAVP/Views/PianoChoose/PreparationWindowRootView.swift`
-- Update: `HappyPianistAVP/Views/Practice/Step/PracticeStepView.swift`
-- Update: `HappyPianistAVP/Views/Practice/PracticeWindowRootView.swift`
-- Update: `HappyPianistAVPTests/Tracking/ARTrackingServiceLifecycleTests.swift` and `ARGuideImmersiveLifecycleTests.swift`
-- Update protocol test doubles in `PracticeLocalizationViewModelTests.swift`, `CalibrationFlowViewModelTests.swift`, `ARGuideImmersiveLifecycleTests.swift` with the real `worldTrackingGeneration` fact；do not give the protocol a default implementation that hides missing lifecycle behavior
-- Update relevant Calibration/VirtualPiano/Practice provider-state/lifecycle tests
-- Update: `docs/architecture.md` in this same task with the new single mixed ImmersiveSpace presentation owner, mounted-scene fact ownership, explicit mode-transition runtime hook, and incremental AR provider lifecycle；do not defer these owner changes to P4-T3
-- Add focused coordinator tests
-
-### Implementation
-
-1. Add `.library` to `AppState.ImmersiveMode`.
-
-2. Replace—not copy—the old open/close/recover workaround with one shared `@MainActor` coordinator.
-
-The coordinator owns no SwiftUI Environment action permanently. Calls receive the existing open/dismiss handlers and serialize exactly one in-flight scene operation.
-
-Mode publication rules are explicit:
-- **already mounted/open**: switching `.library/.calibration/.practice` captures `oldMode`, publishes the target mode once, then explicitly reconciles both mode-specific runtime ownership and AR requirements；no new `openImmersiveSpace` call and no expectation that `onAppear/onDisappear` will run again；
-- **closed -> open(targetMode)**: save the previous mode, set/publish `targetMode` **before** invoking the open action so `ImmersiveView.onAppear` starts the correct runtime on its first lifecycle callback；if the action returns `.userCancelled/.error` and the scene did not mount, restore the previous mode；
-- if `sceneDidAppear` has already established the scene despite an unusual action-result ordering, mounted lifecycle fact wins；do not roll back a live scene；
-- close never changes the product mode just to manufacture a state transition；`sceneDidDisappear` owns the mounted `.closed` fact。
-
-Calls:
-
-- `open(mode:using:)`
-- `close(using:)`
-- `sceneDidAppear()` / `sceneDidDisappear()` reconciliation from the real `ImmersiveView` lifecycle。
-
-The installed visionOS 27.0 SDK exposes `OpenImmersiveSpaceAction.Result` as `.opened / .userCancelled / .error` and `dismissImmersiveSpace()` as async. Treat those action completions as **request outcomes**, while the actual `ImmersiveView.onAppear/onDisappear` callbacks are the mounted facts. Do not infer mounted state by polling or by assuming `.opened` is itself the View lifecycle callback.
-
-`AppState.ImmersiveSpaceState` is reduced to mounted facts (`closed/open`) or an equivalent minimal representation. Transition-in-progress lives only in the coordinator's private task, not as a second public state machine. Concurrent callers await/serialize through that task. There is no `recoverIfStuck()`, recursive retry, arbitrary yield count or forced reset-to-closed branch。
-
-Delete the existing `HappyPianistAVPApp` outer `.onAppear/.onDisappear -> appState.immersiveSpaceState` writes in this same task. The existing `ImmersiveView.onAppear/onDisappear -> ARGuideViewModel` chain becomes the only mounted-scene adapter and forwards the fact to the shared coordinator exactly once.
-
-3. Practice/calibration/virtual-piano placement and every current View caller migrate to this coordinator in the **same task**.
-
-Route scene actions through one ARGuideViewModel runtime façade backed by the coordinator so Library/Calibration/Practice do not each manipulate `AppState` directly. Reuse the existing `ImmersiveView.onAppear/onDisappear -> ARGuideViewModel.onImmersiveAppear/onImmersiveDisappear` chain as the **only** mounted-scene adapter: those ViewModel lifecycle methods notify `sceneDidAppear/sceneDidDisappear` and then perform full-scene start/teardown work. Do not add a second scene observer or let `ImmersiveView`/App root write `AppState` directly. Delete the old duplicated methods from `ARGuidePracticeViewModel` and change callers directly; no forwarding wrappers for `openImmersiveForStep / closeImmersiveForStep / recoverImmersiveStateIfStuck` remain。
-
-For **mode changes while the scene remains mounted**, add one neutral `ARGuideViewModel` mode-transition entry point (exact name may follow the implementation) receiving `oldMode/newMode`. It owns the current runtime side effects instead of scattering them across Views:
-- leaving `.calibration` cancels calibration support polling/capture through the existing calibration shutdown/stop APIs；entering `.calibration` starts the existing calibration guide lifecycle after provider reconciliation is requested；
-- leaving `.practice` cancels Practice localization, virtual-piano guidance/input consumers, recording/AI runtime that is practice-owned, without stopping the retained world provider merely to enter Library；
-- entering `.practice` starts only the runtime required by the selected piano mode and existing Practice lifecycle；
-- entering `.library` owns no calibration/practice/virtual-piano task and reconciles to world-only tracking；
-- no mode-specific task is allowed to survive after its mode loses ownership, and no mode switch waits for a future scene `onAppear` that will not happen。
-
-This is not a second state machine: `AppState.immersiveMode` remains the one product mode fact, while the transition entry point only performs deterministic exit/enter side effects for the old/new values.
-
-The platform action contracts are shared infrastructure, not Practice contracts. In the same task rename/move:
-- `PracticeImmersiveOpenResult` -> `ImmersiveSpaceOpenResult`；
-- `PracticeImmersiveOpenHandler` -> `ImmersiveSpaceOpenHandler`；
-- `PracticeImmersiveDismissHandler` -> `ImmersiveSpaceDismissHandler`；
-- `makePracticeImmersiveOpenHandler / makePracticeImmersiveDismissHandler` -> neutral shared adapter names。
-
-Remove the old definitions from `PracticeSessionContracts.swift` and update every caller directly；no compatibility typealiases.
-
-4. Wire the shared coordinator through `LiveAppGraph` so Library can consume it later, but **do not expose a production Library button that opens `.library` yet**. P4-T1/T2 must not create a user-reachable blank ImmersiveSpace. P4-T3 exposes the action in the same task that installs real Spatial Book Flow/Spread content.
-
-When P4-T3 exposes that Library action, it is **not** allowed to bypass an active Preparation/Practice lifecycle. Reuse the existing `PracticeLaunchViewModel.state/requestedSongID` plus existing return/preparation lifecycle facts to decide whether Library can summon/switch directly. If Practice is active/returning or a setup flow owns the current mode, the auxiliary Library surface must route the user to the existing finish/return/cancel action instead of calling `.practice/.calibration → .library` itself. Do not add a second `isPracticeActiveForLibrary` flag. P5/P6 own the sanctioned calibration/practice handoffs.
-
-5. Every exhaustive `ARGuideViewModel` immersive-mode switch gains the real `.library` semantics, not a compile-only default:
-- `onImmersiveAppear(.library)` -> `startTrackingIfNeeded()` only, no calibration guide；
-- `trackingRequirementsForCurrentContext(.library)` -> world tracking only；
-- no hand tracking / hand consumer；
-- `handleHandTrackingUpdate(.library)` -> explicit no-op (normally unreachable because no hand provider is requested)；
-- no calibration capture；
-- no virtual-piano plane requirement。
-
-**Mode switching while the same ImmersiveSpace stays open is a runtime event.** Every successful `.library ↔ .calibration ↔ .practice` mode change immediately runs the explicit old/new mode exit/enter hook above **and** reconciles the existing AR runtime (`startTrackingIfNeeded()` or its refactored equivalent); do not wait for another `onImmersiveAppear()` that will never happen.
-
-Refactor `ARTrackingService.start(requirements:)` away from its current whole-`Runtime` restart on every requirements change. All current immersive modes continuously require `.world`, and current ARKit semantics allow an already-running session to `run(newProviders)` while keeping providers that are present in both the old and new arrays running. Also stop treating provider state as a value we can infer only from our own `run/stop` calls: one session-event task must reconcile actual ARKit provider/authorization changes.
-
-The current single `sessionGeneration` cannot continue doing both jobs. Split the lifecycle conceptually into:
-- **runtime identity/generation**: changes only on full ARKitSession/world-provider replacement；stable world/event/update tasks bind to this；
-- **provider-reconcile request identity**: changes when desired requirements change；only the latest request may publish optional-provider ownership/state。
-
-There is exactly one serialized reconcile task per runtime；never overlap `session.run(...)` calls on the same session. A newer requirements request may coalesce/cancel **pending intent that has not started mutating the session**, but once a `session.run(...)` mutation has begun it is awaited to settlement before the next reconcile. Request identity prevents stale completion from publishing superseded optional-provider ownership/state；do not treat task cancellation as rollback of an ARKit session mutation. `start(requirements:)` remains idempotent when desired requirements already match **and the required providers are actually healthy**；it must not early-return merely because a private desired value matches after an unexpected provider stop.
-
-`Runtime` should own one stable `session + worldTrackingProvider`, plus replaceable optional hand/plane provider slots/tasks；do not create a second Runtime merely to re-enable an optional provider.
-
-Therefore:
-- keep one `ARKitSession` + the current `WorldTrackingProvider` alive across ordinary Library/Calibration/Practice mode changes；
-- before each incremental run, compute authorizations required by **newly desired** supported providers；request/query them through the existing ARKit session, update private authorization bookkeeping, and omit/mark only denied providers as `.unauthorized`；Library→Calibration may therefore request Hand Tracking for the first time, and Virtual Piano plane enable may request world-sensing；do not restart the retained world provider just to request an optional-provider permission；
-- call `session.run(desiredProviders)` to add/remove authorized optional providers while retaining that same world provider；
-- when hand/plane is removed, cancel its update task and clear only its provider-derived state；
-- because a stopped provider instance cannot be run again, re-enabling hand/plane creates a **fresh provider instance** and a fresh update task；
-- do not cancel/recreate the world-anchor update task or clear `worldAnchorsByID` when world remains continuously active；
-- one `sessionEventsTask` lives with the current Runtime and consumes `ARKitSession.events`；`authorizationChanged` updates `authorizationStatusByType`, and `dataProviderStateChanged` reconciles only provider instances that are still owned by this Runtime；cancel this task on full Runtime replacement/stop；
-- add `.paused` to `ARTrackingProviderState` rather than collapsing Apple's distinct paused state into stopped；paused is non-ready but not a new provider generation；
-- on **hand paused/stopped/removed**, immediately publish empty `fingerTipsSnapshot` + `handSkeletonSnapshot` through the existing relays so Calibration/Practice cannot consume stale user-hand facts；resume/new provider repopulates them from fresh updates；
-- on **plane paused/stopped/removed**, make current placement UI non-ready and stop exposing stale confirmation geometry；clear the transient `detectedPlanes` presentation projection when it can otherwise keep an old disk visible, while provider-owned anchor cache may remain only if the same paused provider will resume and callers are gated on `.running`；
-- on **world paused**, `deviceWorldTransform`/world-anchor mutation remain unavailable because state is not `.running`, but do not bump `worldTrackingGeneration` or erase the retained world-anchor cache solely for pause；
-- Practice Localization treats `.paused` as recoverable/non-ready and keeps waiting inside its existing bounded startup/localization window；
-- Calibration shows a temporary “追踪已暂停/等待恢复” state, clears any reticle-confirm readiness derived from stale hand data, and does not raise a permanent error；
-- Virtual Piano hides/disables its plane confirmation interaction while required hand/plane provider is paused and shows a temporary waiting status；
-- `ARGuidePracticeViewModel` status text distinguishes paused/stopped/disabled instead of routing them through a generic “初始化中”；
-- update every exhaustive provider-state switch directly；do not hide `.paused` behind an unrelated `default`；
-- unexpected `.stopped` for a provider that is still required makes that provider unavailable immediately；a stopped optional provider is discarded so the next enable creates a fresh instance；unexpected world stop/error invalidates the current world runtime and prevents `start(requirements:)` from early-returning as though tracking were healthy；
-- do not keep a parallel hand-written provider-state truth: initialization/unsupported/authorization decisions may seed state before `run`, but once a provider belongs to the live session its `state`/session events are authoritative for running/paused/stopped；
-- a true immersive-runtime suspend/stop or a `session.run` failure rebuilds the whole Runtime and clears all provider-derived caches before the next start；whenever the WorldTrackingProvider instance is replaced, increment `worldTrackingGeneration` exactly once；ordinary optional-provider reconcile leaves it unchanged；
-- avoid one global generation bump that would accidentally kill the retained world update/event task when only hand/plane changes；use the runtime identity plus serialized reconcile/request identity and affected-provider task ownership as above。
-
-This incremental reconcile is the basis for keeping `worldFromSpatialLibrary` stable across `.library/.calibration/.practice` mode switches. The same reconcile starts/stops the hand consumer and virtual-piano plane guidance exactly once. Do not create a Library-specific tracking owner or shadow `immersiveMode`.
-
-### Failure behavior
-
-- user cancelled -> Library auxiliary window stays available with retry and closed-open target mode rolls back when the scene never mounted；
-- open error/unknown -> explicit retry state and the same no-mount rollback；
-- no silent fallback to the old Window Book Flow；
-- no recursive retry loop or `Task.yield()` transition recovery；a new user action may explicitly retry after a returned cancel/error。
-
-### Tests
-
-- open from closed -> transition/open result；
-- user cancelled/error before mount restores the prior mode and leaves mounted state closed；
-- sceneDidAppear-before-action-result ordering keeps the mounted scene/mode rather than rolling it back；
-- sanctioned coordinator-driven `.library → .calibration → .practice` mode switches work without reopening the scene；
-- mounted mode switches explicitly enter/exit calibration/practice/virtual-piano runtime even though `ImmersiveView.onAppear/onDisappear` do not fire again；leaving calibration leaves no polling/capture task, and entering calibration starts the guide without reopening the scene；
-- Library summon action cannot directly hijack an active Preparation/Practice session or bypass save/cancel/return gates；
-- each mode switch immediately reconciles provider requirements and hand-consumer ownership；
-- real `ARKitSession.events` changes `providerStateByName` for initialized/running/paused/stopped and authorization changes；no stale hand-written `.running` survives a system/provider stop；
-- hand pause/stop publishes empty finger/skeleton snapshots；plane pause makes confirmation UI non-ready；world pause preserves generation but rejects device-pose/world-anchor mutation until running again；
-- `.world` provider/session identity remains continuous across ordinary mode switches；world anchors/device-space placement are not invalidated merely because hand/plane requirements changed；
-- removed hand/plane provider state is cleared, and re-enable uses a fresh provider instance；
-- rapid desired-requirements changes never overlap authorization/reconcile `session.run(...)` work and stale reconcile completions cannot restore superseded provider state；
-- Library→Calibration first-use hand authorization and later plane authorization are requested when those providers enter desired requirements；denial affects only that provider's state and preserves healthy world tracking；
-- full runtime stop/failure clears all caches and later localization waits for fresh world/anchor facts；
-- concurrent open/close calls serialize through one transition task；
-- `ImmersiveView.onAppear/onDisappear` are the only mounted-state writers and reconcile open/closed without polling；
-- close；
-- Practice existing lifecycle parity after replacement；
-- `.library` requests world tracking without hand/plane requirements；
-- full old-symbol scan for `recoverImmersiveStateIfStuck`, `PracticeImmersiveCloseCoordinator`, `.inTransition`, and direct App-root mounted-state writes is zero。
-
-### Cleanup in this task
-
-Delete:
-- old Practice-only immersive state machine implementation；
-- `ImmersiveSpaceState.inTransition`；全仓已确认它只服务被替换的旧 transition workaround；
-- `recoverImmersiveStateIfStuck()`；
-- `PracticeImmersiveCloseCoordinator`；它只串行化旧 `close + recover`，共享 coordinator 接管 close 串行化后没有独立职责；
-- `HappyPianistAVPApp` 对 `immersiveSpaceState` 的外层 `.onAppear/.onDisappear` 直接写入；mounted fact 只保留 `ImmersiveView -> ARGuideViewModel -> shared coordinator` 一条路径；
-- old open/close/recover closure plumbing in `PracticeLocalizationViewModel`；
-- old `PracticeImmersive*` result/handler typealiases and `makePracticeImmersive*` adapter names after all callers migrate；
-- `ARTrackingServiceProtocol.activeRequirements` and `.authorizationStatusByType` plus fake-only implementations；neither has a production consumer；
-- stale tests that only encode the deleted yield/recover behavior。
-
-Do not add:
-- a second `immersiveSpaceState`；
-- a Library-only open coordinator；
-- compatibility flags。
-
-### Gate
-
-- targeted coordinator + Practice flow tests；
-- ARTracking lifecycle tests prove same world provider/runtime remains while optional hand/plane requirements change, removed provider state clears, and full suspend/stop rebuilds cleanly；add focused tests for the production DataProviderState→`ARTrackingProviderState` mapping (`initialized/idle`, running, paused, stopped) and authorization-event mapping；where real ARKit events cannot be synthesized, keep the mapping as a small pure production helper and device-validate the event stream rather than inventing a mock-only session abstraction；
-- `make build:simulator`。
-
-**Atomic commit:** `refactor: P4-T1 - 共享 ImmersiveSpace 生命周期`
-
----
-
-## P4-T2 建立 session-scoped Spatial Library world placement
-
-**Goal:** Spatial Library 第一次出现时根据当前头部/设备 pose 放在用户面前，然后固定在那个世界位置，不继续 head-lock。
-
-### Current source facts
-
-现有 `ARTrackingServiceProtocol` 已提供：
-
-`deviceWorldTransform(atTimestamp:)`
-
-并且项目已经使用：
-
-`ProcessInfo.processInfo.systemUptime`
-
-作为 query timestamp。
-
-当前 `KeyboardFrame` / virtual piano 代码已经证明世界 transform 采用同一 RealityKit / ARKit 坐标体系。
-
-### Files
-
-Expected:
-- Add: `HappyPianistAVP/Models/SpatialLibrary/SpatialLibraryPlacement.swift`
-- Add: `HappyPianistAVP/Services/SpatialLibrary/SpatialLibraryPlacementResolver.swift`
-- Add: `HappyPianistAVP/ViewModels/Library/SpatialLibraryViewModel.swift`
-- Update: `HappyPianistAVP/ViewModels/LiveAppGraph.swift`
-- Add resolver/view-model tests
-
-### Placement model
-
-Store one session-scoped placement identity:
-
-`(worldFromSpatialLibrary, worldTrackingGeneration)`
-
-It is not a persistent WorldAnchor ID. The raw transform may be reused only while `ARTrackingService.worldTrackingGeneration` still matches and world tracking is running.
-
-Pure resolver input:
-- current device world transform；
-- product placement parameters。
-
-Output:
-- level world transform for `SpatialLibraryRoot`；
-- forward direction based on device yaw, not full head pitch/roll；
-- root faces the user at placement time。
-
-### Placement rules
-
-Initial placement should:
-- appear at comfortable reading/reach distance in front of the user；
-- stay approximately level with world up；
-- preserve enough horizontal width for 5–7 folios；
-- never use raw gaze coordinates；
-- never continuously follow the device after placement。
-
-Exact distance/height values are product-tuning constants owned by the resolver, not scattered magic numbers in RealityView.
-
-Simulator/device tuning may adjust the constants, but it must not change the ownership model.
-
-### Lifecycle
-
-`SpatialLibraryViewModel` owns:
-
-- `.inactive`
-- `.awaitingDevicePose`
-- `.placed(worldFromSpatialLibrary)`
-- `.placementFailed`
-
-On entering library mode:
-1. P4-T1 has already reconciled `.library` to world tracking；
-2. run one cancellable, **time-bounded** placement task that checks the real world-provider state and queries a tracked device pose with explicit named local policy values **5 s timeout / 250 ms interval**（private/static constants on the Spatial Library placement owner or one tiny pure value type）；do not import/copy the Practice Localization state machine and do not add a generic readiness protocol；
-3. provider `unsupported/unauthorized/failed` ends immediately with a typed placement failure；
-4. first valid tracked pose resolves one root transform and publishes `.placed` once；
-5. timeout produces explicit `placementFailed` + user retry。
-
-This bounded hardware-readiness wait is load-bearing AR state, unlike the deleted ImmersiveSpace `Task.yield()` workaround. Do not add a generic readiness protocol, infinite polling or hidden identity/head-lock fallback just for this feature。
-
-After placement:
-- ordinary head motion does not recompute the root；
-- ordinary `.library ↔ .calibration ↔ .practice` mode changes reuse the exact session root because P4-T1 keeps the same WorldTrackingProvider continuously active while reconciling optional hand/plane providers；
-- before reuse, require matching `worldTrackingGeneration` and running world provider；
-- `suspendImmersiveRuntime()` / app background, true ImmersiveSpace close, app reset, or any full world-runtime rebuild invalidates the stored placement generation；
-- resume/re-entry or generation mismatch resolves a fresh device pose and places a new session root；do not assume raw world coordinates survive a WorldTrackingProvider replacement。
-
-### No WorldAnchor in P4
-
-Do not call `addWorldAnchor` for the library root.
-
-Reason:
-- Book Flow is summoned UI, not calibrated furniture；
-- current RealityView world coordinates are enough for one immersive session；
-- persistent anchor management would add lifecycle/storage cost without current product value。
-
-### Failure behavior
-
-If world/device pose is unavailable:
-- show one explicit “无法定位空间曲库 / 重试” attached or auxiliary state；
-- do not place at identity；
-- do not head-lock as a hidden fallback；
-- retry queries a fresh device pose。
-
-### Tests
-
-- yaw-only facing transform；
-- ignores device pitch/roll for level placement；
-- finite normalized basis；
-- root remains unchanged after later device pose changes while worldTrackingGeneration is unchanged；
-- same generation reuses placement across ordinary Library/Calibration/Practice mode switches；
-- generation mismatch/full runtime replacement invalidates and re-places；
-- retry after unavailable pose；
-- reset on AR runtime suspend/background and full immersive close；
-- ordinary mode switch without runtime suspension preserves placement；
-- no persistent world-anchor calls。
-
-### Gate
-
-- pure placement tests；
-- view-model lifecycle tests；
-- `make build:simulator`；
-- Simulator/device inspection of summoned world-stable root。
-
-**Atomic commit:** `feat: P4-T2 - 建立空间曲库世界定位`
-
----
-
-## P4-T3 用 RealityView Attachments 实现真正的 Spatial Book Flow / Book Spread
-
-**Goal:** 每一本 folio 是独立空间对象；选中后，同一首曲谱在空间中展开为 Book Spread。
-
-### Pre-implementation SDK check
-
-Before touching Attachment API, follow `HappyPianistAVP/AGENTS.md` and verify the exact installed visionOS 27.0 `RealityView attachments` API with Apple docs.
-
-Do not rely on remembered beta-era signatures.
-
-### Files
-
-Expected:
-- Add: `HappyPianistAVP/Views/Library/SpatialLibraryAttachmentContent.swift`
-- Add: one pure `SpatialBookDisplayMetrics.swift` (exact folder may follow existing Models/SpatialLibrary/SpatialScore ownership) for folio + open-Spread physical meter targets；do not duplicate separate P4/P5 scale constants
-- Update: `HappyPianistAVP/Views/Library/LibraryWindowView.swift` to expose the production “进入空间曲库” action now that the spatial content exists；reuse the P4-T1 shared coordinator and lifecycle guard, do not create a Library-only opener
-- Add: `HappyPianistAVP/Services/SpatialLibrary/SpatialLibrarySceneController.swift`
-- Update: `HappyPianistAVP/Views/Shared/ImmersiveView.swift`
-- Update: `HappyPianistAVP/Views/HappyPianistAVPApp.swift`
-- Update: `HappyPianistAVP/ViewModels/LiveAppGraph.swift` only as needed to expose the already-created owners
-- Update: `docs/architecture.md` in this same task only to extend the P4-T1 architecture with `SpatialLibrarySceneController` / Attachment ownership；the shared ImmersiveSpace coordinator and AR runtime lifecycle must already be documented by P4-T1
-- Reuse: `LibraryBookFlowPresentation.swift`
-- Reuse: `LibraryScoreFolioView.swift`
-- Reuse: `GrandStaffNotationSpreadView.swift`
-- Reuse: `SongLibraryViewModel` as the Library list/selection owner
-- Reuse: P2/P3 `LibraryScorePreviewViewModel` as the prepared-score/page-navigation owner
-- Reuse: P4-T2 `SpatialLibraryViewModel` as placement/lifecycle owner only
-- Add scene/presentation integration tests where pure logic is testable, including physical-metrics/aspect/uniform-scale mapping
-
-### Production entry becomes live in this task
-
-The auxiliary Library Window may now expose “进入空间曲库 / 重试空间曲库” because this same task installs the Spatial Library attachments/controller. Opening it uses the P4-T1 shared coordinator; cancel/error stays in the auxiliary Window. Before opening/switching, honor the P4-T1 rule that an active Preparation/Practice lifecycle cannot be hijacked.
-
-Empty library is a formal state: when `SongLibraryViewModel.entries.isEmpty`, do not expose/enable the Spatial Library entry action and do not create a placeholder/fake folio；the auxiliary Window keeps the existing MusicXML import empty state. If an already-open Spatial Library becomes empty after a legitimate list mutation, remove the score/folio attachments and close `.library` through the shared coordinator, returning the user to the auxiliary import/management surface. A later first import does not auto-open ImmersiveSpace；the user explicitly enters again.
-
-There is no earlier blank `.library` product route and no feature flag for an empty placeholder implementation.
-
-### Attachment architecture
-
-Do **not** create one giant flat attachment containing the whole carousel.
-
-Use independent attachment identities, but **only for a bounded visible slice** around the selected entry:
-
-```text
-SpatialLibraryRoot (RealityKit entity)
-  ├─ visible folio(selected-3 ... selected+3), max ~7 attachment entities
-  └─ selected Book Spread attachment entity
-```
-
-Do not instantiate every song in a large library as an Attachment. A pure visible-slice projection derives visible entry IDs from ordered `entries + selectedEntryID`; it has no separate selection owner.
-
-SwiftUI content:
-- folio surface = existing `LibraryScoreFolioView`；
-- open score = existing `GrandStaffNotationSpreadView`。
-
-### Physical display metrics
-
-Spatial UI needs one explicit physical-size contract；do not let arbitrary Attachment point size, entity scale, P5 placement and per-view magic numbers all affect readability independently.
-
-Add one small pure/named spatial display metrics value (location/name may be refined) that defines:
-- target folio physical height/aspect in meters；
-- target open Book Spread physical width/height derived from the canonical P2 page aspect/gutter；
-- any common minimum readable scale constraint。
-
-The actual starting constants are measured/tuned in Simulator then validated on physical AVP；do not claim ergonomic proof from Simulator. Convert the rendered Attachment bounds to the target physical size with **one uniform entity scale** at the spatial presentation boundary；do not assume an undocumented point-to-meter ratio and do not scale notation/layout internally a second time.
-
-P5 reuses the same `SpatialScore` display metrics when moving the selected Spread to the keyboard. Position handoff must not silently resize the score. Only P5-T4 may add user-adjustable scale if real-device evidence proves the fixed product size is insufficient。
-
-RealityKit controller:
-- creates/owns one root entity；
-- parents attachment entities under it；
-- applies Book Flow transform/visibility from presentation state and applies the one named physical-size mapping at the attachment/entity boundary；
-- never parses MusicXML or owns selection business state。
-
-### Existing state owners enter ImmersiveView explicitly
-
-Current `ImmersiveView` only receives `ARGuideViewModel`. Spatial Library needs additional existing state, but it must not duplicate it.
-
-Wire the existing owners explicitly from `LiveAppGraph` / app composition root:
-
-- `SongLibraryViewModel` -> entries, selectedEntryID, import/delete/audition facts；
-- `LibraryScorePreviewViewModel` -> selected score preparation + Library spread navigation；
-- `SpatialLibraryViewModel` -> session world placement only；
-- `ARGuideViewModel` -> shared immersive/tracking/practice facts。
-
-The exact `ImmersiveView` initializer may group these inputs into a small immutable dependency bundle if that is genuinely clearer, but do **not** create a new SpatialLibrary store that mirrors entries/selection/preview state.
-
-No ViewModel should start polling another ViewModel to keep a shadow copy in sync.
-
-### Book Flow geometry reuse
-
-P1 `LibraryBookFlowPresentation` remains the geometric source:
-
-- center item -> front facing；
-- signed neighbors -> opposite yaw；
-- distance -> lateral offset / depth / scale / opacity。
-
-P4 maps those values to **real entity transforms**, not a second hand-written Cover Flow formula.
-
-If P1 presentation model currently encodes 2D-only offsets, refine it in this task into one neutral spatial presentation value that both the Window-era tests and RealityKit mapping can consume; remove obsolete 2D-only members in the same task.
-
-### Selection ownership
-
-`SongLibraryViewModel.selectedEntryID` remains the one selected song.
-
-Spatial Book Flow:
-- gaze/hover visual feedback does not create a second selected ID；
-- confirm on an off-center folio -> calls existing `selectEntry` and recomputes the bounded visible slice；
-- confirm on center folio -> opens existing Library Book Spread preview；
-- closing spread -> returns to the same selected folio；
-- import/delete/list reload removes stale attachment IDs and recomputes from the repaired `SongLibraryViewModel` selection。
-
-No mirrored `spatialSelectedSongID`.
-
-### Interaction
-
-Folio and Book Spread content remain SwiftUI attachments, so ordinary confirm controls use SwiftUI interaction/hover.
-
-Book Flow also needs a lightweight horizontal browse gesture so libraries larger than the visible 5–7 items are actually navigable. Use one dedicated Book Flow interaction entity/surface with `CollisionComponent + InputTargetComponent` and an entity-targeted horizontal `DragGesture` after verifying the installed visionOS 27.0 API. The gesture owns only transient drag/progress; on threshold/end it commits previous/next through the existing `SongLibraryViewModel.selectEntry` path. It never owns a second selected index.
-
-The drag interaction surface must sit behind/around the folio hit targets (or otherwise use verified gesture routing) so it **does not steal ordinary SwiftUI attachment hover/tap/pinch** from the books/page-edge controls. A tap with insignificant horizontal translation remains a folio/button confirm, not a browse commit. Add a targeted interaction test/manual check for tap-vs-drag arbitration rather than fixing conflicts with gesture delays.
-
-Off-center confirm remains a complete non-drag navigation path and VoiceOver exposes previous/next adjustable actions.
-
-Do not add raw gaze coordinate handling or per-folio drag state.
-
-Book Spread page turn reuses P3:
-- left/right page edge controls；
-- no horizontal free-scroll。
-
-### RealityView update discipline
-
-`RealityView.update` may:
-- apply already-computed transform/visibility；
-- attach/detach known entities。
-
-It must not:
-- parse score；
-- build page plans；
-- start unbounded async work；
-- allocate heavy assets each frame。
-
-All long-lived async work stays outside update and is cancelled/reset on immersive suspend/disappear.
-
-### Mode isolation
-
-When `immersiveMode != .library`:
-- hide/detach Book Flow folios and Library-only interaction entities, but preserve `worldFromSpatialLibrary` across ordinary mode switches **only while the same AR tracking runtime remains continuous**；
-- the selected Book Spread may be handed to P5's SpatialScore owner；
-- calibration/practice overlays remain current owners of their modes；
-- no spatial-library folio/interactions leak into practice。
-
-A true ImmersiveSpace close **or immersive-runtime suspend/background** clears the raw Library placement. Ordinary P5/P6 mode handoffs do not suspend tracking and therefore return to the same root. After an AR runtime restart, Library re-places from a fresh device pose rather than trusting stale coordinates.
-
-### Tests / validation
-
-Automated:
-- bounded visible slice (normally max 7), stable IDs and no duplicate attachments；
-- folio/Spread attachment bounds map to named physical metrics with one uniform spatial scale；Library open/close does not introduce a second score-size path；
-- first/last-entry slicing has no phantom items；
-- large-library browsing reveals entries beyond the initial slice by off-center confirm and targeted drag；
-- import/delete/list replacement removes stale attachments and follows repaired selection；
-- empty list produces no fake folio and no blank persistent Spatial Library；open library becoming empty closes through the shared coordinator；
-- center/neighbor transform mapping；
-- ImmersiveView consumes the existing Library/preview owners rather than copied state；
-- selection uses `SongLibraryViewModel.selectedEntryID`；
-- opening/closing preview keeps identity；
-- mode change tears down root；
-- no duplicate selection state。
-
-Simulator/device:
-- 5–7 folios show real depth；
-- moving the head does not make the group follow the face；
-- center confirm expands the dynamic Book Spread in place；
-- page turn works in space；
-- no giant rectangular “app window” appearance。
-
-### Gate
-
-- targeted Spatial Library tests；
-- Library/Notation tests；
-- `make build:simulator`；
-- visual Simulator/device walkthrough。
-
-**Atomic commit:** `feat: P4-T3 - 空间化 Book Flow 与 Book Spread`
-
----
-
-## P4-T4 让 Spatial Library 成为核心选曲界面，收口 Window 辅助职责
-
-**Goal:** P4 完成后不再同时维护 Window Book Flow 和 Spatial Book Flow 两套核心产品路径。
-
-### Current product boundary
-
-复杂工具允许继续存在于普通 Window：
-- MusicXML import + existing conflict/cancel transaction UI；
-- imported-song management / destructive delete；
-- local audio binding/import for scores that have no `audioFileName` (`bindAudio`)；
-- diagnostics；
-- piano setup / troubleshooting；
-- audition controls when useful。
-
-核心选曲与看谱：
-- Spatial Book Flow；
-- Spatial Book Spread。
-
-### Files
-
-Expected:
-- Update: `LibraryWindowView.swift`
-- Update: `SongLibraryView.swift`
-- Delete/reshape: Window-only `LibraryBookFlow.swift` container after its reusable folio/presentation pieces have moved to Spatial Library
-- Update Library tests/previews
-- Update `docs/architecture.md` only if actual scene ownership changes are not already represented
-- Update `docs/data-flow.md` if Library presentation ownership materially changes
-
-### Window role after migration
-
-The Library Window becomes an **auxiliary launcher/management surface**, not a duplicate browser.
-
-When Spatial Library is closed:
-- offer explicit action to enter Spatial Library；
-- offer MusicXML import / imported-song delete / local-audio binding / diagnostics / choose-piano management；
-- management may use a compact ordinary list/rows, but destructive/audio-binding actions target the row entry ID directly；do **not** introduce a second management `selectedSongID` or turn this list into another core browser；
-- management actions must not change `SongLibraryViewModel.selectedEntryID` merely to obtain a target；the existing spatial/core selection remains authoritative；
-- show open-error/retry state if immersive presentation failed。
-
-When Spatial Library is open:
-- do not render a second Book Flow beneath it；
-- window may remain as auxiliary system surface until P5/P6 remove or further reduce it；
-- selected song identity still comes from the same `SongLibraryViewModel`。
-
-### Interim start-practice action
-
-P4 is not yet responsible for keyboard-relative score placement.
-
-Until P5 lands:
-- starting Practice may still be invoked from the auxiliary window for the currently selected song；
-- do not create a fake “score flies to piano” transition in P4；
-- P5 will take over the spatial handoff。
-
-This is a staged implementation dependency, not a permanent fallback path.
-
-### Lifecycle
-
-- immersive open -> Spatial Library is authoritative browser；
-- system closes immersive -> auxiliary window can reopen/retry the spatial library；
-- scene inactive/background -> shared immersive suspend stops AR tracking and invalidates raw Spatial Library placement；resume gets a fresh world/device pose before showing Book Flow；
-- return from Practice before P5 -> selected song remains consistent。
-
-### Cleanup in this task
-
-Remove production use of:
-- Window Book Flow container；
-- duplicate center-selection behavior；
-- duplicate selected-folio confirm flow；
-- carousel-specific `LibraryBookFlowDragConfiguration` / `LibraryDeletionHoldPolicy` and their tests once the Window drag-delete UI is gone。
-
-Before deleting that drag/hold path, move **imported-song deletion** into the auxiliary management surface with an ordinary destructive action + explicit system confirmation. It calls the existing `SongLibraryViewModel.deleteEntry()` so bundled protection, import-active gating, file/index/progress consistency and selection repair remain the one business safety boundary. Do not preserve long-hold or down-drag semantics merely for compatibility.
-
-Retain only reusable:
-- folio view；
-- Book Flow pure presentation；
-- preview/progress owners；
-- import/playback/data services。
-
-No feature flag for “2D vs Spatial Library”.
-
-### Acceptance
-
-- there is one core song-browsing path；
-- Library Window no longer presents a full duplicate carousel；
-- MusicXML import/conflict handling, imported-song delete, audio binding/import, audition, diagnostics and setup still reachable；
-- bundled entries cannot be deleted and import-active deletion remains blocked by the existing ViewModel/service checks；
-- opening immersive failure has a clear retry path；
-- selected song survives spatial open/close；
-- no new persistent storage introduced。
-
-### Gate
-
-- Library lifecycle tests；
-- immersive coordinator tests；
-- `make build:simulator`；
-- manual flow: auxiliary window -> Spatial Library -> browse -> open spread -> close -> return；
-- empty library keeps only auxiliary import UI；deleting/mutating to zero entries closes the open Spatial Library cleanly；
-- manual failure path: cancel immersive open -> retry。
-
-**Atomic commit:** `refactor: P4-T4 - Spatial Library 接管核心选曲`
-
----
-
-## P4 Phase completion checklist
-
-Before P5:
-
-1. `.library` uses world tracking only.
-2. There is one shared immersive open/close state machine.
-3. Spatial Library root is session world-fixed, not head-locked.
-4. No persistent WorldAnchor exists for Book Flow.
-5. Every folio is an independent spatial attachment/entity, not one fake flat carousel.
-6. Selection still has one owner: `SongLibraryViewModel.selectedEntryID`.
-7. Spatial and Window Book Flow are not both production core paths.
-8. Book Spread preview/page-turn reuses P2/P3 rather than duplicating notation.
-9. RealityView update contains no parsing/I/O/heavy work.
-10. P4 does not claim keyboard-relative placement or full spatial Practice.
+完成后创建新版 `audit-p4.md`。审计必须追到实际 input/output stop、File repository 与 recorder finalize 的最终效果；确认失败仍保留未保存事实，同一书与 scene 不被旧 Window lifecycle 夺走。此阶段不声称 Companion 或教学效果已完成。

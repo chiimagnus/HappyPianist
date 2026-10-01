@@ -1,372 +1,99 @@
-# Plan P3 - 单页翻动与 Spread 导航
-
-**Goal:** 在 P2 稳定 Book Spread 上增加“像翻一张真实纸页”的过渡，同时让：
-
-- Library preview：用户手动前后翻；
-- Practice：演奏位置自动切换 spread；
-
-共用同一个 page-turn presentation。
-
-**Visual acceptance references:**
-- `.github/features/spatial-2026-09-30/设计稿/images/02-双页Book-Spread曲目详情.png`（双页作为稳定阅读对象）
-- `.github/features/spatial-2026-09-30/设计稿/images/04-正常练习.png`（练习时自动跟随当前演奏位置）
-- `.github/features/spatial-2026-09-30/设计稿/images/08-练习结果与重练.png`（结果/重练状态仍在同一 Book Spread 上继续浏览）
-
-P3 只实现手动/自动翻页与 Spread 导航，不改变这三张图定义的谱面视觉体系。
-
-**Non-goals:**
-- 不做 deforming mesh / page curl physics；
-- 不把 page turn 做成新的 practice clock；
-- 不重新引入 continuous scroll；
-- 不让 Library 和 Practice 各写一套翻页 renderer；
-- 不在 Practice 增加会和自动导航冲突的“自由浏览模式”。
-
-**Approach:** 把翻页实现为只消费目标 `spreadIndex` 的共用 presentation；Library 负责手动改变目标，Practice 只把现有离散 navigation tick 映射为目标 spread。
-
-**Rules:** page-turn 不拥有谱面事实、页码真值或播放时钟；快速目标变化只保留最终目标；Reduce Motion/VoiceOver 在首个生产接入 task 就成立，不等最后补丁。
-
-**Phase acceptance:** Library 手动翻页与 Practice 自动翻页使用同一 presentation；快速跳页不积压过时动画；Reduce Motion 下功能仍完整，且没有重新引入连续滚谱。
-
----
-
-## P3-T1 建立通用 Spread page-turn presentation
-
-**Goal:** page turn 只做表现，不拥有乐谱事实或导航事实。
-
-### Files
-
-Expected:
-- Add: `GrandStaffNotationPageTurnState.swift`
-- Add: `GrandStaffNotationPageTurnView.swift`
-- Add: Notation tests / previews
-- Update: `GrandStaffNotationSpreadView.swift`；本 task 当场由 P2 已接入的共享 Spread 消费，不等 T2/T3 才挂载。
-
-### Navigation unit
-
-导航目标是 **spread index**。
-
-一个 spread 包含：
-- left page；
-- right page。
-
-Forward：
-- source spread = [L0, R0]；
-- target spread = [L1, R1]；
-- 视觉上只让 source 的 **right sheet** 从右向左翻；
-- target left/right 作为翻页前后层提供内容。
-
-双面内容要明确：向前翻 source right 的正面，背面为 **target left**（翻到左侧后文字仍正向），底层露出 target right；向后翻 source left，背面为 **target right**。不能把旧页镜像当作背面、把两个 target page 随意交叉。target page IDs 来自同一 PagePlan，末尾空白面按 P2 的奇数页规则处理。
-
-Backward：
-- 镜像，让 source 的 **left sheet** 向右翻回。
-
-不要引入一个“半翻完时 pageIndex+1 的中间正式业务状态”。
-
-### Pure state
-
-纯值 `PageTurnState` 至少表达：
-
-- source spread ID/index；
-- target spread ID/index；
-- direction forward/backward；
-- stable/no transition；
-- required monotonic transition generation/identity used to reject stale animation completion；every new target transition increments/replaces it。
-
-它不包含：
-- timer；
-- current tick；
-- practice step；
-- parser/score data。
-
-### SwiftUI transition
-
-Use:
-- visionOS 的 `perspectiveRotationEffect`（本机 SDK 中带 perspective 的旧 rotation3DEffect overload 已 deprecated）；
-- perspective；
-- page shadow；
-- front/back surface；
-- center gutter anchor。
-
-使用 SwiftUI `withAnimation(...completionCriteria:..., completion:...)` 的实际动画完成回调，不用 Task.sleep 猜持续时间；原生 completion API 已核对本机 SDK。completion 同时核对 transition generation 与 score/page-plan identity，避免换曲后相同 spread index 被旧动画回写。
-
-本 task 同时接入 Reduce Motion 与基础 a11y：Reduce Motion 直接替换、不旋转；被翻动的前后面/源页仅为视觉层，不重复暴露 note/rest VoiceOver 内容，语义层始终对应正式 target。T4 只补验收，不能把这些基础能力留到最后。
-
-Do not:
-- build RealityKit mesh；
-- deform page vertices；
-- add CADisplayLink/timer；
-- pre-render page bitmap solely for animation unless SwiftUI snapshot proves absolutely necessary and is documented; default is live page surfaces。
-
-### Correctness under rapid target changes
-
-If target changes while turning:
-- cancel/supersede old transition；
-- converge to newest spread；
-- do not queue all intermediate spreads；
-- completion from stale generation must not overwrite newer target。
-
-固定最小策略：静止时相邻目标做一次翻页；大跨度跳转直接到最终目标；翻动中再次 retarget 立即终止旧过渡并直接显示最新目标，不排队也不积累页层。same target 不重新开始；close/reset/new score 或 page-plan identity 变化直接显示合法 target 并清 transition。只保留当前/目标所需有限页层，不保留截图历史缓存。
-
-### Tests
-
-- stable；
-- forward；
-- backward；
-- same target = no transition；
-- first/last boundary；
-- rapid target replacement；
-- stale completion discarded；
-- no unbounded retained page layers。
-- forward/back front/back 页码与文字朝向；奇数末页空白；Reduce Motion；动画前后 a11y 不重复；score reset 时旧 completion 被拒绝。
-
-### Cleanup in this task
-
-No old code should need compatibility cleanup here. If a temporary transition wrapper is introduced during implementation, remove it before this task commits.
-
-### Gate
-
-- Notation page-turn tests；
-- preview visual inspection；
-- 共享 production Spread（至少 Practice 的已有 tick 切页）已使用该过渡；不以纯 state tests 替代真实 consumer；
-- `make build:simulator`。
-
-**Atomic commit:** `feat: P3-T1 - 建立通用单页翻动`
-
----
-
-## P3-T2 Library preview 接入手动翻页
-
-**Goal:** Book Flow 打开的动态 Book Spread 可以自然浏览整首谱。
-
-### Files
-
-Expected:
-- Update: `LibraryScorePreviewViewModel.swift`
-- Update: Library Book Spread detail view created in P2-T4
-- Add/Update Library tests
-
-### State ownership
-
-Library preview owns only:
-- current target spread index for the currently opened prepared score。
-
-It does not own:
-- page plan；
-- notation facts；
-- duplicate page models。
-
-On a new score:
-- ready 首次展示时，若已有匹配 selection identity 与 prepared scoreRevision 的 snapshot resume 且命中真实 measure，则从该 resume spread 打开；否则 spread 0。
-- 不自动跳 focus；迟到的 history reload 可更新标记，但不能夺走用户已浏览的 target。
-- close/非 active scene 取消并清 prepared/navigation，遵守 P2-T4；reopen 用同一上述规则，不额外存一份“上次浏览页” JSON。
-- next/previous 只在合法页内 clamp；身份失效不 clamp 到另一个 score 掩盖错误。
-
-### Interaction
-
-Current Window foundation should use a minimal spatially sensible interaction:
-
-- gaze + pinch / tap on outer right page edge -> next spread；
-- gaze + pinch / tap on outer left page edge -> previous spread；
-- optional small page-corner affordance attached to the page itself；
-- no persistent bottom toolbar；
-- no generic Next/Previous button panel。
-
-命中区用带可访问标签的 Button，点击/凝视+pinch 不是 onTapGesture 的别名；页缘大小与窗口缩放/Dynamic Type 保持可点。关闭控件贴近乐谱，返回当前 selection；不为 preview 新开窗口或重建外层 SongLibraryView。VoiceOver adjustable navigation 在本 task 接通，而非等待 T4。
-
-Avoid a horizontal free-scrolling gesture that makes the Book Spread feel like the old continuous score strip.
-
-### Relationship to Book Flow
-
-While detail is open:
-- Book Flow selection remains the song identity；
-- Book Flow does not continue scrolling underneath and change the opened score；
-- closing detail returns to the same selected folio。
-
-No second selectedSong state.
-
-### Audio audition
-
-Page navigation does not affect preview playback state.
-
-`LibraryNowPlayingBar` remains the audition owner.
-
-### Tests
-
-- open score -> spread 0/resume target；
-- next/previous；
-- first/last clamp；
-- close/reopen same selected score policy explicit；
-- score change resets/clamps navigation；
-- preparation generation replacement cannot leave stale spread index；
-- audition unaffected。
-
-### Manual Simulator acceptance
-
-- right page edge advances；
-- left edge goes back；
-- one visible sheet turns；
-- no toolbar；
-- no old horizontal scroll strip。
-
-**Atomic commit:** `feat: P3-T2 - 曲库接入手动翻页`
-
-**Gate:** preview/annotation/history late-response 与 page-turn targeted tests、`make build:simulator`，实际 Simulator 页缘/VoiceOver/关闭回同一 selection 验收。
-
----
-
-## P3-T3 Practice navigation tick 驱动自动翻页
-
-**Goal:** 加固 P2-T3 已接通、P2-T5 已验证的 discrete `notationNavigationTick` 到共用动画层的行为，不另建 navigation owner。P3-T1 已挂载过渡，此任务负责实际 transport/快速导航边界，而不是第一次让组件进入生产。
-
-### Files
-
-Expected:
-- Update: `GrandStaffNotationSpreadView.swift` or a thin host wrapper
-- Update: `PracticeStepView.swift`
-- Update: Practice tests
-
-### Rules
-
-1. Compute:
-   `targetSpread = pagination.spreadIndex(containingTick: notationNavigationTick)`
-
-2. Same spread:
-   - no animation；
-   - highlight updates only。
-
-3. Next spread:
-   - forward page turn。
-
-4. Previous spread:
-   - backward page turn。
-
-5. Jump across multiple spreads:
-   - converge directly to final target；
-   - 按 T1 策略直接替换，不播放跳过页的翻动；
-   - do not animate each skipped spread。
-
-6. Session/song reset:
-   - reset transition generation；
-   - show target spread directly if carrying prior animation would be misleading。
-
-7. Active range changes:
-   - may change target tick/spread；
-   - do not recompute pagination identity。
-
-### No second clock
-
-Do not add:
-- Timer；
-- playback polling；
-- scroll schedule；
-- display link。
-
-The existing Practice session remains sole time owner.
-
-### Tests
-
-- manual step next within same spread；
-- manual step crosses spread；
-- backward retry；
-- autoplay crossing spread；
-- large jump；
-- resume target；
-- session reset；
-- rapid navigation updates；
-- stale transition completion discarded。
-
-### Gate
-
-- targeted Practice/Notation tests；
-- `make build:simulator`；
-- Simulator manual/autoplay/resume crossing real page boundary。
-
-**Atomic commit:** `feat: P3-T3 - 练习位置驱动自动翻页`
-
----
-
-## P3-T4 Reduce Motion / VoiceOver / final real validation
-
-**Goal:** 完成翻页体验的可访问性和真实验收，不承担 P1/P2 遗留清理。
-
-### Reduce Motion
-
-When enabled:
-- no 3D page rotation；
-- directly replace spread or use short opacity transition；
-- same navigation state/API；
-- no second layout path。
-
-### VoiceOver
-
-Library preview:
-- expose current page range / total page count；
-- `accessibilityAdjustableAction` next/previous spread；
-- page edge visual affordance is not the only navigation method。
-
-Practice:
-- announce current page range when focus lands on score；
-- automatic page turn does not forcibly steal VoiceOver focus；
-- note/rest accessibility order remains page -> system -> element。
-- 转页的视觉 source/front/back 不进入第二套 VoiceOver tree；target 变化不强行移焦。必要手动播报与自动变化区分，不能每个高亮 tick 连续播报。
-
-### Differentiate Without Color
-
-Book/page navigation and current focus cannot rely only on:
-- green/amber；
-- opacity。
-
-Keep geometric/textual/a11y state.
-
-### Real validation
-
-Run:
-
-1. Book Flow scroll/selection；
-2. open real dynamic score；
-3. manual Library page turn；
-4. close/reopen；
-5. Practice manual progression；
-6. autoplay crossing page；
-7. backward/retry；
-8. Reduce Motion；
-9. VoiceOver adjustable navigation。
-
-### Tests / build
-
-- targeted Notation + Library + Practice；
-- package tests；
-- `make build:simulator`；
-- full simulator test target when practical；
-- if full target has pre-existing failures, record exact failing tests and do not misattribute them to this feature。
-
-命令与报告隔离遵守 P2 的“验证命令规则”：用实际 discovered IDs，确认非零测试；package macOS 通过不是 Simulator 通过；不覆盖旧 result bundle、不关掉用户已有 Simulator。最终验收不能拿本轮审查的 238 个现有 package tests 当新功能通过证据。
-
-### Cleanup rule
-
-P3-T4 may clean only code introduced by P3 itself.
-
-It must **not** be the place where we finally notice:
-- Vinyl old code；
-- old scroll schedule；
-- old viewport view；
-- old context helper。
-
-Those must already have been deleted in P1/P2.
-
-### Docs
-
-Update `docs/testing.md` only with actual evidence from this execution.
-
-### Phase completion checklist
-
-Verify:
-
-- page-turn layer is presentation only；
-- Library and Practice share it；
-- no timers/scroll runtime reintroduced；
-- Reduce Motion and VoiceOver use same page plan；
-- no feature flags / compatibility aliases remain；
-- no debug/preview code leaked into production path。
-
-**Atomic commit:** `test: P3-T4 - 收口 Book Spread 翻页验收`
+# Plan P3 — 直接用于 3D 的真实双页谱与翻页
+
+**Goal:** 在既有空间书册中显示真实 MusicXML，多系统单页/双页、详情历史与空间翻页；原 2D 滚谱不变。
+**Non-goals:** 不先实现 Window Book Spread，不删 GrandStaffNotationView/viewport API，不新建 parser、不用整谱 bitmap/PDF。
+**Approach:** 抽取共用 engraving 内核并由原 2D 当场消费，随后在 3D 真详情接分页与动态页表面，最后加原生 sheet 翻动。
+**Acceptance:** D03/D04 对真实谱成立；3D 同谱分页稳定、原 2D 记谱/滚动保持；Detail 操作/历史/取消真实。
+**Rules:** 页码由谱事实+canonical page geometry 决定，不由当前 overlay/tick/window size/range 决定；Notation→Practice→MusicXML 依赖不能倒置。
+
+依赖：P2 正式 folio 与打开意图；物理表面/尺度由 P1 验证。不使用 archive 的 Window 几何实验或未在当前树存在的分页 API。
+
+## P3-T1 抽取共享记谱内核并保持原滚谱行为
+
+**真实执行路径：**
+`GrandStaffNotationView → GrandStaffNotationPresentationViewModel.makePresentation → GrandStaffNotationLayoutService.makeLayout → spacing/chord/spanners → GrandStaffNotationRenderer`。
+当前 makeLayout 从 source/performed facts 构造 chord/beam/rest/marks，同时按 scrollTick/viewport/overlay 裁剪和着色；直接把旧 View 缩成两份不能排多系统，也会在高亮时重复全谱工作。
+
+**Files：**
+- Modify: `Packages/HappyPianistCore/Sources/Notation/GrandStaffNotationLayoutService.swift`、`GrandStaffNotationPresentationViewModel.swift`、`GrandStaffNotationRenderer.swift`，必要 models/spacing 的最小共享拆分。
+- Add: 同目录 `GrandStaffNotationScoreLayout.swift`、`GrandStaffNotationScoreLayoutService.swift`、`GrandStaffNotationSystemLayoutService.swift`；单实现不新建协议。
+- 保留: `GrandStaffNotationView.swift`、`GrandStaffNotationViewportLayoutService.swift`、原 public initializer 与 legacy consumer。
+- Tests: 原 Notation layout/viewport/golden/note-type 测试，`HappyPianistAVPTests/Notation/GrandStaffNotationVisualTests.swift`、`Piano/PianoHighlightViewConsistencyTests.swift`。
+- Docs: `docs/data-flow.md`。
+
+**实施与不变量：**
+1. 将完整谱事实和绝对 staff-space 排版与 viewport/system slice 分开，共享一套解析后的 chord/stem/beam/rest/spanner/marks/attributes 构造；不是复制另一份 makeLayout。
+2. 原 makeLayout 成为仍有业务职责的 2D viewport 投影，内部当场用共享内核；保留原 scrollTick/context/overlay 语义。它不是为删除而留的兼容 alias，而是明确保留产品的真实 consumer。
+3. 保留 source/performed/occurrence identity 与 original part/staff→displayed staff 事实，来自现 PreparedPractice.scoreContext/notationProjection；不从首音猜，不用 parser 再读一遍 XML。
+4. absolute layout 不含 active tint/range/scroll/window 像素；system slice 用真实 measure boundaries、局部 clef/key/meter/context，把 spanner 跨系统端点正确续接。beam 源组/provenance 和已支持记谱完整保留。
+5. ink extents 包含 note/chord/ledger/stem/beam/rest/fingering/marks/tie/slur/tuplet/header。renderer 与 packing 共用同一边界，不用 magic padding 或只测音符头。
+6. score 构建是纯值 Sendable、非主 Actor 可运行；不为此添加全局 cache/unsafe isolation。3D 当前谱 cache/异步 owner 在 T2 真 consumer 内实现，T1 不加无人使用的状态。
+7. 不删除原 2D scroll/context/API/tests；只删除被抽取内核替代的重复内部算法。原 golden 不随便更新来盖回归。
+
+**针对性验证：**
+- 原 viewport/golden 在相同输入输出 parity；原 continuous notation view 与 highlight/accessibility 真消费通过。
+- full score 首末/纯休止/跨 staff、clef/key/meter change、source vs meter beam、tie/slur/nested tuplet、反复 occurrence；split-part grand staff 事实不变。
+- overlay/range/tick 改变绝对 layout 不变；system 边界完整且 continuation 正确；布局不依赖宿主 size。
+- `swift test --package-path Packages/HappyPianistCore --filter Notation`；Apple target 现 notation/glyph consistency 的真正 xcodebuild test + build。package 成功不能代替 Apple consumer。
+
+**Gate / 原子提交：** 新内核已被原 2D 消费且 parity 成立；`refactor: P3-T1 - 共享记谱内核并保留二维滚谱`。
+
+## P3-T2 在空间书册接入真分页、详情与历史
+
+**现有复用链：**
+`SongLibraryEntryResolver → PracticePreparationService → PreparedPractice` 已验证 steps/measureSpans、identity/revision。
+`SongLibraryViewModel.practiceSnapshotState` 与 `SongPracticeLibrarySnapshotBuilder` 已提供小节事实/历史。详情只读准备，不调用 PracticeLaunchViewModel.beginVisit 创建练习 session。
+
+**Files：**
+- Add: `Packages/HappyPianistCore/Sources/Notation/GrandStaffNotationPagePlan.swift`、`GrandStaffNotationPaginationService.swift`、`GrandStaffNotationPageView.swift`，同 task 从 3D Detail 正式消费。
+- Add: `HappyPianistAVP/ViewModels/Spatial/SpatialScoreBookViewModel.swift`、`Services/Spatial/SpatialScoreBookSceneController.swift`、`Views/Spatial/SpatialBookPageContentView.swift`。
+- Modify: `HappyPianistAVP/ViewModels/LiveAppGraph.swift`、`ViewModels/Spatial/SpatialExperienceViewModel.swift`、`Views/Spatial/SpatialExperienceView.swift`、现 flow controller 的打开/合拢消费点。
+- Reuse: `HappyPianistAVP/Services/Library/SongPracticeLibrarySnapshotBuilder.swift`、`SongPracticeFocusMeasureBuilder.swift`。
+- Tests: 新 `Packages/HappyPianistCore/Tests/NotationTests/GrandStaffNotationPaginationTests.swift`、`HappyPianistAVPTests/Spatial/SpatialScoreBookTests.swift`、`SpatialScoreBookEntityTests.swift`。
+- Docs: `docs/data-flow.md`。
+
+**实施：**
+1. 按 P1 实测阅读规格设置 canonical page geometry，用真实 ink bounds 选系统边界并纵向 packing；不得在无法正确续接的 explicit beam 源组内部断 system，tie/slur/tuplet 的跨系统 continuation 保留身份。拥挤内容优先合法分页/放大，不丢音符、不硬压每页四行。空、奇数末页、不能安全容纳的 system 有明确结果，不假 successful fallback。
+2. PagePlan 保持 measure occurrence→system/page/spread 的确定映射；相同 identity/geometry 只有一个当前 plan。active range 只改表现，不裁事实/改分页。written/performed occurrence 语义与反复谱注明一致，不能以 source 小节号冒充当前 occurrence。
+3. SpatialScoreBookViewModel 只持当前 prepared read-only 内容/plan/navigation，异步解析/构建不在主 Actor；load/cancel/publish 均检 selected entry/file revision 与当前请求。新曲/关闭/suspend 清旧状态，迟到失败不盖新曲。
+4. 原选中 folio 打开同一 OpenBookRoot；轻书脊与独立左右页 entity，用局部动态 page attachments 绘制真实 systems、overlay/历史/当前小节。不是把完整 GrandStaffNotationView 挂一次或把 MusicXML 转全谱图。
+5. resume/focus 使用 matching identity/revision 与真实 measure occurrence；无匹配从首 spread 开始。late history 可以更新标记，不能抢用户已手动浏览的页。历史不可用提供现有恢复语义，不把 unknown 画 learning/error。
+6. Detail 手动下一/上一页、合法 resume/focus 定位、关闭回原 folio；此 task 先直接切页功能完整，T3 仅加空间 sheet 动作。试听独立且换页不影响音频。
+7. 原 2D consumer 不改为 PageView；唯一共享的是事实/engraving，不强迫旧滚谱同页码。跨模块所需 PagePlan/page renderer 使用明确的 public 边界；Notation/Core 不引用 App/RealityKit 或空间 entity。新文件全部在 LiveAppGraph、SpatialExperienceView、flow consumer 当场接入。
+8. Library/Practice 后续共用此 book owner，不另外新建 LibraryPagePlan/PracticePagePlan。PracticeLaunch 仍是正式音乐 launch，详情 read-only prepared 不能绕过后续进度/身份验证。
+
+**验证：**
+- fixture 真 prepare→engraving→packing→page entity，包括 dense、rests、split-part、已支持符号/连线；页覆盖全部合法小节且无重/漏，ink 不剪断。
+- page plan 对不同 host 尺寸、highlight/tick/range 稳定；阅读放大同 plan；奇数末页/单页/页界。
+- 换曲/关闭/文件 revision 变化/后台迟到，无旧谱回写；resume/focus/late history 与手动浏览。
+- 打开/关闭保留选曲与试听，不创建 practice visit/写练习 progress；可重新读 repository 证明只读。
+- package 分页测试、AVP 实体/视觉/异步 tests + build；实际 RealityView D03 与真机双页密集谱可读性。不以 Canvas snapshot 代替空间尺度。
+
+**Gate / 原子提交：** 3D 真详情完整可用、原 2D 回归；`feat: P3-T2 - 在三维书册呈现真实双页谱与历史`。
+
+## P3-T3 实现空间 sheet 翻页与最新目标收敛
+
+**Files：**
+- Modify: `HappyPianistAVP/Services/Spatial/SpatialScoreBookSceneController.swift`、`ViewModels/Spatial/SpatialScoreBookViewModel.swift`、`Views/Spatial/SpatialBookPageContentView.swift`。
+- Add 必要最小纯值 presentation：`HappyPianistAVP/Models/Spatial/SpatialBookPageTurn.swift`，同 task 从 controller 消费。
+- Tests: 新 `HappyPianistAVPTests/Spatial/SpatialBookPageTurnTests.swift`；当前 book entity tests。
+- Docs: `docs/data-flow.md` 的 3D 导航边界。
+
+**实施：**
+1. navigation 的真值为目标 spread，page turn 只为 presentation；不拿 animation timer 修改音乐位置。
+2. RealityKit page entity 围书脊翻动，正/背面关系按 spatial-design 第5节，文字正向；不使用 Window perspectiveRotationEffect 作为 3D 主实现，不做 deforming mesh/纸物理。
+3. 相邻目标转单 sheet，大跨度直接最终页；翻动中 retarget 取消旧过渡直接最新合法页。same target 不重启，new score/plan/reset 清 animation。completion 校验当前 book/plan/transition，有限页层，不缓存历史页。
+4. 页缘局部 Button 与 VoiceOver adjustable navigation 从第一次接入就可用，decorative/source/背面视觉不重复暴露 semantics。Reduce Motion 直接换 target。
+5. 动画完成用平台原生完成/取消事实，不用 sleep 猜；controller teardown 停 native animations，detach/suspend/新曲迟到回调不能写回。
+
+**验证：**
+- forward/backward 正背面与页码、首末/奇数空面、same target、大跳、rapid retarget、旧 completion、reset/detach。
+- page layers 上界；target 与当前书真实 identity；VoiceOver 无重复、Reduce Motion 仍完整翻页。
+- 实际 RealityView D04 短录屏观察前后面/文字/阴影，不只纯状态函数；定向 xcodebuild test + build。
+- 原 GrandStaffNotationView/PracticeStepView 继续用原滚谱，没有新 page-turn runtime 被塞回 2D。
+
+**Gate / 原子提交：** 空间翻页与 invariant 成立；`feat: P3-T3 - 增加原生空间单页翻动与导航`。
+
+## Phase Audit
+
+完成后创建新版 `audit-p3.md`，核对共享算法不是双 parser、分页不被范围/tick 重建、3D 真 consumer 和原 2D 都存在。P3 只证明详情/手翻，演奏自动页与安全 session 属于 P4。

@@ -3,7 +3,7 @@ current_task_id = ""
 
 [[tasks]]
 id = "P1-T1"
-title = "建立 Book Flow 呈现模型"
+title = "补完整流程板并验证 RealityView 空间原型"
 status = "pending"
 plan = "plan-p1.md#p1-t1"
 commit = ""
@@ -11,7 +11,7 @@ note = ""
 
 [[tasks]]
 id = "P1-T2"
-title = "用 Book Flow 替换唱片曲库并清理旧唱片语义"
+title = "增加最小 2D 入口与单一空间所有权"
 status = "pending"
 plan = "plan-p1.md#p1-t2"
 commit = ""
@@ -19,7 +19,7 @@ note = ""
 
 [[tasks]]
 id = "P2-T1"
-title = "拆分 score-level engraving 与 system slice"
+title = "接入真实 folio、空间选择与有界大库浏览"
 status = "pending"
 plan = "plan-p2.md#p2-t1"
 commit = ""
@@ -27,39 +27,15 @@ note = ""
 
 [[tasks]]
 id = "P2-T2"
-title = "验证 canonical 分页几何与双页可读性"
+title = "接通空间曲库与原管理窗口的明确往返"
 status = "pending"
 plan = "plan-p2.md#p2-t2"
 commit = ""
 note = ""
 
 [[tasks]]
-id = "P2-T3"
-title = "交付分页双页谱并接入 Practice、同步删除旧路径"
-status = "pending"
-plan = "plan-p2.md#p2-t3"
-commit = ""
-note = ""
-
-[[tasks]]
-id = "P2-T4"
-title = "Library 接入真实动态 Book Spread 预览"
-status = "pending"
-plan = "plan-p2.md#p2-t4"
-commit = ""
-note = ""
-
-[[tasks]]
-id = "P2-T5"
-title = "验证 Practice 分页导航与生命周期边界"
-status = "pending"
-plan = "plan-p2.md#p2-t5"
-commit = ""
-note = ""
-
-[[tasks]]
 id = "P3-T1"
-title = "建立通用单页翻动 presentation"
+title = "抽取共享记谱内核并保持原滚谱行为"
 status = "pending"
 plan = "plan-p3.md#p3-t1"
 commit = ""
@@ -67,7 +43,7 @@ note = ""
 
 [[tasks]]
 id = "P3-T2"
-title = "Library preview 接入手动翻页"
+title = "在空间书册接入真分页、详情与历史"
 status = "pending"
 plan = "plan-p3.md#p3-t2"
 commit = ""
@@ -75,23 +51,15 @@ note = ""
 
 [[tasks]]
 id = "P3-T3"
-title = "Practice navigation tick 驱动自动翻页"
+title = "实现空间 sheet 翻页与最新目标收敛"
 status = "pending"
 plan = "plan-p3.md#p3-t3"
 commit = ""
 note = ""
 
 [[tasks]]
-id = "P3-T4"
-title = "收口 Reduce Motion VoiceOver 与真实验收"
-status = "pending"
-plan = "plan-p3.md#p3-t4"
-commit = ""
-note = ""
-
-[[tasks]]
 id = "P4-T1"
-title = "替换旧 ImmersiveSpace 状态机并让 mode 切换重配 AR providers"
+title = "在空间详情接通准备与校准并验证琴坐标"
 status = "pending"
 plan = "plan-p4.md#p4-t1"
 commit = ""
@@ -99,7 +67,7 @@ note = ""
 
 [[tasks]]
 id = "P4-T2"
-title = "建立 session-scoped Spatial Library world placement"
+title = "直接启动空间练习并闭合导航与安全退出"
 status = "pending"
 plan = "plan-p4.md#p4-t2"
 commit = ""
@@ -107,23 +75,15 @@ note = ""
 
 [[tasks]]
 id = "P4-T3"
-title = "用有界 RealityView Attachments 与空间浏览实现 Book Flow / Spread"
+title = "增加有限谱位编辑、重置与局部偏好"
 status = "pending"
 plan = "plan-p4.md#p4-t3"
 commit = ""
 note = ""
 
 [[tasks]]
-id = "P4-T4"
-title = "Spatial Library 接管选曲并迁移 Window 删除等管理职责"
-status = "pending"
-plan = "plan-p4.md#p4-t4"
-commit = ""
-note = ""
-
-[[tasks]]
 id = "P5-T1"
-title = "建立 canonical keyboard-relative score placement model"
+title = "在同一空间手 renderer 接入一次性真实教学"
 status = "pending"
 plan = "plan-p5.md#p5-t1"
 commit = ""
@@ -131,7 +91,7 @@ note = ""
 
 [[tasks]]
 id = "P5-T2"
-title = "建立统一 SpatialScore owner 并持久化 keyboard-local 位置偏好"
+title = "用实际 AI 播放窗口驱动同一双 Companion Hands"
 status = "pending"
 plan = "plan-p5.md#p5-t2"
 commit = ""
@@ -139,23 +99,15 @@ note = ""
 
 [[tasks]]
 id = "P5-T3"
-title = "空间开始练习并将同一 Book Spread handoff 到 KeyboardScoreRoot"
+title = "补全空间控制、谱上反馈与结果复测"
 status = "pending"
 plan = "plan-p5.md#p5-t3"
 commit = ""
 note = ""
 
 [[tasks]]
-id = "P5-T4"
-title = "增加 RealityKit 乐谱位置微调与真实设备验收"
-status = "pending"
-plan = "plan-p5.md#p5-t4"
-commit = ""
-note = ""
-
-[[tasks]]
 id = "P6-T1"
-title = "暴露 Companion 正式决策与播放时序状态"
+title = "验证两种产品共存与真实副作用边界"
 status = "pending"
 plan = "plan-p6.md#p6-t1"
 commit = ""
@@ -163,32 +115,8 @@ note = ""
 
 [[tasks]]
 id = "P6-T2"
-title = "复用 Fingering 与 MotionClip 管线生成 AI Companion Hands 动作"
+title = "完成 physical AVP 设计走查与长期文档收口"
 status = "pending"
 plan = "plan-p6.md#p6-t2"
-commit = ""
-note = ""
-
-[[tasks]]
-id = "P6-T3"
-title = "统一 Companion Hands 并删除旧空间角色实现"
-status = "pending"
-plan = "plan-p6.md#p6-t3"
-commit = ""
-note = ""
-
-[[tasks]]
-id = "P6-T4"
-title = "将 Practice 控制、反馈、结果与重练空间化"
-status = "pending"
-plan = "plan-p6.md#p6-t4"
-commit = ""
-note = ""
-
-[[tasks]]
-id = "P6-T5"
-title = "收口同一 ImmersiveSpace 的 Practice 返回曲库生命周期与验收"
-status = "pending"
-plan = "plan-p6.md#p6-t5"
 commit = ""
 note = ""

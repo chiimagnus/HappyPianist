@@ -1,225 +1,105 @@
-# Spatial Score Book Flow
+# Spatial Score Book Flow — 直接 3D，保留 2D
 
-## 为什么要做
+## 当前决定与权威归属
 
-HappyPianist 当前的核心选曲、看谱和练习仍然主要发生在普通 Window 中，空间能力没有成为产品主体验。
+2026-10-01 用户否定“先改 2D、再迁入 3D”的路线。本 feature **新增独立空间体验，不替换当前 2D 产品**，后续优化以 3D 为主。
 
-这个 feature 的目标是把“选曲 → 看谱 → 准备钢琴 → 练习 → 结果 → 返回曲库”收敛成一条连续的 Reality-first 流程：用户看到的是现实环境、现实钢琴和现实双手，曲库、乐谱、Piano Guide、Companion Hands 与练习反馈围绕真实钢琴自然存在于空间中。
+- `idea.md`：当前需求和验收真源。
+- `spatial-design.md`：空间关系、交互、状态与完整设计稿交付。
+- `plan-p1.md` 至 `plan-p6.md`：实施拆分、源码锚点、验证。
+- `todo.toml`：唯一实时任务状态。
+- `archive/2d-first/`：旧需求、计划、todo、审计与几何实验，仅供追溯，不执行、不继承旧 Go。
 
----
+`.github/features/spatial-2026-09-30/原始需求.md` 和其视觉契约仍提供空间设计背景，但“2D 退为辅助、删除旧生产路径”“八张核心稿足够”的决定已被本次要求覆盖。真实钢琴、音乐真实性与数据安全约束继续有效。
 
-## 产品目标
+## 为什么改路线
 
-最终主流程：
+旧计划前三阶段先在 Window 替换唱片、连续滚谱与翻页，到 P4 才验证真实空间。窗口尺寸和平面导航先限制了产品形态，2D 截图/测试不能证明最后的 3D 成立。
 
-```text
-辅助 Library Window
-  ↓
-Spatial Book Flow
-  ↓ 选中 / 确认
-Spatial Book Spread
-  ↓ 开始练习
-必要时完成现有钢琴准备 / 校准
-  ↓
-同一本 Spatial Book Spread 移动到现实钢琴上方
-  + Piano Guide
-  + 一双 Companion Hands
-  + 空间反馈 / 高频控制
-  ↓
-完成练习 / 保存
-  ↓
-返回 Spatial Library
-```
+新版先验证世界坐标、尺度、深度、对象关系与动态交互，再在同一条 3D 路径接入真实业务。**复用音乐与业务事实，不复用整个 2D 页面当空间外壳。**
 
-普通 Window 继续承担导入、诊断、复杂设置、录音库等辅助职责，但不再作为核心选曲和核心练习界面。
+## 保留与新增边界
 
----
+| 范围 | 当前决定 |
+| --- | --- |
+| Library Window | 保留唱片曲库、试听、导入、删除、历史、原准备/练习入口；只增加“进入 3D”入口及必要占用提示 |
+| Preparation / Practice Window | 保留原准备、连续滚谱、二维键盘、控制、设置、结果、退出；不要求迁移 |
+| 3D Library / Detail / Practice | 新增独立空间呈现和路由，直接在 RealityView / 唯一 ImmersiveSpace 内设计 |
+| 曲库/音乐/练习/硬件 | 共用既有 owner、repository、parser、输入输出、校准和保存语义，不复制业务系统 |
+| 同时使用 | 两种产品长期可选，但一次只有一个活动练习/校准、一个沉浸空间 owner，不重复播放/录音/保存 |
+| 后续方向 | 主要优化 3D；没有最终删除 2D 的任务、期限或 feature flag |
 
-## 正式视觉参考
+保留 2D 不禁止必要的公共底层修改，但共享改动须保持行为兼容并验证两条路径。不删、不重命名仍被 2D 使用的 UI/API/settings/tests。只删除被正式 3D 替代的临时原型，不把两种明确产品呈现误判为“旧新兼容双轨”。
 
-以下 8 张设计稿是本 feature 的产品结构、空间关系、信息层级和视觉语言参考：
+## 空间世界的定义与默认假设
 
-1. `.github/features/spatial-2026-09-30/设计稿/images/01-Book-Flow曲库.png`
-2. `.github/features/spatial-2026-09-30/设计稿/images/02-双页Book-Spread曲目详情.png`
-3. `.github/features/spatial-2026-09-30/设计稿/images/03-现实钢琴-MIDI准备.png`
-4. `.github/features/spatial-2026-09-30/设计稿/images/04-正常练习.png`
-5. `.github/features/spatial-2026-09-30/设计稿/images/05-Companion教学.png`
-6. `.github/features/spatial-2026-09-30/设计稿/images/06-Companion陪弹.png`
-7. `.github/features/spatial-2026-09-30/设计稿/images/07-实时反馈与空间控制.png`
-8. `.github/features/spatial-2026-09-30/设计稿/images/08-练习结果与重练.png`
+Book Flow 中每本 folio 是独立空间对象；中心书展开为双页谱；准备后同一本谱移到琴上；反馈、结果、重练与合拢返回都围绕相应对象，而非矩形页面。
 
-同时遵守：
-- `.github/features/spatial-2026-09-30/设计稿/视觉契约.md`
+依据用户指定的三张 MR 参考图，本版默认 **mixed reality：现实空间 + App 的 3D 对象**。这不是用户已要求全 VR 的事实；不替换房间，不在真实模式生成第二台钢琴。若另行要求全 VR，须先重新定义现实乐器可见性与安全验收，不在此计划悄悄扩张。
 
-这些图不是逐像素复刻任务。现实环境继续来自 passthrough，钢琴来自用户真实乐器，谱面来自真实 MusicXML，封面与元数据只使用真实已知数据。
+纸页、文字、局部系统 Button 可以是平面表面并附属于实体。禁止将整个 `LibraryContentView` / `PracticeStepView` 挂成巨型 attachment，称之为 3D。
 
-不要复制设计稿中的固定房间、固定钢琴型号、家具、灯光、示意曲名、示意封面或 AI 生成图中的透视/文字瑕疵。
+## 已有视觉输入与缺口
 
----
+已在当前树确认并查看：
+- `.github/features/spatial-2026-09-30/设计稿/images/01-Book-Flow曲库.png`：中心书、邻册倾斜/后退。
+- `.github/features/spatial-2026-09-30/设计稿/images/02-双页Book-Spread曲目详情.png`：轻书脊、双页、多行 Grand Staff、谱上练习事实。
+- `.github/features/spatial-2026-09-30/设计稿/images/04-正常练习.png`：真实琴/双手、琴上谱、局部 Guide。
 
-## 必须满足的产品行为
+旧生成清单声称八张已生成，但当前仅以上三张 PNG 存在；03/05/06/07/08 有 prompt，不能当作已有设计图。单视角静帧也不证明尺度、侧面、命中区、连续动作与失败流程已经设计完。
 
-### 1. Book Flow
+本次补 `spatial-design.md` 的完整状态、空间契约与 D01–D10 设计板交付；它不冒充已生成的高保真图片。P1 必须先交多视角板与 RealityView 动态原型，后续 owning phase 补齐真实功能状态。
 
-- 曲库的核心视觉从 Vinyl / Turntable 隐喻切换为书本 / folio。
-- 用户可以浏览、选中并确认一本曲谱。
-- 中央选中的 folio 用于打开 Book Spread；试听继续是独立动作，不能和“再次点击已选中 item”混成同一个行为。
-- 大曲库仍然必须可浏览，不能只适用于少量曲目。
-- 空曲库必须回到明确的导入入口，不能制造假的空间书本。
+不复制示意房间、家具、琴型、曲名、错误音符/手部透视或未经授权封面画。缺真实封面资产时用纸面排版与程序化细节，不假造作者/音符，不新增 AI 封面系统。
 
-### 2. Book Spread
+## 必须满足的用户行为
 
-- 一首曲谱展开后是双页 Book Spread。
-- 每页可以纵向容纳多个 Grand Staff systems，而不是把旧的单 viewport 缩成两份。
-- Library 与 Practice 必须共享同一套谱面内容、分页和页码语义。
-- 当前已经支持的记谱事实不能因为分页丢失，包括谱号、调号、拍号、休止、连线、连音、beam、反复结构和已支持的演奏标记。
-- Library detail 中应直接表达练习状态，包括 stable / learning / resume / focus 等已存在的真实练习事实。
+1. **入口与返回**：App 仍默认打开原 2D 曲库，用户主动进入 3D。打开失败/取消保留原页面；有效空间挂载和摆放后才隐藏原窗。退出恢复 2D 与当前选择，不自动开始练习。
+2. **空间曲库**：不依赖钢琴、不迫使走动；独立 world-locked folio，支持大库浏览/查找、选择/打开，试听独立。空库/管理可明确返回 2D，保持现有事务与删除保护。
+3. **双页谱**：真实 MusicXML 排为多个 systems/page 与双页；已有记谱事实不丢。3D Detail 与 3D Practice 共享同一分页和书册身份；2D 滚谱保留，不要求两种呈现同页码。
+4. **导航**：Detail 手动翻页、resume/focus；Practice 由真实执行位置自动翻页，repeat occurrence、seek/range/reset 正确。没有独立时钟；快速变化收敛最新目标；Reduce Motion 直接换页。
+5. **准备**：Real Audio / Bluetooth MIDI 复用现有 A0/C8 校准、连接/权限与 readiness；选择、A0、C8、Ready、失败/重试/取消都有空间表达。stored calibration 不能冒充 runtime ready；取消回同书详情。
+6. **连续书册**：复用唯一 launch/preparation/applicator，正式身份与校准确认后将同一 Spread 移到琴上；可换父节点，不复制第二 practice owner，不以动画完成启动判定。
+7. **位置**：谱以 keyboard-local transform 面向演奏者，位置可有限微调/重置，不跟头、不保存会话 world transform。物理尺寸、距离、倾角经空间原型/真机测量，旧窗口像素实验不作证据。
+8. **伙伴**：3D 用户手保持 passthrough，只一双 Companion Hands，Teaching/AI Duet 共用真实音符与播放时序。保留的 2D Neon/VirtualPerformer 不删，但不同时进入新 3D renderer。motion/资产不足恢复对应 Guide，不伪造动作、不改音频。
+9. **控制与反馈**：谱缘/琴旁按需控制，不是 HUD/常驻工具条；复用配置、播放互斥、录音、assessment/coaching。未知/低置信度不画成错误，每次最多一个有范围和完成条件的复测动作。
+10. **结果与安全退出**：谱上结果、focus、重练/继续/返回。回 3D 曲库或退 2D 前必须 progress flush + session facts finalize 成功；失败留在原会话，允许重试/保留/明确 discard。回库成功不被 legacy window 消失回调关掉空间。
 
-### 3. 翻页
+## 数据、兼容与安全
 
-- Library 中支持手动前后翻页。
-- Practice 中支持随演奏进度自动翻页。
-- 自动翻页由真实练习 / playback 位置驱动，不能新增独立的猜测时钟。
-- 快速跳转时应收敛到最终目标页，不能积压一串过时翻页动画。
-- Reduce Motion 开启时仍然能正确换页，只取消不必要的动态效果。
-
-### 4. Spatial Library
-
-- Spatial Book Flow 存在于现实世界坐标中，而不是贴脸 HUD。
-- 用户移动头部后，曲库仍保持原来的世界位置。
-- 每本 folio 是独立空间对象，不是一整块伪 3D 平面窗口。
-- 选中的 folio 可以在空间中展开为 Book Spread。
-- Spatial Library 与 Calibration / Practice 属于同一条连续空间体验，不应因为模式切换反复关闭和重开整个沉浸场景。
-
-### 5. Spatial Score Placement
-
-- 开始练习后，Library 中已经打开的那一本 Book Spread 继续存在，并移动到现实钢琴上方；不能创建第二份独立谱面状态。
-- 乐谱位置以已校准的真实钢琴坐标为基准，而不是以用户头部为基准。
-- Real Audio 与 Bluetooth MIDI 模式共享同一套现实钢琴空间定位语义。
-- 用户可以对乐谱进行有限的位置微调并重置。
-- 用户偏好只保存钢琴局部坐标下的偏移，不保存一次会话中的世界坐标。
-
-### 6. Reality-first Practice
-
-练习时现实空间中保留：
-
-- 现实钢琴；
-- 用户自己的 passthrough 双手；
-- Spatial Book Spread；
-- Piano Guide；
-- 一双 Companion Hands；
-- 必要的空间反馈和高频控制。
-
-练习不再重复展示一套主要 Window 乐谱、二维练习钢琴和永久底部控制栏。
-
-复杂设置、调试和低频管理能力可以继续留在辅助 Window。
-
-### 7. Companion Hands
-
-- 用户真实双手保持 passthrough，不再额外渲染一双 Neon 用户手。
-- Teaching / Demonstration 与 AI Duet 共用同一双 Companion Hands。
-- 不保留第二套虚拟演奏者、第二台 AI piano 或完整 Xiaocheng 角色作为当前生产路径。
-- Companion Hands 的动作必须来自真实要播放的音符和真实播放时间，而不是 UI 自己猜测。
-- Demonstration 与 AI 可以共享同一套钢琴手指法 / motion pipeline，但不能为了动画效果改变真实音频内容。
-- 某只虚拟手无法安全生成动作时，可以不显示该只手；不能伪造“已正确演奏”的动作覆盖。
-
-### 8. 练习反馈与结果
-
-- 高频操作应尽量出现在乐谱或钢琴附近的空间 UI 中。
-- 即时反馈应围绕当前练习上下文展示，而不是要求用户不断回到 Window。
-- 一轮练习结束后的结果、重点小节、重练、继续等主要动作应回到 Spatial Book Spread 语境中。
-- Window Alert 不再承担核心 round-result 产品流程。
-
-### 9. 返回曲库
-
-- 结束练习时必须先完成现有 progress 保存 / flush / discard 决策，再改变空间归属。
-- 保存失败时继续停留在 Practice，不能假装已经返回 Library。
-- 成功结束后，在同一个空间体验中从 Practice 返回 Spatial Library。
-- 返回后仍保持原来选中的曲目，并回到对应 folio / Book Flow。
-- 不允许因为 Practice Window 消失而再次关闭已经恢复的 Spatial Library。
-
----
-
-## 必须保留的现有能力与安全边界
-
-本 feature 是产品形态重构，不是删除数据正确性和硬件安全边界。
-
-必须保留：
-
-- MusicXML 作为正式练习谱面来源；
-- 现有 import transaction 的原子性、冲突确认、取消和恢复；
-- bundled 曲目不可删除；
-- import active 时禁止不安全的删除 / 开始练习；
-- Practice progress 的保存、恢复、失败与 explicit discard 语义；
-- 麦克风、Bluetooth MIDI、虚拟钢琴现有输入能力；
-- A0 / C8 现实钢琴校准流程；
-- source/performed identity 和 score revision 语义；
-- VoiceOver、Differentiate Without Color、Dynamic Type、Reduce Motion；
-- 任务取消、generation 隔离、后台 / scene teardown 后拒绝过时结果；
-- 已有 Piano Guide 的职责与真实性。
-
-新空间体验不得通过静默 fallback、伪造数据或复制第二份状态来掩盖失败。
-
----
-
-## 重要迁移决定
-
-- 旧 Vinyl / Turntable / Record / Crate 核心曲库视觉退出 production，由 Book Flow 取代。
-- 旧连续横向滚谱退出 production，由稳定分页的 Book Spread 取代。
-- Library 与 Practice 不维护两份独立 page state；同一首曲谱共享同一分页语义。
-- 旧 Neon user-hand renderer、旧 Demonstration renderer、VirtualPerformer / Xiaocheng / 第二台 performer piano 退出当前 production 路径。
-- Demonstration 是一次性的练习动作，不是永久开关。
-- Spatial Library / Spatial Score 不为普通会话位置创建多余的持久 WorldAnchor。
-- 不新增“旧 UI / 新 UI”长期 feature flag 或兼容模式；新路径接管后旧路径退出 production。
-
----
+- 不新增业务进度 JSON schema、平行 repository/parser/playback engine、AI backend 自动切换。
+- progress 仅保存批准的小节级事实；page plan、页码、实体、cue、逐音 evidence、Companion presentation 不写进去。
+- 摆放偏好若保存，只存有限 keyboard-local 用户偏移，采用现有偏好机制，不混入锚点/业务进度，不存 world pose/追踪帧。
+- PreparedPractice 必须有 steps 与小节结构，不新增 legacy preparation fallback。
+- import-active 门禁、bundled 不可删、事务恢复、source/performed identity、revision、取消/代次隔离、DiagnosticsReporting 脱敏均保留。
+- Virtual Piano 和完整小程角色不是本次 3D 新体验验收对象，原 2D 功能保留；选择该输入时明确使用原路径，不替用户改模式。
+- Swift 6、VoiceOver、Dynamic Type、Differentiate Without Color、Reduce Motion 从首个接入 task 生效。
 
 ## 非目标
 
-本 feature 不负责：
+不重做/下线 2D，不截图搬迁整页 UI，不做 VR 音乐室/自动琴架识别/厚书物理/环境装修/商城/封面生成，不改变正式曲谱来源、练习判定、AI 策略或录音格式。失败不能静默切 2D 假装 3D 成功，返回 2D 是明确动作或打开失败后的入口恢复。
 
-- 逐像素复制设计稿；
-- 固定用户房间、钢琴型号、家具或灯光；
-- 为曲谱生成假的封面、假的音符或假的练习历史；
-- 新建第二套 MusicXML parser / notation projection；
-- 新建第二套钢琴校准体系；
-- 新建第二个 AI 音频播放引擎或独立动画时钟；
-- 当前版本重新引入完整 Companion 虚拟角色；
-- 因为“空间化”而删除导入恢复、保存失败、权限 / provider 失败等真实安全边界；
-- 把所有复杂设置全部塞进空间 UI。
+## 最终验收
 
----
+- 同一安装完整运行原 2D 流程；新增入口不改默认启动，原 Vinyl/滚谱/键盘/settings/renderer 的必要文件与测试仍在。
+- 3D 主路径无整页 2D View；folios 有独立深度、世界位置、命中与遮挡，多视角与动态转场证明空间性。
+- 不回旧 Practice Window 即可完成 3D 选曲→详情→必要准备→练习→结果/重练→回库；系统导入/复杂设置为明确且可返回的辅助例外。
+- 同谱身份、分页、历史、音乐位置真实；repeat/seek/range/奇数末页、快速换曲与取消不回写错状态。
+- 2D/3D/准备不抢同一 scene/输入输出/保存，无重复 session、声音或 renderer，无迟到关闭新场景。
+- 保存失败保留增量和旧文件；重试后重新读 repository 验证真实落盘；discard 只放弃未保存增量。
+- Simulator 软件 Gate 与 physical Apple Vision Pro 的 world stability、阅读/校准/舒适度、手部遮挡/音画同步分别留证，无真机证据不称 3D 体验通过。
 
-## 验收结果
+## 实施顺序与源码基线
 
-### Book / Notation
+| Phase | 交付 |
+| --- | --- |
+| P1 | 完整低保真流程、多视角/动态空间验证，最小 2D 入口与 3D 世界壳 |
+| P2 | 真正的 Book Flow、真实曲库/大库导航/管理往返 |
+| P3 | 仅供 3D 的真实分页 Book Spread、详情和空间翻页；2D 滚谱不删 |
+| P4 | 同空间准备/校准、唯一 launch、琴上谱、基础练习与安全返回闭环 |
+| P5 | 同一双 Companion Hands、真实时序、空间控制/反馈/结果与重练 |
+| P6 | 2D/3D 共存、无障碍、真机走查与文档收口 |
 
-- 核心曲库不再以唱片 / 唱臂作为 production 浏览体验。
-- Book Spread 每页能显示多个 Grand Staff systems，并保持现有记谱正确性。
-- 相同曲谱在 Library 与 Practice 中拥有稳定一致的分页。
-- Library 可以手动翻页；Practice 可以按真实进度自动翻页。
-- 旧连续横向滚谱不再作为 production Practice 谱面。
+本次源码读取基于 `ed77b659`：已有一个 mixed ImmersiveSpace，`AppState.ImmersiveMode` 只有 calibration/practice，Library 仍 Vinyl，Practice 仍 `GrandStaffNotationView`。旧审计描述的分页/SpatialLibrary 文件在当前树不存在；计划“新增”不表示已经实现。
 
-### Spatial Library / Score
-
-- Spatial Book Flow 在用户移动头部后仍保持世界位置。
-- 每个 folio 都是独立空间对象。
-- 选中 folio 可以在空间中打开同一本 Book Spread。
-- 开始练习时，同一本 Spread 移动到现实钢琴上方，而不是重新创建一份。
-- Real Audio / Bluetooth MIDI 共用同一现实钢琴定位语义。
-- 乐谱位置微调可重置，并且不会把 session world transform 当成长期偏好保存。
-
-### Reality-first Practice
-
-- 用户真实手保持 passthrough，不再出现 Neon duplicate hands。
-- Teaching 与 AI Duet 只使用一双 Companion Hands。
-- production 不再存在 VirtualPerformer / Xiaocheng / 第二台 AI piano 路径。
-- Companion Hands 与实际播放音符和播放开始时间同步。
-- Piano Guide 仍是唯一琴键引导 renderer。
-- 核心练习操作、反馈与 round result 可以在空间中完成。
-- 保存失败不会错误返回 Library；保存 / discard 成功后能在同一空间体验中回到原曲目的 Spatial Library。
-
-### Accessibility / Evidence
-
-- Reduce Motion、VoiceOver、Differentiate Without Color 在新的 Book / Spatial 路径中可用。
-- Simulator / build 只证明软件路径；world stability、现实琴键对齐、阅读舒适度和 Companion finger alignment 必须由 physical Apple Vision Pro 证据支持。
+本次授权仅设计与计划，不启动 App 实现。按 writing-plan 约定，计划/设计及归档本地保留，不新增 Git 提交、不 push、不建分支。
