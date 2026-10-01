@@ -1,6 +1,6 @@
 import Foundation
-import Library
 @testable import HappyPianistAVP
+import Library
 import Testing
 
 @MainActor
@@ -92,6 +92,89 @@ func blockedTransactionRecoveryPreventsIndexSnapshotPublication() async {
     #expect(result == nil)
     #expect(await store.loadCount == 0)
     #expect(recorder.events == ["recover"])
+}
+
+@MainActor
+@Test
+func repeatedBootstrapPreservesCurrentSelectionAndOpenScore() async {
+    let entries = (0 ..< 2).map { index in
+        SongLibraryEntry(id: UUID(), displayName: "Score \(index)", musicXMLFileName: "\(index).musicxml", scoreFileVersionID: UUID(), importedAt: .now, audioFileName: nil)
+    }
+    let loader = ControlledLibraryBootstrapLoader(snapshot: .init(index: .init(entries: entries, lastSelectedEntryID: entries[0].id), bundledEntries: []))
+    let library = SongLibraryViewModelTestHarness.make(bootstrapLoader: loader, deferInitialLoad: true)
+    await library.loadLibrary()
+    library.selectEntry(entries[1].id)
+    library.confirmFolio(entries[1].id)
+    let identity = library.scorePreview.identity
+
+    await library.loadLibrary()
+
+    #expect(library.selectedEntryID == entries[1].id)
+    #expect(library.scorePreview.isOpen)
+    #expect(library.scorePreview.identity == identity)
+    #expect(await loader.loadCount == 1)
+    library.scorePreview.close()
+    await library.flushPendingSelectionPersistence()
+}
+
+@MainActor
+@Test
+func concurrentBootstrapInstallsSnapshotOnce() async {
+    let loader = ControlledLibraryBootstrapLoader(snapshot: .init(index: .empty, bundledEntries: []), suspended: true)
+    let library = SongLibraryViewModelTestHarness.make(bootstrapLoader: loader, deferInitialLoad: true)
+    let first = Task { await library.loadLibrary() }
+    await TestAsyncWait.until("bootstrap started") { await loader.loadCount == 1 }
+    let second = Task { await library.loadLibrary() }
+    await Task.yield()
+    await loader.release()
+    await first.value
+    await second.value
+    #expect(await loader.loadCount == 1)
+}
+
+@MainActor
+@Test
+func unsuccessfulBootstrapCanRetryWithoutInstallingEmptySuccess() async {
+    let entry = SongLibraryEntry(id: UUID(), displayName: "Score", musicXMLFileName: "score.musicxml", scoreFileVersionID: UUID(), importedAt: .now, audioFileName: nil)
+    let loader = ControlledLibraryBootstrapLoader(snapshot: .init(index: .init(entries: [entry], lastSelectedEntryID: entry.id), bundledEntries: []), failFirst: true)
+    let library = SongLibraryViewModelTestHarness.make(bootstrapLoader: loader, deferInitialLoad: true)
+    await library.loadLibrary()
+    #expect(library.entries.isEmpty)
+    await library.loadLibrary()
+    #expect(library.entries == [entry])
+    #expect(await loader.loadCount == 2)
+}
+
+private actor ControlledLibraryBootstrapLoader: SongLibraryBootstrapLoading {
+    let snapshot: SongLibraryBootstrapSnapshot
+    let failFirst: Bool
+    private var suspended: Bool
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var loadCount = 0
+
+    init(snapshot: SongLibraryBootstrapSnapshot, suspended: Bool = false, failFirst: Bool = false) {
+        self.snapshot = snapshot
+        self.suspended = suspended
+        self.failFirst = failFirst
+    }
+
+    func load() async -> SongLibraryBootstrapSnapshot? {
+        loadCount += 1
+        if failFirst, loadCount == 1 { return nil }
+        if suspended {
+            await withCheckedContinuation { waiters.append($0) }
+        }
+        return snapshot
+    }
+
+    func release() {
+        suspended = false
+        let pending = waiters
+        waiters.removeAll()
+        for waiter in pending {
+            waiter.resume()
+        }
+    }
 }
 
 private actor BootstrapRecordingIndexStore: SongLibraryIndexStoreProtocol {

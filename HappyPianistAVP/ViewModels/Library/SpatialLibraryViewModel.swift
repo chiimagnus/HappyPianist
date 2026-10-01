@@ -13,6 +13,14 @@ final class SpatialLibraryViewModel {
 
     private(set) var state: State = .inactive
 
+    var validPlacement: SpatialLibraryPlacement? {
+        guard case let .placed(placement) = state,
+              placement.worldTrackingGeneration == arTrackingService.worldTrackingGeneration,
+              arTrackingService.providerStateByName["world"] == .running
+        else { return nil }
+        return placement
+    }
+
     private let arTrackingService: any ARTrackingServiceProtocol
     private let placementResolver: SpatialLibraryPlacementResolver
     private let placementTimeout: Duration

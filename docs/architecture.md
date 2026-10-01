@@ -22,6 +22,7 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 - Spatial Library 根节点只保存 session-scoped `world transform + worldTrackingGeneration`：首次进入时从 device pose 取 yaw 定位并保持 world-fixed；普通 mode 切换复用，同一 ImmersiveSpace suspend/关闭或 generation 变化立即失效。它不是持久化 WorldAnchor。
 - `SpatialLibrarySceneController` 只把现有曲库选择投影成最多七个独立 folio Attachment 或一个动态 Book Spread；SwiftUI 负责内容和翻页，RealityKit 负责世界坐标、深度和单一等比物理尺寸映射。浏览手势的输入实体在书册后方，不覆盖书册和页缘按钮。
 - 空曲库不进入沉浸空间；已打开曲库变空则经共享 coordinator 关闭。空间入口不得抢占进行中的 Practice/Preparation，必须先返回现有生命周期入口。
+- Library Window 只在空间关闭或等待/失败定位时显示；真实 mounted Library 获得同代有效定位后关闭窗口，不在书册背后保留管理面板。空间的小型管理按钮经共享 coordinator 退出；真实 Library scene 关闭或定位失败恢复管理窗口，普通 mode 切换不打开窗口。
 
 ## 不变量
 

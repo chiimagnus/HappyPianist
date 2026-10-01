@@ -138,7 +138,7 @@ func spatialLibraryPlacementReplacesRootAfterWorldTrackingGenerationChanges() as
 
 @Test
 @MainActor
-func spatialLibraryPlacementCanRetryAfterPoseTimeout() async throws {
+func spatialLibraryPlacementCanRetryAfterPoseTimeout() async {
     let tracking = SpatialLibraryTrackingService()
     tracking.providerStateByName["world"] = .running
     tracking.worldTrackingGeneration = 1
@@ -251,6 +251,37 @@ func arGuidePreservesLibraryPlacementAcrossModeSwitchAndInvalidatesOnSuspend() a
     #expect(tracking.addWorldAnchorCallCount == 0)
 }
 
+@Test
+@MainActor
+func spatialLibraryValidPlacementRejectsPausedAndReplacedRuntimeBeforeReconciliation() async throws {
+    let tracking = SpatialLibraryTrackingService()
+    tracking.providerStateByName["world"] = .running
+    tracking.worldTrackingGeneration = 3
+    tracking.deviceTransform = matrix_identity_float4x4
+    let viewModel = SpatialLibraryViewModel(
+        arTrackingService: tracking,
+        placementTimeout: .milliseconds(100),
+        pollingInterval: .milliseconds(5)
+    )
+    #expect(viewModel.validPlacement == nil)
+    viewModel.enterLibraryMode()
+    await waitForPlacement(viewModel)
+    let placement = try #require(viewModel.validPlacement)
+
+    tracking.providerStateByName["world"] = .paused
+    #expect(viewModel.validPlacement == nil)
+    tracking.providerStateByName["world"] = .running
+    #expect(viewModel.validPlacement == placement)
+    tracking.worldTrackingGeneration += 1
+    #expect(viewModel.validPlacement == nil)
+
+    viewModel.retryPlacement()
+    await waitForPlacement(viewModel)
+    #expect(viewModel.validPlacement?.worldTrackingGeneration == 4)
+    viewModel.invalidatePlacement()
+    #expect(viewModel.validPlacement == nil)
+}
+
 @MainActor
 private final class SpatialLibraryTrackingService: ARTrackingServiceProtocol {
     var fingerTipsSnapshot = FingerTipsSnapshot.empty
@@ -336,8 +367,8 @@ private func makeDeviceTransform(
 ) -> simd_float4x4 {
     let rotation =
         simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
-        * simd_quatf(angle: pitch, axis: SIMD3<Float>(1, 0, 0))
-        * simd_quatf(angle: roll, axis: SIMD3<Float>(0, 0, 1))
+            * simd_quatf(angle: pitch, axis: SIMD3<Float>(1, 0, 0))
+            * simd_quatf(angle: roll, axis: SIMD3<Float>(0, 0, 1))
     var transform = simd_float4x4(rotation)
     transform.columns.3 = SIMD4<Float>(position, 1)
     return transform

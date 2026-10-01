@@ -44,6 +44,7 @@ struct HappyPianistAVPApp: App {
     private let graph: LiveAppGraph
     #if DEBUG
         private let uiCaptureRoute: AppUICaptureRoute?
+        @State private var didPerformSpatialUICapture = false
     #endif
 
     init() {
@@ -130,7 +131,7 @@ struct HappyPianistAVPApp: App {
                     practiceLaunchViewModel: graph.practiceLaunchViewModel,
                     diagnosticsViewModel: graph.diagnosticsViewModel
                 )
-                .modifier(SpatialLibraryCaptureModifier(graph: graph, route: route))
+                .modifier(SpatialLibraryCaptureModifier(graph: graph, route: route, didPerformCapture: $didPerformSpatialUICapture))
             case .practice:
                 PracticeWindowRootView(
                     arGuideViewModel: graph.arGuideViewModel,
@@ -145,11 +146,14 @@ struct HappyPianistAVPApp: App {
     private struct SpatialLibraryCaptureModifier: ViewModifier {
         let graph: LiveAppGraph
         let route: AppUICaptureRoute
+        @Binding var didPerformCapture: Bool
         @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
         func body(content: Content) -> some View {
             content.task {
                 guard route == .spatialLibrary || route == .spatialSpread else { return }
+                guard !didPerformCapture else { return }
+                didPerformCapture = true
                 await graph.songLibraryViewModel.loadLibrary()
                 guard !graph.songLibraryViewModel.entries.isEmpty else { return }
                 let failure = await graph.arGuideViewModel.openImmersive(mode: .library, using: makeImmersiveSpaceOpenHandler(openImmersiveSpace))

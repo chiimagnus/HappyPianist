@@ -19,6 +19,10 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 
 Spatial Book Flow 是唯一核心选曲入口：独立 folio Attachment 仅投影当前选择附近最多七册；RealityKit 承载实际 yaw/depth 和等比物理尺寸。邻册确认与后方专用横向拖动均提交到原曲库 selection owner。辅助 Window 仅提供 MusicXML 导入、文件管理、音频绑定/试听、诊断与钢琴设置；管理行直接使用目标 entry ID，不改变核心选择。
 
+空间定位成功后辅助 Window 退场，两者不持续叠加显示。空间“管理曲谱”先关闭 Library scene 再恢复管理窗口；定位失败恢复原窗口的重试入口，不制造无控件的空白沉浸空间。
+
+曲库 owner 合并并发首次加载，成功 snapshot 仅安装一次；管理窗口重建不重新 bootstrap、不覆盖当前选择或关闭空间预览。失败未安装 snapshot 时仍允许重试。
+
 - 邻册点击只选曲，点击中央已选册打开空间双页预览，不另设 Window 看谱入口。预览与练习共用 canonical 分页；预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
 - 预览只保留当前一份准备结果和 PagePlan；解析前后都核对 song ID、文件版本与请求 generation。关闭、换曲、删除、导入开始或沉浸空间 suspend/关闭取消并清理；辅助 Window 失去焦点不撤销空间预览。迟到结果不能恢复旧谱。重新打开重新准备，没有永久缓存。
 - 管理窗口删除只在明确系统确认后调用原 `deleteEntry`；内置曲谱保护、导入期间阻止删除、文件/索引/历史清理与 selection 修复仍由原业务链负责。曲库变空关闭共享 Library ImmersiveSpace，后续导入不自动重开。

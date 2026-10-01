@@ -22,6 +22,7 @@ struct ImmersiveView: View {
     private var pianoDemonstrationHandsEnabled = PianoDemonstrationHandsSettings.defaultValue
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @Environment(\.openWindow) private var openWindow
 
     init(
         viewModel: ARGuideViewModel,
@@ -78,6 +79,13 @@ struct ImmersiveView: View {
             if viewModel.immersiveMode == .library,
                songLibraryViewModel.entries.isEmpty == false
             {
+                Attachment(id: SpatialLibraryAttachmentID.management) {
+                    SpatialLibraryManagementAttachmentView {
+                        Task { @MainActor in
+                            await viewModel.closeImmersive(using: makeImmersiveSpaceDismissHandler(dismissImmersiveSpace))
+                        }
+                    }
+                }
                 if songLibraryViewModel.scorePreview.isOpen {
                     Attachment(id: SpatialLibraryAttachmentID.spread) {
                         SpatialLibrarySpreadAttachmentView(
@@ -124,6 +132,9 @@ struct ImmersiveView: View {
             resetOverlayControllers()
             spatialLibrarySceneController.reset()
             viewModel.onImmersiveDisappear()
+            if viewModel.immersiveMode == .library {
+                openWindow(id: WindowID.library)
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
@@ -152,6 +163,13 @@ struct ImmersiveView: View {
             guard scenePhase == .active, viewModel.immersiveMode == .library else { return }
             spatialLibraryViewModel.enterLibraryMode()
         }
+        .onChange(of: spatialLibraryViewModel.state) {
+            if scenePhase == .active, viewModel.immersiveMode == .library,
+               case .placementFailed = spatialLibraryViewModel.state
+            {
+                openWindow(id: WindowID.library)
+            }
+        }
         .onChange(of: viewModel.appState.arTrackingService.providerStateByName["world"]) {
             guard scenePhase == .active, viewModel.immersiveMode == .library else { return }
             spatialLibraryViewModel.enterLibraryMode()
@@ -173,13 +191,7 @@ struct ImmersiveView: View {
     }
 
     private var spatialPlacement: SpatialLibraryPlacement? {
-        guard case let .placed(placement) = spatialLibraryViewModel.state else {
-            return nil
-        }
-        guard placement.worldTrackingGeneration == viewModel.appState.arTrackingService.worldTrackingGeneration,
-              viewModel.appState.arTrackingService.providerStateByName["world"] == .running
-        else { return nil }
-        return placement
+        spatialLibraryViewModel.validPlacement
     }
 
     private var isSpatialBrowseGestureEnabled: Bool {

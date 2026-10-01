@@ -1,6 +1,16 @@
 import Notation
 import SwiftUI
 
+struct SpatialLibraryManagementAttachmentView: View {
+    let onManage: @MainActor () -> Void
+
+    var body: some View {
+        Button("管理曲谱", systemImage: "slider.horizontal.3", action: onManage)
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+    }
+}
+
 struct SpatialLibraryFolioAttachmentView: View {
     let presentation: SongLibraryTrackPresentation
     let isPlaying: Bool

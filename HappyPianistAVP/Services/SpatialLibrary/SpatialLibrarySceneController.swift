@@ -11,6 +11,7 @@ final class SpatialLibrarySceneController {
     private var hasAttachedRoot = false
     private var folioEntities: [UUID: ViewAttachmentEntity] = [:]
     private var spreadEntity: ViewAttachmentEntity?
+    private var managementEntity: ViewAttachmentEntity?
 
     init(metrics: SpatialBookDisplayMetrics = .standard) {
         self.metrics = metrics
@@ -56,6 +57,7 @@ final class SpatialLibrarySceneController {
         rootEntity.isEnabled = true
         rootEntity.transform = Transform(matrix: placement.worldFromSpatialLibrary)
         interactionEntity.isEnabled = showsSpread == false && visibleItems.count > 1
+        attachManagement(from: attachments, showsSpread: showsSpread)
 
         if showsSpread {
             detachFolios()
@@ -159,6 +161,25 @@ final class SpatialLibrarySceneController {
         )
     }
 
+    private func attachManagement(from attachments: RealityViewAttachments, showsSpread: Bool) {
+        guard let entity = attachments.entity(for: SpatialLibraryAttachmentID.management) else { return }
+        if managementEntity !== entity {
+            managementEntity?.removeFromParent()
+            managementEntity = entity
+            rootEntity.addChild(entity)
+        } else if entity.parent == nil {
+            rootEntity.addChild(entity)
+        }
+        let bookHeight = showsSpread ? metrics.effectiveSpreadHeightMeters : metrics.effectiveFolioHeightMeters
+        entity.position = SIMD3<Float>(0, -bookHeight / 2 - 0.055, 0.06)
+        applyPhysicalScale(
+            to: entity,
+            targetWidthMeters: 0.20,
+            targetHeightMeters: 0.035,
+            presentationScale: 1
+        )
+    }
+
     private func applyPhysicalScale(
         to entity: ViewAttachmentEntity,
         targetWidthMeters: Float,
@@ -198,5 +219,7 @@ final class SpatialLibrarySceneController {
     private func detachAttachments() {
         detachFolios()
         detachSpread()
+        managementEntity?.removeFromParent()
+        managementEntity = nil
     }
 }

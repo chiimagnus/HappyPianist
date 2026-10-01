@@ -1,5 +1,5 @@
-import Foundation
 import Diagnostics
+import Foundation
 import Library
 import Observation
 import Practice
@@ -14,9 +14,12 @@ final class SongLibraryViewModel {
     private let audioImportService: AudioImportServiceProtocol
     private let bundledProvider: BundledSongLibraryProviderProtocol
     private let bootstrapLoader: any SongLibraryBootstrapLoading
+    @ObservationIgnored private var bootstrapTask: Task<Void, Never>?
+    @ObservationIgnored private var hasLoadedBootstrap = false
     private var bundledEntries: [SongLibraryEntry] {
         didSet { invalidatePreviewIfSelectionChanged() }
     }
+
     private let audioPlaybackController: SongAudioPlaybackStateController
     private let practiceProgressRepository: any PracticeProgressRepositoryProtocol
     private let practiceProgressRecovery: (any PracticeProgressRecoveryProtocol)?
@@ -46,6 +49,7 @@ final class SongLibraryViewModel {
     var index: SongLibraryIndex = .empty {
         didSet { invalidatePreviewIfSelectionChanged() }
     }
+
     var errorMessage: String?
     var currentListeningEntryID: UUID?
     var isCurrentListeningPlaying = false
@@ -56,6 +60,7 @@ final class SongLibraryViewModel {
     private(set) var selectedEntryID: UUID? {
         didSet { invalidatePreviewIfSelectionChanged() }
     }
+
     private(set) var practiceSnapshotState: SongPracticeLibraryPresentationState?
 
     init(
@@ -96,6 +101,7 @@ final class SongLibraryViewModel {
         bundledEntries = initialSnapshot?.bundledEntries ?? []
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
         if initialSnapshot != nil {
+            hasLoadedBootstrap = true
             installBootstrapSelection()
         }
 
@@ -115,11 +121,22 @@ final class SongLibraryViewModel {
     }
 
     func loadLibrary() async {
-        scorePreview.close()
-        guard let snapshot = await bootstrapLoader.load() else { return }
-        index = snapshot.index
-        bundledEntries = snapshot.bundledEntries
-        installBootstrapSelection()
+        guard !hasLoadedBootstrap else { return }
+        if let bootstrapTask {
+            await bootstrapTask.value
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { bootstrapTask = nil }
+            guard let snapshot = await bootstrapLoader.load() else { return }
+            index = snapshot.index
+            bundledEntries = snapshot.bundledEntries
+            installBootstrapSelection()
+            hasLoadedBootstrap = true
+        }
+        bootstrapTask = task
+        await task.value
     }
 
     func refreshSelectedPracticeSnapshot() {

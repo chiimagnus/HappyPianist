@@ -8,6 +8,7 @@ struct LibraryWindowRootView: View {
     @Environment(PianoSetupCoordinator.self) private var pianoSetupCoordinator
     @Environment(\.pushWindow) private var pushWindow
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.scenePhase) private var scenePhase
@@ -90,6 +91,17 @@ struct LibraryWindowRootView: View {
         .onAppear {
             songLibraryViewModel.refreshSelectedPracticeSnapshot()
         }
+        .onChange(of: shouldYieldToSpatialLibrary, initial: true) {
+            if shouldYieldToSpatialLibrary {
+                dismissWindow(id: WindowID.library)
+            }
+        }
+    }
+
+    private var shouldYieldToSpatialLibrary: Bool {
+        appState.immersiveSpaceState == .open
+            && appState.immersiveMode == .library
+            && arGuideViewModel.spatialLibraryViewModel.validPlacement != nil
     }
 
     private var spatialLaunchRoute: SpatialLibraryLaunchRoute {

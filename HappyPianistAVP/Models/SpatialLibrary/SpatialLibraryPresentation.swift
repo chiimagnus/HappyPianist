@@ -4,6 +4,7 @@ import Foundation
 enum SpatialLibraryAttachmentID: Hashable {
     case folio(UUID)
     case spread
+    case management
 }
 
 struct SpatialLibraryVisibleItem: Equatable, Identifiable {
