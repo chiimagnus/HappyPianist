@@ -9,6 +9,7 @@ import type { PrototypeSong } from '../model/data.ts';
 import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
 import {
   BOOK_HEIGHT,
+  BOOK_HINGE_Z,
   BOOK_WIDTH,
   bookPose,
 } from './bookPose.ts';
@@ -62,7 +63,7 @@ export function ScoreBook({ index, song, state, dispatch, reducedMotion }: Score
         <meshStandardMaterial color="#e1dac8" roughness={1} />
       </mesh>
 
-      <group ref={hingeRef} position={[0, 0, 0.013]}>
+      <group ref={hingeRef} position={[0, 0, BOOK_HINGE_Z]}>
         <mesh position={[BOOK_WIDTH / 2, 0, 0]} castShadow>
           <boxGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, 0.002]} />
           <meshStandardMaterial color="#ece5d4" roughness={1} />

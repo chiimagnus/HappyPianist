@@ -2,6 +2,7 @@ import type { PrototypeState } from '../model/state.ts';
 
 export const BOOK_WIDTH = 0.32;
 export const BOOK_HEIGHT = 0.43;
+export const BOOK_HINGE_Z = 0.013;
 
 export interface BookPose {
   visible: boolean;

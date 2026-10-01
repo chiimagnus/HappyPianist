@@ -15,7 +15,7 @@ import {
 } from 'three';
 import { pageCount, type PrototypeSong } from '../model/data.ts';
 import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
-import { BOOK_HEIGHT, BOOK_WIDTH } from './bookPose.ts';
+import { BOOK_HEIGHT, BOOK_HINGE_Z, BOOK_WIDTH } from './bookPose.ts';
 import { createPageTexture } from './bookTextures.ts';
 import { pageTurnPages } from './pageTurn.ts';
 
@@ -173,7 +173,7 @@ export function PageTurn({ song, state, dispatch, open, reducedMotion }: PageTur
 
   return (
     <group name="page-turn">
-      <group ref={leftGroupRef}>
+      <group ref={leftGroupRef} position={[0, 0, BOOK_HINGE_Z]}>
         <mesh position={[BOOK_WIDTH / 2, 0, -0.0012]} rotation={[0, Math.PI, 0]} receiveShadow>
           <planeGeometry args={[BOOK_WIDTH, BOOK_HEIGHT]} />
           <meshStandardMaterial map={leftTexture} roughness={1} />
