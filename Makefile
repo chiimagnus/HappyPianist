@@ -190,14 +190,13 @@ build\:simulator: doctor ## 为 visionOS 模拟器构建 HappyPianistAVP。
 		build
 	@echo 'build:simulator: 构建成功'
 
-test\:simulator: doctor ## 在 visionOS 模拟器上运行 Swift Testing 测试。
+test\:simulator: doctor ## 在 visionOS 模拟器上运行 Swift Testing 测试；测试结束后保留模拟器运行。
 	@$(call boot_simulator)
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
 	@set -eum; \
 		echo "test:simulator：运行总时限为 $(TEST_RUN_TIMEOUT_SECONDS) 秒"; \
 		trap 'if [ -n "$${test_pid:-}" ]; then kill -TERM -- "-$$test_pid" 2>/dev/null || true; wait "$$test_pid" 2>/dev/null || true; fi; exit 130' INT TERM HUP; \
-		trap 'status=$$?; xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; exit "$$status"' EXIT; \
 		xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
 		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
