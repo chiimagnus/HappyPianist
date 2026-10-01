@@ -4,6 +4,8 @@ import SwiftUI
 
 @MainActor
 final class SpatialLibrarySceneController {
+    static let folioTransitionDuration: TimeInterval = 0.32
+
     let interactionEntity = Entity()
 
     private let rootEntity = Entity()
@@ -12,6 +14,8 @@ final class SpatialLibrarySceneController {
     private var folioEntities: [UUID: ViewAttachmentEntity] = [:]
     private var spreadEntity: ViewAttachmentEntity?
     private var managementEntity: ViewAttachmentEntity?
+    private var folioTargets: [UUID: Transform] = [:]
+    private var folioMotions: [UUID: (entity: Entity, playback: AnimationPlaybackController)] = [:]
 
     init(metrics: SpatialBookDisplayMetrics = .standard) {
         self.metrics = metrics
@@ -92,6 +96,8 @@ final class SpatialLibrarySceneController {
         let expectedIDs = Set(visibleItems.map(\.id))
 
         for (id, entity) in folioEntities where expectedIDs.contains(id) == false {
+            stopFolioMotion(id)
+            folioTargets[id] = nil
             entity.removeFromParent()
             folioEntities[id] = nil
         }
@@ -102,6 +108,8 @@ final class SpatialLibrarySceneController {
         for item in visibleItems {
             let attachmentID = SpatialLibraryAttachmentID.folio(item.id)
             guard let entity = attachments.entity(for: attachmentID) else { continue }
+
+            let isNewFolio = folioEntities[item.id] !== entity
 
             if folioEntities[item.id] !== entity {
                 folioEntities[item.id]?.removeFromParent()
@@ -114,27 +122,59 @@ final class SpatialLibrarySceneController {
             let presentation = LibraryBookFlowPresentation(
                 signedDistance: CGFloat(item.relativeIndex)
             )
-            entity.position = SIMD3<Float>(
+            let position = SIMD3<Float>(
                 Float(item.relativeIndex) * metrics.folioSpacingMeters
                     + Float(presentation.lateralOffsetUnits) * metrics.folioSpacingMeters
                     + dragOffsetMeters,
                 0,
                 Float(presentation.depthOffsetUnits) * metrics.depthStepMeters
             )
-            entity.orientation = simd_quatf(
+            let orientation = simd_quatf(
                 angle: Float(presentation.yawDegrees * .pi / 180),
                 axis: SIMD3<Float>(0, 1, 0)
             )
             entity.components.set(
                 OpacityComponent(opacity: Float(presentation.opacity))
             )
-            applyPhysicalScale(
-                to: entity,
+            guard let scale = physicalScale(
+                for: entity,
                 targetWidthMeters: metrics.folioWidthMeters,
                 targetHeightMeters: metrics.effectiveFolioHeightMeters,
                 presentationScale: Float(presentation.scale)
+            ) else { continue }
+            moveFolio(
+                entity,
+                id: item.id,
+                to: Transform(scale: scale, rotation: orientation, translation: position),
+                immediately: isNewFolio || browseDragProgress != 0
             )
         }
+    }
+
+    func moveFolio(_ entity: Entity, id: UUID, to target: Transform, immediately: Bool) {
+        if immediately {
+            stopFolioMotion(id)
+            entity.transform = target
+            folioTargets[id] = target
+            return
+        }
+        guard folioTargets[id] != target else { return }
+        stopFolioMotion(id)
+        folioTargets[id] = target
+        let playback = entity.move(
+            to: target,
+            relativeTo: rootEntity,
+            duration: Self.folioTransitionDuration,
+            timingFunction: .easeInOut
+        )
+        folioMotions[id] = (entity, playback)
+    }
+
+    private func stopFolioMotion(_ id: UUID) {
+        guard let motion = folioMotions.removeValue(forKey: id) else { return }
+        let current = motion.entity.transform
+        motion.playback.stop()
+        motion.entity.transform = current
     }
 
     private func attachSpread(from attachments: RealityViewAttachments) {
@@ -186,6 +226,21 @@ final class SpatialLibrarySceneController {
         targetHeightMeters: Float,
         presentationScale: Float
     ) {
+        guard let scale = physicalScale(
+            for: entity,
+            targetWidthMeters: targetWidthMeters,
+            targetHeightMeters: targetHeightMeters,
+            presentationScale: presentationScale
+        ) else { return }
+        entity.scale = scale
+    }
+
+    private func physicalScale(
+        for entity: ViewAttachmentEntity,
+        targetWidthMeters: Float,
+        targetHeightMeters: Float,
+        presentationScale: Float
+    ) -> SIMD3<Float>? {
         let renderedBounds = entity.visualBounds(
             recursive: true,
             relativeTo: entity
@@ -196,15 +251,19 @@ final class SpatialLibrarySceneController {
             targetWidthMeters: targetWidthMeters,
             targetHeightMeters: targetHeightMeters
         ) else {
-            return
+            return nil
         }
 
-        entity.scale = SIMD3<Float>(
+        return SIMD3<Float>(
             repeating: baseScale * presentationScale
         )
     }
 
     private func detachFolios() {
+        for id in Array(folioMotions.keys) {
+            stopFolioMotion(id)
+        }
+        folioTargets.removeAll(keepingCapacity: true)
         for entity in folioEntities.values {
             entity.removeFromParent()
         }
