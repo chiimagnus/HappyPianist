@@ -21,6 +21,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     let appState: AppState
     let immersivePresentationCoordinator: ImmersiveSpacePresentationCoordinator
+    let spatialLibraryViewModel: SpatialLibraryViewModel
     let practiceSetupState: PracticeSetupState
     let pianoModeRegistry: PianoModeRegistryProtocol
     let diagnosticsReporter: (any DiagnosticsReporting)?
@@ -54,6 +55,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     init(
         appState: AppState,
         immersivePresentationCoordinator: ImmersiveSpacePresentationCoordinator? = nil,
+        spatialLibraryViewModel: SpatialLibraryViewModel? = nil,
         practiceSetupState: PracticeSetupState,
         pianoModeRegistry: PianoModeRegistryProtocol,
         makePracticeSessionViewModel: @escaping @MainActor (String?) -> PracticeSessionViewModel,
@@ -69,6 +71,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         self.appState = appState
         self.immersivePresentationCoordinator =
             immersivePresentationCoordinator ?? ImmersiveSpacePresentationCoordinator(appState: appState)
+        self.spatialLibraryViewModel =
+            spatialLibraryViewModel ?? SpatialLibraryViewModel(arTrackingService: appState.arTrackingService)
         self.practiceSetupState = practiceSetupState
         self.pianoModeRegistry = pianoModeRegistry
         self.diagnosticsReporter = diagnosticsReporter
@@ -829,6 +833,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         recordingViewModel.stop()
         aiPerformanceViewModel.shutdown()
         placementViewModel.stopGuidance()
+        spatialLibraryViewModel.invalidatePlacement()
         stopTracking()
     }
 
@@ -841,6 +846,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         practiceSessionViewModel.stopVirtualPianoInput()
         recordingViewModel.stop()
         aiPerformanceViewModel.shutdown()
+        spatialLibraryViewModel.invalidatePlacement()
         stopTracking()
     }
 
@@ -863,7 +869,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     private func deactivateImmersiveRuntime(for mode: AppState.ImmersiveMode) {
         switch mode {
         case .library:
-            break
+            spatialLibraryViewModel.leaveLibraryMode()
         case .calibration:
             calibrationGuideViewModel.shutdown()
         case .practice:
@@ -883,7 +889,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         startTrackingIfNeeded()
         switch mode {
         case .library:
-            break
+            spatialLibraryViewModel.enterLibraryMode()
         case .calibration:
             calibrationGuideViewModel.onImmersiveAppear()
         case .practice:

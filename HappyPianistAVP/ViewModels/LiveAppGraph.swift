@@ -9,6 +9,7 @@ import Practice
 struct LiveAppGraph {
     let appState: AppState
     let immersivePresentationCoordinator: ImmersiveSpacePresentationCoordinator
+    let spatialLibraryViewModel: SpatialLibraryViewModel
     let pianoSetupCoordinator: PianoSetupCoordinator
     let arGuideViewModel: ARGuideViewModel
     let songLibraryViewModel: SongLibraryViewModel
@@ -212,9 +213,13 @@ struct LiveAppGraph {
 
         appState.loadStoredCalibrationIfPossible()
         let immersivePresentationCoordinator = ImmersiveSpacePresentationCoordinator(appState: appState)
+        let spatialLibraryViewModel = SpatialLibraryViewModel(
+            arTrackingService: appState.arTrackingService
+        )
         let arGuideViewModel = ARGuideViewModel(
             appState: appState,
             immersivePresentationCoordinator: immersivePresentationCoordinator,
+            spatialLibraryViewModel: spatialLibraryViewModel,
             practiceSetupState: appState.practiceSetupState,
             pianoModeRegistry: registry,
             makePracticeSessionViewModel: makePracticeSessionViewModel,
@@ -275,6 +280,7 @@ struct LiveAppGraph {
         return LiveAppGraph(
             appState: appState,
             immersivePresentationCoordinator: immersivePresentationCoordinator,
+            spatialLibraryViewModel: spatialLibraryViewModel,
             pianoSetupCoordinator: pianoSetupCoordinator,
             arGuideViewModel: arGuideViewModel,
             songLibraryViewModel: songLibraryViewModel,

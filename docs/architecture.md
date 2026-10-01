@@ -18,6 +18,7 @@ SwiftUI / RealityKit → ViewModel / App state → Service / Repository → Mode
 - `.library` 只需要 world tracking。Calibration/Practice 按需增加 hand/plane；`ARTrackingService` 在普通 mode 切换中保留同一 `ARKitSession + WorldTrackingProvider`，只增量重配可选 provider。
 - `ARKitSession.events` 与 provider 自身 `state` 是运行状态事实源；`.paused` 与 `.stopped` 不合并。手/平面不可用时清除对应瞬时投影，world 暂停不更换 generation。
 - `worldTrackingGeneration` 只在完整 runtime/world provider 重建时递增。沉浸运行时 suspend、显式 stop、world stop/error 或 `session.run` 失败会完整失效当前 runtime；普通 hand/plane 增删不会清空 world anchor cache。
+- Spatial Library 根节点只保存 session-scoped `world transform + worldTrackingGeneration`：首次进入时从 device pose 取 yaw 定位并保持 world-fixed；普通 mode 切换复用，同一 ImmersiveSpace suspend/关闭或 generation 变化立即失效。它不是持久化 WorldAnchor。
 
 ## 不变量
 
