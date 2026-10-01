@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { WebGPURenderer } from 'three/webgpu';
 import { usePrototypeRuntime } from './runtime/usePrototypeRuntime.ts';
+import { ProductControls } from './ui/ProductControls.tsx';
 
 function PrototypeScene() {
   return (
@@ -20,6 +21,7 @@ export function App() {
         <strong>HappyPianist</strong>
         <span>Spatial Prototype</span>
       </header>
+      <ProductControls state={runtime.state} dispatch={runtime.dispatch} />
       <Canvas
         camera={{ position: [0, 0, 3], fov: 43, near: 0.02, far: 12 }}
         gl={async (props) => {
@@ -33,6 +35,7 @@ export function App() {
       >
         <PrototypeScene />
       </Canvas>
+      <footer className="prototype-footer">曲谱、设备、演奏、手部、保存均为模拟 · 不读写 App 数据</footer>
     </main>
   );
 }
