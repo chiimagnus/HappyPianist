@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { pageCount, songs } from '../model/data.ts';
 import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
 import { lastMeasure, productCopy } from './productCopy.ts';
@@ -203,11 +203,6 @@ function StageActions({ state, dispatch }: ProductControlsProps) {
 
 export function ProductControls({ state, dispatch }: ProductControlsProps) {
   const copy = productCopy(state);
-  const [announcement, setAnnouncement] = useState(copy.title);
-
-  useEffect(() => {
-    setAnnouncement(copy.title);
-  }, [copy.title, state.stage]);
 
   const query = state.search.trim().toLocaleLowerCase();
   const matches = query
@@ -235,7 +230,7 @@ export function ProductControls({ state, dispatch }: ProductControlsProps) {
           {query && <div className="search-results">{matches.length ? matches.map(({ song, index }) => <ActionButton key={song.title} action="select" value={index} onClick={() => dispatch({ type: 'select', value: index })}>{song.title}</ActionButton>) : <span>没有匹配的演示曲目。</span>}</div>}
         </div>
       )}
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</div>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{copy.title}</div>
     </section>
   );
 }
