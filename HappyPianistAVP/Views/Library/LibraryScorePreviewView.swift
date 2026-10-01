@@ -35,18 +35,10 @@ struct LibraryScorePreviewView: View {
                         } else {
                             [GrandStaffNotationMeasureAnnotation]()
                         }
-                        GrandStaffNotationSpreadView(plan: plan, targetIndex: library.scorePreview.targetSpreadIndex, annotations: annotations)
+                        GrandStaffNotationSpreadView(plan: plan, targetIndex: library.scorePreview.targetSpreadIndex, annotations: annotations,
+                            onTurnBackward: library.scorePreview.canTurnBackward ? { library.scorePreview.turn(forward: false) } : nil,
+                            onTurnForward: library.scorePreview.canTurnForward ? { library.scorePreview.turn(forward: true) } : nil)
                             .padding(.horizontal)
-                            .overlay(alignment: .leading) {
-                                Button("上一双页", systemImage: "chevron.left") { library.scorePreview.turn(forward: false) }
-                                    .labelStyle(.iconOnly)
-                                    .disabled(!library.scorePreview.canTurnBackward)
-                            }
-                            .overlay(alignment: .trailing) {
-                                Button("下一双页", systemImage: "chevron.right") { library.scorePreview.turn(forward: true) }
-                                    .labelStyle(.iconOnly)
-                                    .disabled(!library.scorePreview.canTurnForward)
-                            }
                     }
                 }
             }

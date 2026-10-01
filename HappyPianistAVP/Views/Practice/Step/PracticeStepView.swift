@@ -42,7 +42,11 @@ struct PracticeStepView: View {
                     ),
                     navigationTick: session.notationNavigationTick(),
                     overlay: session.activeNotationOverlay,
-                    practiceHandMode: practiceHandMode
+                    practiceHandMode: practiceHandMode,
+                    navigationRange: session.activeRange?.tickRange,
+                    onNavigate: viewModel.isAIPerformanceActive || !session.acceptsPracticeAttempts || session.guidingStartIsBlocked ? nil : { tick in
+                        session.navigateNotation(to: tick, identity: identity)
+                    }
                 )
                 .frame(minHeight: 820, maxHeight: .infinity)
             } else {

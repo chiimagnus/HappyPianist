@@ -48,6 +48,15 @@ public struct GrandStaffNotationPagePlan: Equatable, Sendable {
     let score: GrandStaffNotationScoreLayout
     public var spreadCount: Int { (pages.count + 1) / 2 }
 
+    public func navigationTick(forSpread index: Int, within range: Range<Int>? = nil) -> Int? {
+        guard (0..<spreadCount).contains(index),
+              let first = pages[index * 2].measures.first?.span,
+              let last = pages[min(index * 2 + 1, pages.count - 1)].measures.last?.span else { return nil }
+        let start = max(first.startTick, range?.lowerBound ?? first.startTick)
+        let end = min(last.endTick, range?.upperBound ?? last.endTick)
+        return start < end ? start : nil
+    }
+
     public func pageIndex(containingTick tick: Int) -> Int? {
         location(containingTick: tick)?.pageIndex
     }

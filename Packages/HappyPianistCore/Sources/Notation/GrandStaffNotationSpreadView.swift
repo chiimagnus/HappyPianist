@@ -7,16 +7,20 @@ public struct GrandStaffNotationSpreadView: View {
     let overlay: ScoreNotationProjection.Overlay
     let practiceHandMode: PracticeHandMode
     let annotations: [GrandStaffNotationMeasureAnnotation]
+    let onTurnBackward: (() -> Void)?
+    let onTurnForward: (() -> Void)?
     @State private var enlarged = false
     @State private var turn = GrandStaffNotationPageTurnState()
     @State private var progress = 0.0
 
-    public init(plan: GrandStaffNotationPagePlan, targetIndex: Int, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both, annotations: [GrandStaffNotationMeasureAnnotation] = []) {
+    public init(plan: GrandStaffNotationPagePlan, targetIndex: Int, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both, annotations: [GrandStaffNotationMeasureAnnotation] = [], onTurnBackward: (() -> Void)? = nil, onTurnForward: (() -> Void)? = nil) {
         self.plan = plan
         self.targetIndex = targetIndex
         self.overlay = overlay
         self.practiceHandMode = practiceHandMode
         self.annotations = annotations
+        self.onTurnBackward = onTurnBackward
+        self.onTurnForward = onTurnForward
     }
 
     public var body: some View {
@@ -66,6 +70,22 @@ public struct GrandStaffNotationSpreadView: View {
             }
         }
         .onDisappear { turn.clear() }
+        .overlay(alignment: .leading) {
+            if let onTurnBackward {
+                Button("上一双页", systemImage: "chevron.left", action: onTurnBackward)
+                    .labelStyle(.iconOnly)
+                    .controlSize(.large)
+                    .padding(.leading, 4)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if let onTurnForward {
+                Button("下一双页", systemImage: "chevron.right", action: onTurnForward)
+                    .labelStyle(.iconOnly)
+                    .controlSize(.large)
+                    .padding(.trailing, 4)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             Button(enlarged ? "恢复双页" : "放大阅读", systemImage: enlarged ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") { enlarged.toggle() }
                 .labelStyle(.iconOnly)
@@ -86,20 +106,26 @@ public struct GrandStaffNotationBookView: View {
     let navigationTick: Int?
     let overlay: ScoreNotationProjection.Overlay
     let practiceHandMode: PracticeHandMode
+    let navigationRange: Range<Int>?
+    let onNavigate: ((Int) -> Void)?
     @State private var owner = GrandStaffNotationPageViewModel()
 
-    public init(input: GrandStaffNotationScoreInput, navigationTick: Int?, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both) {
+    public init(input: GrandStaffNotationScoreInput, navigationTick: Int?, overlay: ScoreNotationProjection.Overlay = .empty, practiceHandMode: PracticeHandMode = .both, navigationRange: Range<Int>? = nil, onNavigate: ((Int) -> Void)? = nil) {
         self.input = input
         self.navigationTick = navigationTick
         self.overlay = overlay
         self.practiceHandMode = practiceHandMode
+        self.navigationRange = navigationRange
+        self.onNavigate = onNavigate
     }
 
     public var body: some View {
         Group {
             if let plan = owner.plan, plan.input == input {
                 if let tick = navigationTick, let target = plan.spreadIndex(containingTick: tick) {
-                    GrandStaffNotationSpreadView(plan: plan, targetIndex: target, overlay: overlay, practiceHandMode: practiceHandMode)
+                    GrandStaffNotationSpreadView(plan: plan, targetIndex: target, overlay: overlay, practiceHandMode: practiceHandMode,
+                        onTurnBackward: navigationAction(plan: plan, target: target - 1),
+                        onTurnForward: navigationAction(plan: plan, target: target + 1))
                 } else {
                     ContentUnavailableView("没有有效练习位置", systemImage: "music.note")
                 }
@@ -111,5 +137,10 @@ public struct GrandStaffNotationBookView: View {
         }
         .task(id: input) { await owner.load(input) }
         .onDisappear { owner.clear() }
+    }
+
+    private func navigationAction(plan: GrandStaffNotationPagePlan, target: Int) -> (() -> Void)? {
+        guard let onNavigate, let tick = plan.navigationTick(forSpread: target, within: navigationRange) else { return nil }
+        return { onNavigate(tick) }
     }
 }

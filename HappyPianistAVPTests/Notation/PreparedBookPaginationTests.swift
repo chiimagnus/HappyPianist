@@ -85,7 +85,7 @@ func preparedAutoplayRestBoundariesDriveBookInsteadOfStaleGuideAndPauseHolds() a
     try await session.resumeAutoplayPlayback()
     await TestAsyncWait.until("resumed transport position") { session.notationNavigationTick() != held }
     session.setAutoplayEnabled(false)
-    #expect(session.stateStore.autoplayNotationTick == nil)
+    #expect(session.stateStore.notationPositionTick == nil)
     #expect(session.notationNavigationTick() == session.currentStep?.tick)
 }
 
@@ -163,7 +163,7 @@ func preparedBookResumeAndReturnPreserveNavigationAndActualProgress(outcome: Str
     var restoredTurn = GrandStaffNotationPageTurnState()
     restoredTurn.request(identity: plan.turnIdentity, target: plan.spreadCount - 1, animated: true)
     #expect(restoredTurn.target == plan.spreadCount - 1 && restoredTurn.transition == nil)
-    session.moveToStep(0, shouldPlaySound: false)
+    session.navigateNotation(to: prepared.steps[0].tick, identity: prepared.identity)
     #expect(plan.spreadIndex(containingTick: try #require(session.notationNavigationTick())) == 0)
     if outcome == "cancelled" {
         #expect(await session.suspendAndFlushProgress() == .saved)
@@ -294,6 +294,108 @@ func preparedNavigationFeedsSingleTurnStateAcrossRetryJumpAndScoreReplacement() 
     #expect(owner.buildCount == 2)
 }
 
+@Test(arguments: [false, true])
+@MainActor
+func manualBookNavigationMovesPracticePositionWithoutInventingMeasureResults(dense: Bool) async throws {
+    let prepared = try await preparedBookFixture(dense: dense)
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper())
+    defer { session.shutdown() }
+    installBook(prepared, into: session)
+    await session.applyLaunchRestorePolicy(.freshDefaults)
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let plan = try #require(owner.plan)
+    let tick = try #require(plan.navigationTick(forSpread: 1))
+    let before = session.sessionProgress?.measureFacts
+    session.navigateNotation(to: tick, identity: prepared.identity)
+    #expect(session.notationNavigationTick() == tick)
+    #expect(plan.spreadIndex(containingTick: tick) == 1)
+    #expect(session.steps[session.currentStepIndex].tick >= tick)
+    #expect(session.sessionProgress?.measureFacts == before)
+    #expect(session.state != .completed)
+    if !dense {
+        #expect(session.state == .ready && session.isRestoredSessionPaused)
+        #expect(session.currentPianoHighlightGuide == nil)
+    }
+    session.navigateNotation(to: prepared.steps[0].tick, identity: prepared.identity)
+    #expect(session.currentStepIndex == 0)
+    #expect(session.notationNavigationTick() == prepared.steps[0].tick)
+    session.startGuidingIfReady()
+    session.skip()
+    #expect(session.notationNavigationTick() == session.currentStep?.tick)
+    #expect(session.stateStore.notationPositionTick == nil)
+    await owner.load(try bookInput(session))
+    #expect(owner.buildCount == 1)
+}
+
+@Test
+@MainActor
+func manualBookNavigationRejectsOldSongAndPagesOutsideActivePassage() async throws {
+    let prepared = try await preparedBookFixture(dense: true)
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper())
+    defer { session.shutdown() }
+    installBook(prepared, into: session)
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let plan = try #require(owner.plan)
+    let span = try #require(plan.pages[2].measures.first?.span)
+    session.roundConfigurationController.pendingPassage = try #require(PracticePassage(start: span.occurrenceID, end: span.occurrenceID))
+    _ = session.applyPendingRoundConfiguration()
+    let range = try #require(session.activeRange?.tickRange)
+    #expect(plan.navigationTick(forSpread: 0, within: range) == nil)
+    #expect(plan.navigationTick(forSpread: 1, within: range) == span.startTick)
+    #expect(plan.navigationTick(forSpread: -1) == nil)
+    #expect(plan.navigationTick(forSpread: plan.spreadCount) == nil)
+    let step = session.currentStepIndex
+    session.navigateNotation(to: 0, identity: prepared.identity)
+    #expect(session.currentStepIndex == step && session.state == .ready)
+    let another = try await preparedBookFixture(dense: true)
+    session.navigateNotation(to: span.startTick, identity: another.identity)
+    #expect(session.currentStepIndex == step && session.state == .ready)
+    session.navigateNotation(to: span.startTick, identity: prepared.identity)
+    #expect(session.notationNavigationTick() == span.startTick)
+    session.clearPreparedSong()
+    session.navigateNotation(to: span.startTick, identity: prepared.identity)
+    #expect(session.notationNavigationTick() == nil && session.state == .idle)
+}
+
+@Test
+@MainActor
+func manualBookTurnSeeksActualTransportAndPreservesExplicitPause() async throws {
+    let prepared = try await preparedBookFixture()
+    let playback = BookTransportTestPlayback()
+    let session = PracticeSessionViewModel(chordAttemptAccumulator: ChordAttemptAccumulator(), sleeper: TaskSleeper(), sequencerPlaybackService: playback)
+    defer { session.shutdown() }
+    installBook(prepared, into: session)
+    let owner = GrandStaffNotationPageViewModel()
+    await owner.load(try bookInput(session))
+    let plan = try #require(owner.plan)
+    let tick = try #require(plan.navigationTick(forSpread: 1))
+    session.setAutoplayEnabled(true)
+    session.startGuidingIfReady()
+    await TestAsyncWait.until("transport loaded before manual turn") { playback.loadCount == 1 }
+    playback.holdNextSeconds = true
+    await TestAsyncWait.until("old transport poll held") { playback.pendingSeconds != nil }
+    session.navigateNotation(to: tick, identity: prepared.identity)
+    #expect(session.notationNavigationTick() == tick)
+    playback.seconds = 0
+    playback.releasePendingSeconds()
+    await TestAsyncWait.until("manual turn loaded replacement transport") { playback.loadCount == 2 }
+    #expect(session.notationNavigationTick() == tick)
+    let nextSpan = try #require(plan.pages[2].measures.dropFirst().first?.span)
+    playback.seconds = session.tempoMap.timeSeconds(atTick: nextSpan.startTick) - session.tempoMap.timeSeconds(atTick: tick) + session.autoplayTimingLeadInSeconds + 0.001
+    await TestAsyncWait.until("replacement transport follows turned page") { session.notationNavigationTick() == nextSpan.startTick }
+    await session.pauseAutoplayPlayback()
+    session.navigateNotation(to: 0, identity: prepared.identity)
+    #expect(session.notationNavigationTick() == 0 && session.state == .ready)
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(playback.loadCount == 2)
+    playback.seconds = 0
+    try await session.resumeAutoplayPlayback()
+    await TestAsyncWait.until("explicit resume after paused page turn") { playback.loadCount == 3 }
+    #expect(session.notationNavigationTick() == 0)
+}
+
 @Test
 @MainActor
 func replacedBookTransportRejectsLateFailureFromCancelledGeneration() async throws {
@@ -308,12 +410,12 @@ func replacedBookTransportRejectsLateFailureFromCancelledGeneration() async thro
     await TestAsyncWait.until("first generation held during build") { await builder.hasPendingFirstBuild() }
     session.skip()
     let destination = try #require(prepared.steps.last?.tick)
-    await TestAsyncWait.until("replacement generation actually playing") { playback.sequence != nil && session.stateStore.autoplayNotationTick == destination }
+    await TestAsyncWait.until("replacement generation actually playing") { playback.sequence != nil && session.stateStore.notationPositionTick == destination }
     await builder.failFirstBuild()
     try await Task.sleep(for: .milliseconds(100))
     #expect(session.autoplayState == .playing)
     #expect(session.autoplayErrorMessage == nil)
-    #expect(session.stateStore.autoplayNotationTick == destination)
+    #expect(session.stateStore.notationPositionTick == destination)
     #expect(session.notationNavigationTick() == destination)
 }
 
@@ -412,7 +514,7 @@ private struct PreparedBookNativeRoot: View {
 
     var body: some View {
         if let identity = session.songIdentity, let projection = session.notationProjection, let facts = session.notationScoreFacts {
-            GrandStaffNotationBookView(input: .init(identity: identity, projection: projection, measureSpans: session.measureSpans, facts: facts, attributeTimeline: session.attributeTimeline), navigationTick: session.notationNavigationTick(), overlay: session.activeNotationOverlay, practiceHandMode: session.practiceHandMode)
+            GrandStaffNotationBookView(input: .init(identity: identity, projection: projection, measureSpans: session.measureSpans, facts: facts, attributeTimeline: session.attributeTimeline), navigationTick: session.notationNavigationTick(), overlay: session.activeNotationOverlay, practiceHandMode: session.practiceHandMode, navigationRange: session.activeRange?.tickRange, onNavigate: { session.navigateNotation(to: $0, identity: identity) })
                 .padding(30)
         } else {
             ContentUnavailableView("没有已准备曲谱", systemImage: "music.note")
@@ -424,11 +526,12 @@ private struct PreparedBookNativeRoot: View {
 private final class BookTransportTestPlayback: PracticeSequencerPlaybackServiceProtocol {
     var seconds = 0.0
     var sequence: PracticeSequencerSequence?
+    var loadCount = 0
     var holdNextSeconds = false
     var pendingSeconds: CheckedContinuation<TimeInterval, Never>?
     func warmUp() throws {}
     func stop(resetCommands: [PerformanceTransportCommand]) {}
-    func load(sequence: PracticeSequencerSequence) throws { self.sequence = sequence }
+    func load(sequence: PracticeSequencerSequence) throws { self.sequence = sequence; loadCount += 1 }
     func play(fromSeconds: TimeInterval) throws {}
     func currentSeconds() async -> TimeInterval {
         if holdNextSeconds {

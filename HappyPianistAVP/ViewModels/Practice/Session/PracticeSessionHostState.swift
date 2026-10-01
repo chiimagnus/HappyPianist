@@ -22,7 +22,7 @@ final class PracticeSessionHostState: PracticeSessionRuntimeState {
     var shouldResumeAudioRecognitionAfterManualReplay = false
     var highlightGuides: [PianoHighlightGuide] = []
     var currentHighlightGuideIndex: Int?
-    var autoplayNotationTick: Int?
+    var notationPositionTick: Int?
     var audioRecognitionGeneration = 0
     var isAudioRecognitionRunning = false
 }

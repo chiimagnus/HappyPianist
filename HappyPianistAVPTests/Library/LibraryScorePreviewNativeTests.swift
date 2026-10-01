@@ -34,6 +34,13 @@ extension NativeBookWindowTests {
         await TestAsyncWait.until("production library loaded") { !library.entries.isEmpty && window.bounds.width >= 1239 }
         let entry = try #require(library.entries.first { $0.id == UUID(uuidString: "3d7487e7-0cc0-578f-9581-9dc847f85f62") })
         library.selectEntry(entry.id)
+        await TestAsyncWait.until("real user history loaded before opening") {
+            switch library.practiceSnapshotState {
+            case .overview, .invitation, .unavailable: true
+            default: false
+            }
+        }
+        let overview: SongPracticeLibraryOverview? = if case let .overview(value) = library.practiceSnapshotState { value } else { nil }
         library.confirmFolio(entry.id)
         await TestAsyncWait.until("production real score", timeout: .seconds(30)) { if case .ready = library.scorePreview.state { return true }; return false }
         let plan = try #require(library.scorePreview.pageOwner.plan)
@@ -43,7 +50,9 @@ extension NativeBookWindowTests {
         #expect(library.currentListeningEntryID == nil)
         controller.view.layoutIfNeeded()
         try await Task.sleep(for: .seconds(1))
-        #expect(library.scorePreview.targetSpreadIndex == 0)
+        let expectedInitial = overview?.resumeOccurrenceID.flatMap { overview?.scoreRevision == plan.input.identity.scoreRevision ? plan.spreadIndex(containing: $0) : nil } ?? 0
+        #expect(library.scorePreview.targetSpreadIndex == expectedInitial)
+        while library.scorePreview.canTurnBackward { library.scorePreview.turn(forward: false) }
         library.scorePreview.turn(forward: true)
         #expect(library.scorePreview.targetSpreadIndex == 1)
         try await Task.sleep(for: .seconds(1))
@@ -67,7 +76,7 @@ extension NativeBookWindowTests {
         let reopened = try #require(library.scorePreview.pageOwner.plan)
         let plansMatch = reopened == plan
         #expect(plansMatch)
-        #expect(library.scorePreview.targetSpreadIndex == 0)
+        #expect(library.scorePreview.targetSpreadIndex == expectedInitial)
     }
 
 }

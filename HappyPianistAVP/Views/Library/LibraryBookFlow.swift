@@ -103,6 +103,12 @@ struct LibraryBookFlow: View {
 
             VStack {
                 Spacer()
+                if let selectedEntry {
+                    Button("打开乐谱", systemImage: "book") {
+                        onConfirmFolio(selectedEntry.id)
+                    }
+                    .disabled(!allowsDestructiveActions)
+                }
                 Text("↑ 上拽导入乐谱")
                     .font(.caption)
                     .foregroundStyle(Color.primary.opacity(0.45))

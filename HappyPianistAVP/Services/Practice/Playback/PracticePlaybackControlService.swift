@@ -27,7 +27,7 @@ final class PracticePlaybackControlService {
     private var autoplayTimeSchedule: AutoplayTimelineTimeSchedule?
     private var autoplayContactTimeline: PianoKeyContactTimeline?
     private var autoplayGuideSnapshot: [PianoHighlightGuide]?
-    private var isAutoplayPaused = false
+    private(set) var isAutoplayPaused = false
     private var autoplayPlaybackRate = 1.0
     private var hasShutdown = false
     var onPianoDemonstrationContactTimelineChange: ((Int?, PianoKeyContactTimeline?) -> Void)?
@@ -235,7 +235,7 @@ final class PracticePlaybackControlService {
         guard autoplayTask == nil else { return }
         guard let performancePlan = stateStore.performancePlan else { return }
 
-        let timingBaseTick = currentStep?.tick ?? 0
+        let timingBaseTick = stateStore.notationPositionTick ?? currentStep?.tick ?? 0
         let transition = transportReducer.transition(
             from: transportState,
             at: .start(
@@ -251,7 +251,7 @@ final class PracticePlaybackControlService {
         let tempoMapSnapshot = stateStore.tempoMap
         let handModeSnapshot = stateStore.activeRoundConfiguration?.handMode ?? .both
         let activeRangeSnapshot = stateStore.activeRange
-        stateStore.autoplayNotationTick = timingBaseTick
+        stateStore.notationPositionTick = timingBaseTick
         let measureBoundaryTicks = stateStore.measureSpans.map(\.startTick) + stateStore.measureSpans.suffix(1).map(\.endTick)
 
         autoplayTask = Task { @MainActor [weak self] in
@@ -317,7 +317,7 @@ final class PracticePlaybackControlService {
         isAutoplayPaused = false
         onPianoDemonstrationContactTimelineChange?(nil, nil)
 
-        stateStore.autoplayNotationTick = nil
+        stateStore.notationPositionTick = nil
     }
 
     private var currentStep: PracticeStep? {
@@ -558,7 +558,7 @@ final class PracticePlaybackControlService {
                 }
             }
 
-            if let final = cursorEvents.last { stateStore.autoplayNotationTick = final.tick }
+            if let final = cursorEvents.last { stateStore.notationPositionTick = final.tick }
 
             if nowSeconds >= sequenceEndSeconds, pedalCursor.isFinished, cursor.isFinished {
                 break

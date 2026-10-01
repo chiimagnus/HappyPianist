@@ -43,6 +43,10 @@ extension PracticeSessionViewModel {
     }
 
     func resumeAutoplayPlayback() async throws {
+        if self.state == .ready, stateStore.notationPositionTick != nil, self.autoplayState == .playing {
+            startGuidingIfReady()
+            return
+        }
         try await playbackControlService?.resumeAutoplay()
     }
 
@@ -52,8 +56,8 @@ extension PracticeSessionViewModel {
 
     func notationNavigationTick() -> Int? {
         guard stateStore.isActiveRangeInvalid == false else { return nil }
-        if autoplayState == .playing, let autoplayTick = stateStore.autoplayNotationTick {
-            return autoplayTick
+        if let tick = stateStore.notationPositionTick {
+            return tick
         }
 
         let stepIndex: Int? = if self.state == .completed {

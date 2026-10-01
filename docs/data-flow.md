@@ -19,10 +19,11 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 
 曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策。
 
-- 邻册点击只选曲，中央已选册打开真实双页预览。预览与练习共用 canonical 分页；只替换窗口内容，不重建试听条、导入器或外层 owner。预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
+- 邻册点击只选曲，中央已选册或“打开乐谱”按钮打开真实双页预览。预览与练习共用 canonical 分页；只替换窗口内容，不重建试听条、导入器或外层 owner。预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
 - 预览只保留当前一份准备结果和 PagePlan；解析前后都核对 song ID、文件版本与请求 generation。关闭、换曲、删除、导入开始、窗口离开或 scene 非 active 取消并清理，迟到结果不能恢复旧谱。重新打开重新准备，没有永久缓存。
 - 曲库历史仍只读取一次 snapshot；同一当前 revision 的真实小节事实共同派生汇总与逐 source 标记，双手稳定或左右分别稳定合并为已稳定。预览再核对 selection/file version 与准备结果的 revision，并按正式 occurrence 映射到分页 rect（包括空休止）；未知 revision 不伪装成未练习。标记、继续位置与重点可叠加，不改变分页或持久化数据。
 - 预览仅保存当前 target spread；首次 ready 从匹配 selection/file version/revision 的精确 resume occurrence 打开，否则首双页。迟到历史只更新标记，不夺走浏览位置；focus 不自动跳转。外页缘 Button 驱动导航，前后边界停止；关闭清空目标，重开重新准备，不持久化自由浏览页码，也不改变试听。
+- Practice 复用同一页缘按钮，但翻页移动会话的正式 notation position tick，而非独立浏览页码。目标受当前练习范围约束，更新下一演奏步骤与 checkpoint，不把跳过的小节记为成功或失败。纯休止页保留目标位置；手动模式等待继续，自动模式从该 tick 重建既有 transport，旧代采样不能夺回页面。显式暂停后翻页仍暂停，继续后恢复原自动跟随；关闭、换谱和步骤前进清理旧定位。AI 演奏接管时不接受手动定位。
 - 历史加载、邀请、摘要与失败提示位于谱面详情，不再挂右侧历史面板。损坏记录需明确确认后调用现有原子备份/重置；确认绑定原 selection 身份，备份失败保留原文件与损坏状态。历史失败不阻止阅读曲谱。
 
 ## 会话与输入

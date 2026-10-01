@@ -711,7 +711,7 @@ extension PracticeSessionViewModel {
         self.currentStepIndex = 0
         self.state = .idle
         self.autoplayTimeline = .empty
-        self.stateStore.autoplayNotationTick = nil
+        self.stateStore.notationPositionTick = nil
 
         handPianoActivityGate.reset()
         self.handGateState = HandGateState(
@@ -745,6 +745,8 @@ extension PracticeSessionViewModel {
         guard self.guidingStartIsBlocked == false else { return }
         guard self.stateStore.isActiveRangeInvalid == false else { return }
         guard self.state == .ready, self.steps.isEmpty == false else { return }
+
+        if self.autoplayState == .off { self.stateStore.notationPositionTick = nil }
 
         if self.isRestoredSessionPaused {
             self.isRestoredSessionPaused = false
@@ -928,6 +930,7 @@ extension PracticeSessionViewModel {
     }
 
     func advanceToNextStep() {
+        self.stateStore.notationPositionTick = nil
         let navigation = stepNavigator.advance(
             steps: self.steps,
             currentStepIndex: self.currentStepIndex,
@@ -973,6 +976,7 @@ extension PracticeSessionViewModel {
     }
 
     func moveToStep(_ nextStepIndex: Int, shouldPlaySound: Bool) {
+        self.stateStore.notationPositionTick = nil
         let navigation = stepNavigator.move(
             to: nextStepIndex,
             steps: self.steps,
@@ -1009,6 +1013,41 @@ extension PracticeSessionViewModel {
         progress.updatedAt = timestamp
         self.sessionProgress = progress
         checkpointProgress()
+    }
+
+    func navigateNotation(to tick: Int, identity: PracticeSongIdentity) {
+        guard self.songIdentity == identity, !hasShutdown, self.acceptsPracticeAttempts,
+              !guidingStartIsBlocked, !stateStore.isActiveRangeInvalid,
+              let first = self.measureSpans.first, let last = self.measureSpans.last,
+              first.startTick <= tick, tick < last.endTick,
+              self.activeRange?.tickRange.contains(tick) ?? true else { return }
+        let indices = self.activeRange?.stepRange ?? self.steps.indices
+        guard let target = indices.first(where: { self.steps[$0].tick >= tick }) ?? indices.last else { return }
+        let wasPaused = playbackControlService?.isAutoplayPaused == true || (self.state == .ready && self.isRestoredSessionPaused)
+        enqueueSessionRecorderEvent(.guiding(false))
+        stopManualReplayTask()
+        stopAutoplayTask()
+        stopAudioRecognition()
+        stopPracticeInput()
+        invalidateFeedbackPresentation()
+        self.attemptReductionState = PracticeAttemptReductionState()
+        configurePerformanceAnalysisForActiveRound()
+        moveToStep(target, shouldPlaySound: false)
+        self.stateStore.notationPositionTick = tick
+        self.pressedNotes.removeAll()
+        self.latestNoteOnMIDINotes.removeAll()
+        let waitingInRest = self.steps[target].tick != tick
+        if waitingInRest { self.currentHighlightGuideIndex = nil }
+        if wasPaused || (waitingInRest && self.autoplayState == .off) {
+            self.state = .ready
+            self.isRestoredSessionPaused = true
+        } else {
+            self.isRestoredSessionPaused = false
+            enqueueSessionRecorderEvent(.guiding(true))
+            startAutoplayTaskIfNeeded()
+        }
+        refreshAudioRecognitionForCurrentState()
+        refreshPracticeInputForCurrentState()
     }
 
     private func completeManualAdvance() {
