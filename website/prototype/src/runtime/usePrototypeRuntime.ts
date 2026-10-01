@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import {
   initialState,
   transition,
@@ -9,7 +9,14 @@ import {
 export interface PrototypeRuntime {
   state: PrototypeState;
   dispatch: (event: PrototypeEvent) => void;
+  replaceState: (state: PrototypeState) => void;
   reducedMotion: boolean;
+}
+
+type RuntimeAction = PrototypeEvent | { type: '__replace-state'; state: PrototypeState };
+
+function runtimeReducer(state: PrototypeState, action: RuntimeAction): PrototypeState {
+  return action.type === '__replace-state' ? structuredClone(action.state) : transition(state, action);
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -18,7 +25,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function usePrototypeRuntime(): PrototypeRuntime {
-  const [state, dispatch] = useReducer(transition, undefined, initialState);
+  const [state, runtimeDispatch] = useReducer(runtimeReducer, undefined, initialState);
+  const dispatch = useCallback((event: PrototypeEvent) => runtimeDispatch(event), []);
+  const replaceState = useCallback((nextState: PrototypeState) => {
+    runtimeDispatch({ type: '__replace-state', state: nextState });
+  }, []);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -104,5 +115,5 @@ export function usePrototypeRuntime(): PrototypeRuntime {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [state.selected, state.stage]);
 
-  return { state, dispatch, reducedMotion };
+  return { state, dispatch, replaceState, reducedMotion };
 }

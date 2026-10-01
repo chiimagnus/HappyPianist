@@ -185,7 +185,7 @@ export function PageTurn({ song, state, dispatch, open, reducedMotion }: PageTur
         <meshStandardMaterial map={rightTexture} roughness={1} />
       </mesh>
 
-      <group ref={leafRef} position={[0, 0, 0.023]} visible={false}>
+      <group ref={leafRef} name="page-turn-leaf" position={[0, 0, 0.023]} visible={false}>
         <mesh ref={leafFrontRef} position={[BOOK_WIDTH / 2, 0, 0.0005]} receiveShadow>
           <planeGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, 24, 1]} />
           <meshStandardMaterial map={leafFrontTexture ?? rightTexture} roughness={1} />
