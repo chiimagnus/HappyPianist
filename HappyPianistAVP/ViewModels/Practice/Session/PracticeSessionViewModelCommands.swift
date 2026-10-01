@@ -1033,6 +1033,7 @@ extension PracticeSessionViewModel {
         self.attemptReductionState = PracticeAttemptReductionState()
         configurePerformanceAnalysisForActiveRound()
         moveToStep(target, shouldPlaySound: false)
+        setCurrentHighlightGuideForStepIndex(target)
         self.stateStore.notationPositionTick = tick
         self.pressedNotes.removeAll()
         self.latestNoteOnMIDINotes.removeAll()

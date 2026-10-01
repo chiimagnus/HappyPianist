@@ -316,6 +316,8 @@ func manualBookNavigationMovesPracticePositionWithoutInventingMeasureResults(den
     if !dense {
         #expect(session.state == .ready && session.isRestoredSessionPaused)
         #expect(session.currentPianoHighlightGuide == nil)
+        try await Task.sleep(for: .milliseconds(160))
+        #expect(session.currentPianoHighlightGuide == nil)
     }
     session.navigateNotation(to: prepared.steps[0].tick, identity: prepared.identity)
     #expect(session.currentStepIndex == 0)
