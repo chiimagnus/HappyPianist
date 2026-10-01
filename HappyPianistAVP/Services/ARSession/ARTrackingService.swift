@@ -1,5 +1,6 @@
 import ARKit
 import Foundation
+import Observation
 import simd
 
 enum ARTrackingServiceError: LocalizedError {
@@ -14,6 +15,7 @@ enum ARTrackingServiceError: LocalizedError {
 }
 
 @MainActor
+@Observable
 final class ARTrackingService: ARTrackingServiceProtocol {
     final class Runtime {
         let session = ARKitSession()
@@ -55,18 +57,18 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     private let fingerTipUpdates = CurrentValueAsyncStreamRelay(FingerTipsSnapshot.empty)
     private let handSkeletonUpdates = CurrentValueAsyncStreamRelay(HandSkeletonSnapshot.empty)
 
-    private(set) var activeRuntime: Runtime?
-    private var desiredRequirements: ARTrackingRequirements = []
-    private var authorizationStatusByType: [
+    @ObservationIgnored private(set) var activeRuntime: Runtime?
+    @ObservationIgnored private var desiredRequirements: ARTrackingRequirements = []
+    @ObservationIgnored private var authorizationStatusByType: [
         ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus
     ] = [:]
 
-    private var reconcileRequestID = 0
-    private var reconcileTask: Task<Void, Never>?
-    private var sessionEventsTask: Task<Void, Never>?
-    private var handUpdatesTask: Task<Void, Never>?
-    private var worldAnchorUpdatesTask: Task<Void, Never>?
-    private var planeAnchorUpdatesTask: Task<Void, Never>?
+    @ObservationIgnored private var reconcileRequestID = 0
+    @ObservationIgnored private var reconcileTask: Task<Void, Never>?
+    @ObservationIgnored private var sessionEventsTask: Task<Void, Never>?
+    @ObservationIgnored private var handUpdatesTask: Task<Void, Never>?
+    @ObservationIgnored private var worldAnchorUpdatesTask: Task<Void, Never>?
+    @ObservationIgnored private var planeAnchorUpdatesTask: Task<Void, Never>?
 
     func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
         fingerTipUpdates.makeStream()
@@ -158,21 +160,21 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     private func scheduleReconcileIfNeeded() {
-        guard reconcileTask == nil else { return }
+        guard reconcileTask == nil, let runtime = activeRuntime else { return }
 
         reconcileTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            while Task.isCancelled == false {
+            while Task.isCancelled == false, activeRuntime === runtime {
                 let requestID = reconcileRequestID
                 let requirements = desiredRequirements
-                guard let runtime = activeRuntime else { break }
-
                 await reconcile(runtime: runtime, requirements: requirements, requestID: requestID)
 
                 guard activeRuntime === runtime else { break }
                 guard requestID != reconcileRequestID else { break }
             }
-            reconcileTask = nil
+            if activeRuntime === runtime {
+                reconcileTask = nil
+            }
         }
     }
 

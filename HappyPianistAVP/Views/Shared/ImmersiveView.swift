@@ -145,8 +145,15 @@ struct ImmersiveView: View {
         .onChange(of: pianoDemonstrationHandsEnabled) {
             updateDemonstrationHandsOverlayController()
         }
+        .onChange(of: viewModel.immersiveMode) {
+            updateDemonstrationHandsOverlayController()
+        }
         .onChange(of: viewModel.appState.arTrackingService.worldTrackingGeneration) {
-            guard viewModel.immersiveMode == .library else { return }
+            guard scenePhase == .active, viewModel.immersiveMode == .library else { return }
+            spatialLibraryViewModel.enterLibraryMode()
+        }
+        .onChange(of: viewModel.appState.arTrackingService.providerStateByName["world"]) {
+            guard scenePhase == .active, viewModel.immersiveMode == .library else { return }
             spatialLibraryViewModel.enterLibraryMode()
         }
         .onChange(of: songLibraryViewModel.entries.isEmpty) { _, isEmpty in
@@ -232,6 +239,10 @@ struct ImmersiveView: View {
     }
 
     private func updateOverlays(content: RealityViewContent) {
+        guard viewModel.immersiveMode != .library else {
+            resetOverlayControllers()
+            return
+        }
         let session = viewModel.practiceSessionViewModel
         let keyboardGeometry = session.keyboardGeometry
         let shouldShowPianoDemonstrationHands = pianoDemonstrationHandsEnabled
@@ -241,8 +252,8 @@ struct ImmersiveView: View {
             showsReticle: shouldShowCalibrationReticle,
             reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
             isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
-            a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
-            c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
+            a0TrackedAnchorPoint: viewModel.immersiveMode == .calibration ? viewModel.a0OverlayPoint : nil,
+            c8TrackedAnchorPoint: viewModel.immersiveMode == .calibration ? viewModel.c8OverlayPoint : nil,
             content: content
         )
         keyboardAxesDebugOverlayController.update(
@@ -250,6 +261,10 @@ struct ImmersiveView: View {
             keyboardFrame: session.calibration?.keyboardFrame,
             content: content
         )
+        guard viewModel.immersiveMode == .practice else {
+            resetPracticeOverlayControllers()
+            return
+        }
         neonHandOverlayController.update(
             isEnabled: viewModel.immersiveMode == .practice,
             trackingService: viewModel.appState.arTrackingService,
@@ -294,9 +309,13 @@ struct ImmersiveView: View {
     }
 
     private func resetOverlayControllers() {
-        overlayController.reset()
         calibrationOverlayController.reset()
         keyboardAxesDebugOverlayController.reset()
+        resetPracticeOverlayControllers()
+    }
+
+    private func resetPracticeOverlayControllers() {
+        overlayController.reset()
         neonHandOverlayController.reset()
         pianoDemonstrationHandsOverlayController?.reset()
         pianoDemonstrationHandsOverlayController = nil
@@ -306,7 +325,7 @@ struct ImmersiveView: View {
     }
 
     private func updateDemonstrationHandsOverlayController() {
-        guard pianoDemonstrationHandsEnabled else {
+        guard pianoDemonstrationHandsEnabled, viewModel.immersiveMode == .practice else {
             pianoDemonstrationHandsOverlayController?.reset()
             pianoDemonstrationHandsOverlayController = nil
             return

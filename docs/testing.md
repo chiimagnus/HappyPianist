@@ -22,6 +22,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 | 层级 | 可证明 | 不能替代 |
 | --- | --- | --- |
+| Spatial Library / mode 生命周期 | `passed`：现有 visionOS 27.0 AVP Simulator，最终定向 20 tests / 25 executions、0 failed/skipped，`.build/TestResults/P4-Final-Targeted.xcresult`；`make build:simulator` 通过。覆盖有界 folio、等比尺寸、后方 hit plane、协议观察通知、runtime 换代、管理 row ID 与 native 共享谱面；全量 1090 tests 中 1078 通过、12 失败，失败 ID 集合与既有卷页全量基线一致，`.build/TestResults/P4-Full.xcresult` | 真实空间点击/拖动/页缘翻页尚待人工确认；真机 world-fixed、物理对齐/舒适度未验收。全量没有通过；相同失败 ID 不等于已查明所有失败机制 |
 | Swift Testing / fixture | 纯模型、reducer、range、matcher、alignment、assessment、coaching | Apple 平台、硬件、听感、教学效果 |
 | `xcodebuild test` / Simulator | Swift 6、target 集成、生命周期、资源协议、持久化 | 真机 latency、追踪精度、音频听感 |
 | Apple Vision Pro 真机 | MIDI、麦克风、手部、audio route 的 latency/jitter/恢复 | 钢琴家审美、教学有效性 |

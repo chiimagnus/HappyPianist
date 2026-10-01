@@ -43,6 +43,10 @@ struct SpatialBookDisplayMetrics: Equatable {
         max(spreadHeightMeters, minimumReadableHeightMeters)
     }
 
+    var browseSurfaceDepthMeters: Float {
+        depthStepMeters * 2 + folioWidthMeters / 2 + 0.025
+    }
+
     func uniformScale(
         renderedBounds: SIMD3<Float>,
         targetWidthMeters: Float,

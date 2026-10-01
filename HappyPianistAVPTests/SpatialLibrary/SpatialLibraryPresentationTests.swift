@@ -88,6 +88,14 @@ struct SpatialLibraryPresentationTests {
         #expect(controller.interactionEntity.position.z < -SpatialBookDisplayMetrics.standard.depthStepMeters * 2)
         #expect(controller.interactionEntity.components[CollisionComponent.self] != nil)
         #expect(controller.interactionEntity.components[InputTargetComponent.self] != nil)
+        let metrics = SpatialBookDisplayMetrics.standard
+        for relativeIndex in -3...3 {
+            let presentation = LibraryBookFlowPresentation(signedDistance: CGFloat(relativeIndex))
+            let deepestEdge = Float(presentation.depthOffsetUnits) * metrics.depthStepMeters
+                - metrics.folioWidthMeters * Float(presentation.scale) / 2
+                    * abs(sin(Float(presentation.yawDegrees * .pi / 180)))
+            #expect(controller.interactionEntity.position.z + 0.01 < deepestEdge)
+        }
         controller.reset()
         #expect(!controller.interactionEntity.isEnabled)
     }

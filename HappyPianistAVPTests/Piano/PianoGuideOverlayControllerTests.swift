@@ -69,6 +69,9 @@ struct PianoGuideOverlayControllerTests {
             content: nil
         )
         #expect(keyboardRoot.children.count == 3)
+
+        controller.reset()
+        #expect(keyboardRoot.children.isEmpty)
     }
 
     private func makeGeometry(notes: [Int]) throws -> PianoKeyboardGeometry {

@@ -1,6 +1,33 @@
 import ARKit
+import Observation
+import Synchronization
 @testable import HappyPianistAVP
 import Testing
+
+@MainActor
+@Test
+func trackingLifecycleFactsInvalidateSpatialObservationConsumers() {
+    let service = ARTrackingService()
+    service.start(requirements: [.world])
+    let tracking: any ARTrackingServiceProtocol = service
+    let changes = Mutex(0)
+    withObservationTracking {
+        _ = tracking.providerStateByName
+    } onChange: {
+        changes.withLock { $0 += 1 }
+    }
+    service.stop()
+    #expect(changes.withLock { $0 } == 1)
+
+    withObservationTracking {
+        _ = tracking.worldTrackingGeneration
+    } onChange: {
+        changes.withLock { $0 += 1 }
+    }
+    service.start(requirements: [.world])
+    #expect(changes.withLock { $0 } == 2)
+    service.stop()
+}
 
 @MainActor
 @Test
@@ -44,6 +71,27 @@ func fullStopThenRestartReplacesWorldTrackingGeneration() {
     #expect(firstRuntime?.worldTrackingProvider !== secondRuntime?.worldTrackingProvider)
     #expect(service.worldTrackingGeneration == firstGeneration + 1)
 
+    service.stop()
+}
+
+@MainActor
+@Test
+func queuedReconciliationCannotAdoptARuntimeCreatedAfterRestart() async {
+    let service = ARTrackingService()
+    service.start(requirements: [.world])
+    let firstRuntime = service.activeRuntime
+    service.stop()
+    service.start(requirements: [.world])
+    let replacement = service.activeRuntime
+    let generation = service.worldTrackingGeneration
+    service.start(requirements: [.world, .hand])
+    await Task.yield()
+    #expect(firstRuntime !== replacement)
+    #expect(service.activeRuntime === replacement)
+    #expect(service.worldTrackingGeneration == generation)
+    service.start(requirements: [.world])
+    await Task.yield()
+    #expect(service.activeRuntime === replacement)
     service.stop()
 }
 

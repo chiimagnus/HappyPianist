@@ -19,7 +19,7 @@ final class SpatialLibrarySceneController {
         rootEntity.isEnabled = false
 
         interactionEntity.name = "SpatialLibraryBrowseInteraction"
-        interactionEntity.position = SIMD3<Float>(0, 0, -0.14)
+        interactionEntity.position = SIMD3<Float>(0, 0, -metrics.browseSurfaceDepthMeters)
         interactionEntity.components.set(
             CollisionComponent(
                 shapes: [
