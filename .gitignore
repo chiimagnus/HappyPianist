@@ -44,3 +44,8 @@ __pycache__/
 *.mlmodel
 *.mlmodelc
 HappyPianistAVP/Resources/Models/
+
+# ===== Web prototype =====
+
+website/prototype/node_modules/
+website/prototype/dist/

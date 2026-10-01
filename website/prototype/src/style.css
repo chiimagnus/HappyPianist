@@ -1,0 +1,46 @@
+:root {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  color: #f4f5f7;
+  background: #111318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root,
+.app-shell {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+.app-shell {
+  position: relative;
+  background: radial-gradient(circle at 50% 40%, #20242d 0%, #111318 68%);
+}
+
+.prototype-label {
+  position: absolute;
+  z-index: 1;
+  top: 24px;
+  left: 28px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  pointer-events: none;
+}
+
+.prototype-label span {
+  color: #9da5b3;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
