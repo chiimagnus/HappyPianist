@@ -58,7 +58,8 @@ let package = Package(
             dependencies: [
                 "MusicXML",
                 "Practice",
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
         .target(
             name: "Library",

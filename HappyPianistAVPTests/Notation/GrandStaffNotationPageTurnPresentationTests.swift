@@ -31,6 +31,37 @@ func pageTurnLiveSurfacesEndAtExactUprightTargetInBothDirections() throws {
 extension NativeBookWindowTests {
     @Test
     @MainActor
+    func nativeCurledPaperRendersBothDirectionsAndKeepsLiveFacesUpright() async throws {
+        let plan = try turnPresentationPlan()
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = try #require(scene.windows.first { $0.isKeyWindow })
+        let original = window.rootViewController
+        defer { window.rootViewController = original }
+        func content(source: Int, target: Int, progress: Double) -> some View {
+            let transition = GrandStaffNotationPageTurnState.Transition(identity: plan.turnIdentity, generation: 1, source: source, target: target)
+            return GrandStaffNotationPageTurnView(plan: plan, transition: transition, staffSpace: min(window.bounds.width / plan.geometry.spreadWidth, window.bounds.height / plan.geometry.height) * 0.8, overlay: .empty, practiceHandMode: .both, annotations: [], progress: progress)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        let controller = UIHostingController(rootView: content(source: 0, target: 1, progress: 0))
+        window.rootViewController = controller
+        for (source, target) in [(0, 1), (1, 0)] {
+            var images: Set<String> = []
+            for progress in [0.0, 0.25, 0.5, 0.75, 1.0] {
+                controller.rootView = content(source: source, target: target, progress: progress)
+                try await Task.sleep(for: .milliseconds(200))
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    #expect(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+                }
+                let data = try #require(image.pngData())
+                images.insert(SHA256.hash(data: data).description)
+                Attachment.record(data, named: "curl-\(source)-to-\(target)-\(progress).png")
+            }
+            #expect(images.count == 5)
+        }
+    }
+
+    @Test
+    @MainActor
     func nativeSharedSpreadActuallyAnimatesAndRapidNavigationConvergesInExistingWindow() async throws {
         let plan = try turnPresentationPlan()
         let navigation = TurnNativeNavigation()

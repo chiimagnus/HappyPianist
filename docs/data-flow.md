@@ -14,12 +14,12 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - `PracticePreparationService` 先生成唯一的 `ScorePerformancePlan`，再单向投影 steps、琴键引导、notation、时间线和 sequence。没有 steps 或 measure spans 的结果是 typed failure，不存在 legacy/fallback 练习模式。
 - preparation 将正式 logical instrument / structural part 事实接到 runtime。Notation 接收完整 projection、小节结构、attribute timeline 与这些来源事实；projection 已映射到显示 staff，不再重复 normalizer。
 - Notation owner 在非主 Actor 异步构建唯一的 staff-space 绝对布局与 canonical PagePlan，保留完整边界、source beam provenance、spanner 与墨迹边界；换谱/关闭取消任务并拒绝迟到 generation。所有 occurrence（含空休止）唯一分配到 system/page/spread；分谱表上下文按正式 original part/staff 查询。首/末边界、source beam 连通组与 continuation 使用原始来源，完整墨迹决定二维 fit。tick、hand、active range 和 overlay 只更新局部 presentation，不重建全谱；范围外内容变淡但不删除。高亮和辅助显示不写入 progress。Practice 以完整 score 驱动双页，放大阅读纵向显示同一分页；离散导航复用唯一 transport 的 scheduled tick（包含小节边界），休止期间不插值、不优先旧 guide。
-- 共用 Spread 仅根据目标双页驱动单张纸的实时正反面；相邻翻动，大跳或翻动期间新目标直接收敛。原生动画完成核对谱身份与 generation，关闭/换谱拒绝旧完成；不缓存位图、不增加时钟。用户显式放大阅读直接换页。
+- 共用 Spread 仅根据目标双页驱动单张纸的实时正反面；SwiftUI 原生 Metal layerEffect 对同一圆柱曲面逆投影，一次采样选择可见正面或背面，保留正确页码、文字朝向、曲率光照和纸面阴影。离屏边界按完整过渡的最大投影固定，不随动画逐帧改变页面布局或缓冲尺寸。采样距离上界来自真实逆投影位移，不用画布尺寸代替，以免框架扩张出过大纹理。相邻翻动，大跳或翻动期间新目标直接收敛。原生动画完成核对谱身份与 generation，关闭/换谱拒绝旧完成；不缓存位图、不增加时钟。用户显式放大阅读直接换页。
 - 界面文字使用系统语义字体。谱内文本使用系统 caption 字体，测量与绘制共用 engraving metrics，按 staff-space 几何比例缩放；音符使用 Bravura 音乐字体。不能把记谱几何字号换成窗口字号，否则会破坏墨迹边界与分页。
 
 曲库窗口通过 Book Flow 乐谱册浏览曲目：系统滚动绑定只在停稳时提交 selection；几何测量只驱动倾斜与层级。导入事务、删除资格、选择持久化和独立试听仍由原曲库业务 owner 决策。
 
-- 邻册点击只选曲，中央已选册或“打开乐谱”按钮打开真实双页预览。预览与练习共用 canonical 分页；只替换窗口内容，不重建试听条、导入器或外层 owner。预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
+- 邻册点击只选曲，点击中央已选册打开真实双页预览，不另设底部打开按钮。预览与练习共用 canonical 分页；只替换窗口内容，不重建试听条、导入器或外层 owner。预览通过正式 resolver/preparation（written order、双手）读取，不安装练习、不绑定 recorder、不写 progress。
 - 预览只保留当前一份准备结果和 PagePlan；解析前后都核对 song ID、文件版本与请求 generation。关闭、换曲、删除、导入开始、窗口离开或 scene 非 active 取消并清理，迟到结果不能恢复旧谱。重新打开重新准备，没有永久缓存。
 - 曲库历史仍只读取一次 snapshot；同一当前 revision 的真实小节事实共同派生汇总与逐 source 标记，双手稳定或左右分别稳定合并为已稳定。预览再核对 selection/file version 与准备结果的 revision，并按正式 occurrence 映射到分页 rect（包括空休止）；未知 revision 不伪装成未练习。标记、继续位置与重点可叠加，不改变分页或持久化数据。
 - 预览仅保存当前 target spread；首次 ready 从匹配 selection/file version/revision 的精确 resume occurrence 打开，否则首双页。迟到历史只更新标记，不夺走浏览位置；focus 不自动跳转。外页缘 Button 驱动导航，前后边界停止；关闭清空目标，重开重新准备，不持久化自由浏览页码，也不改变试听。

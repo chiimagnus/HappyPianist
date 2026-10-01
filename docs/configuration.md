@@ -4,6 +4,8 @@
 
 ## 命令
 
+SwiftUI 卷页使用 Notation 包中的 Metal shader。所选 Xcode 需安装官方 Metal Toolchain；`xcrun metal --version` 可检查是否可用。提示组件缺失时运行 `xcodebuild -downloadComponent MetalToolchain`，或通过 Xcode 设置安装对应组件。组件只参与构建，App 用户不需要额外安装。Shader 随 Notation resource bundle 打包，不依赖网络运行。
+
 先运行 `make doctor`；以 `make build:simulator` 和 `make test:simulator` 验证 visionOS App，以 `swift test --package-path Packages/HappyPianistCore` 验证共享核心。`make destinations` 列出可用 destination，Makefile 使用 Xcode 默认 DerivedData，result bundle 位于 `.build/TestResults`。timeout、日志和证据要求见[测试](testing.md)。
 
 ## App 权限与资源

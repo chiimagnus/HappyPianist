@@ -148,6 +148,7 @@ doctor: ## 检查所需 Apple 命令行工具和 Xcode 工程是否存在。
 	@test -n "$(XCODE_DEVELOPER_DIR)" || { echo '错误：未找到当前 Xcode 开发目录；请运行 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer'; exit 1; }
 	@test -d "$(PROJECT)" || { echo '错误：找不到工程：$(PROJECT)'; exit 1; }
 	@xcodebuild -version
+	@xcrun metal --version >/dev/null 2>&1 || { echo '错误：缺少 Metal Toolchain；请运行 xcodebuild -downloadComponent MetalToolchain'; exit 1; }
 	@echo 'doctor: 检查通过'
 
 config: ## 打印解析后的 Make 配置。

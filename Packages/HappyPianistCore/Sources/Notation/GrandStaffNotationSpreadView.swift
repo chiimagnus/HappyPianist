@@ -58,7 +58,7 @@ public struct GrandStaffNotationSpreadView: View {
                 progress = 0
             }
             if let transition = next.transition {
-                withAnimation(.easeInOut(duration: 0.55), completionCriteria: .removed) {
+                withAnimation(.easeInOut(duration: 0.7), completionCriteria: .removed) {
                     progress = 1
                 } completion: {
                     guard turn.transition == transition else { return }
