@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   Group,
   MathUtils,
-  Mesh,
   type CanvasTexture,
 } from 'three';
 import type { PrototypeSong } from '../model/data.ts';
@@ -30,24 +29,16 @@ function useDisposableTexture(texture: CanvasTexture): CanvasTexture {
 }
 
 export function ScoreBook({ index, song, state, dispatch, reducedMotion }: ScoreBookProps) {
-  const rootRef = useRef<Group>(null);
   const hingeRef = useRef<Group>(null);
   const target = bookPose(state, index);
   const selected = index === state.selected;
   const coverTexture = useDisposableTexture(useMemo(() => createCoverTexture(song, index), [index, song]));
 
   useFrame((_, delta) => {
-    const root = rootRef.current;
     const hinge = hingeRef.current;
-    if (!root || !hinge) return;
+    if (!hinge) return;
 
     const amount = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, 0.05) * 9);
-    root.position.x = MathUtils.lerp(root.position.x, target.position[0], amount);
-    root.position.y = MathUtils.lerp(root.position.y, target.position[1], amount);
-    root.position.z = MathUtils.lerp(root.position.z, target.position[2], amount);
-    root.rotation.x = MathUtils.lerp(root.rotation.x, target.rotation[0], amount);
-    root.rotation.y = MathUtils.lerp(root.rotation.y, target.rotation[1], amount);
-    root.rotation.z = MathUtils.lerp(root.rotation.z, target.rotation[2], amount);
     hinge.rotation.y = MathUtils.lerp(hinge.rotation.y, target.open ? -Math.PI : 0, amount);
   });
 
@@ -59,7 +50,6 @@ export function ScoreBook({ index, song, state, dispatch, reducedMotion }: Score
 
   return (
     <group
-      ref={rootRef}
       visible={target.visible}
       position={target.position}
       rotation={target.rotation}
