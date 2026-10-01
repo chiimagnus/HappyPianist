@@ -481,7 +481,7 @@ Book Flow also needs a lightweight horizontal browse gesture so libraries larger
 
 The drag interaction surface must sit behind/around the folio hit targets (or otherwise use verified gesture routing) so it **does not steal ordinary SwiftUI attachment hover/tap/pinch** from the books/page-edge controls. A tap with insignificant horizontal translation remains a folio/button confirm, not a browse commit. Add a targeted interaction test/manual check for tap-vs-drag arbitration rather than fixing conflicts with gesture delays.
 
-Off-center confirm remains a complete non-drag navigation path and VoiceOver exposes previous/next adjustable actions.
+Off-center confirm remains a complete non-drag navigation path.
 
 Do not add raw gaze coordinate handling or per-folio drag state.
 

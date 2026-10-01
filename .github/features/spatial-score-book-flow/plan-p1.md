@@ -57,8 +57,7 @@
 
 输入：
 - item 相对 viewport center 的 signed distance；
-- item extent；
-- Reduce Motion。
+- item extent。
 
 输出至少包括：
 - `rotationDegrees`；
@@ -96,11 +95,6 @@
    - scale / opacity 单调降低；
    - 不需要模拟真实三维米制 Z 坐标；当前 Window 只做 perspective/depth presentation。
 
-4. Reduce Motion：
-   - 取消强 3D rotation / 大位移；
-   - 保留 center emphasis、selection 和层级；
-   - 不额外维护第二套 layout。
-
 ### Cleanup in this task
 
 - `LibraryRecordScrollPresentation` 被新 presentation 替换后立即删除；
@@ -117,7 +111,6 @@
 - symmetry；
 - monotonic scale/opacity；
 - distance clamp；
-- Reduce Motion；
 - NaN/inf 不作为公开输入契约，不为“不可能输入”增加额外 runtime fallback；测试只覆盖实际 GeometryProxy 可产生的有限值。
 
 ### Gate
@@ -143,7 +136,7 @@
 - Delete: `HappyPianistAVP/Views/Library/TurntableTonearmView.swift`
 - Rename/Update: `HappyPianistAVPTests/Library/LibraryRecordScrollSelectionTests.swift` → Book Flow equivalent
 - Update: `HappyPianistAVPTests/Library/LibraryDeletionHoldPolicyTests.swift`
-- Update any previews/accessibility strings that still say 唱片 / 唱片架 / record / crate
+- Update any previews/display strings that still say 唱片 / 唱片架 / record / crate
 
 ### Current behavior / root cause
 
@@ -176,8 +169,7 @@
 - `scrollTargetBehavior(.viewAligned(anchor: .center))`；
 - `scrollPosition(id:anchor:)`；
 - `selectedEntryID`；
-- scroll phase idle 后 commit selection；
-- VoiceOver adjustable next/previous。
+- scroll phase idle 后 commit selection。
 
 用 P1-T1 presentation 驱动 item：
 
@@ -203,7 +195,7 @@
 - 不做厚书；
 - 不引入封面资源商店或 texture pipeline。
 
-曲名/来源取既有 entry；没有真实作者事实就不补假作者。参考图的插画不是授权要求导入的资源，不为模仿图建立封面 store。狭窄窗口/Dynamic Type 下标题与命中区域仍可用；5–7 本是常规尺寸视觉目标，不是以固定宽度裁掉控制的契约。
+曲名/来源取既有 entry；没有真实作者事实就不补假作者。参考图的插画不是授权要求导入的资源，不为模仿图建立封面 store。狭窄窗口下标题与命中区域仍可用；5–7 本是常规尺寸视觉目标，不是以固定宽度裁掉控制的契约。
 
 #### C. 试听行为
 
@@ -269,12 +261,10 @@ P1 阶段先保持现有“selected item 再确认可试听”的行为，保证
 - center/neighbor selection commit；
 - external selectedEntryID → scroll target；
 - selected item stage-P1 audition behavior；
-- next/previous accessibility；
 - delete eligibility；
 - hold threshold；
 - import/delete callbacks；
-- bundled delete protection；
-- Reduce Motion。
+- bundled delete protection。
 
 ### Manual Simulator acceptance
 

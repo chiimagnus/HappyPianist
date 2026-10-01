@@ -89,7 +89,7 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 
 ## P2-T2 建立 deterministic pagination 的几何验证（探索）
 
-**交付物:** 本节内记录经过测量的 canonical page 参数、支持的宿主最小尺寸与 Dynamic Type 显示策略，供 T3 实施。不是先提交孤立 PaginationService。
+**交付物:** 本节内记录经过测量的 canonical page 参数、支持的宿主最小尺寸与显式放大阅读策略，供 T3 实施。不是先提交孤立 PaginationService。
 
 ### 为什么先验证
 
@@ -100,7 +100,7 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 1. 用 T1 的绝对布局和 renderer 做最小临时排页实验；实验文件只放本 feature 本地目录，不新增永久 production helper，也不引入依赖。若临时改测试/生产代码，实验结束当场还原该实验改动。
 2. 输入使用现有 notation fixtures、真实 bundled scores，以及长休止、极端音高、嵌套 tuplets、7 升/降调号、跨小节 beam；用 ImageRenderer 测 ink bounds，另在 Simulator 观察真实宿主。
 3. 以 staff-space 定义 page aspect、内边距、系统内容宽/页容量、system gap、gutter 与 header extents。禁止固定系统数；普通 resize 不进入分页 identity。
-4. 普通显示等比放入同一 spread。可访问 Dynamic Type 不另排谱：同一 canonical layout 放大并允许纵向阅读；不得复活水平连续滚谱。文字/control 随 Dynamic Type，谱字不能被旧像素 clamp 再次改大小。
+4. 普通显示等比放入同一 spread。显式放大阅读不另排谱：同一 canonical layout 放大并允许纵向阅读；不得复活水平连续滚谱。文字/control 用系统语义字体，谱字不能被旧像素 clamp 再次改大小。
 5. 若双页在最小宿主无法读，先调整本 feature 的内容最小尺寸/notation 高度分配（保留现有键盘），而非偷偷只显示一页、缩到无下限或另开一种分页。具体最小值由实验记录确定，不预填虚假通过。
 6. 普通 measure 只在 measure boundary 换 system；cross-measure explicit beam 的连通组不可切。
 7. 超宽 measure/group：独占 system，以 `min(1, availableWidth / completeInkWidth)` 对该 system 均匀缩放，包含 header 与全部 glyph/beam；记录所得 scale。支持显式放大查看，不能以“轻微超宽”裁掉乐谱。超高 system 同样独占 page并按完整二维 bounds fit，不能溢出覆盖下一行。不新增递归 fallback 树。
@@ -108,7 +108,7 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 
 ### 固定的数据规则（无需实验猜测）
 
-- Pages 顺序从 0，spread=`[page 2n, page 2n+1]`；首 spread 左为第一页，奇数末页右为空，无音乐/历史语义且不暴露 VoiceOver 空白页。
+- Pages 顺序从 0，spread=`[page 2n, page 2n+1]`；首 spread 左为第一页，奇数末页右为空，无音乐/历史语义。
 - 音符/rest onset 与 navigation 采用 `[startTick,endTick)`；恰好小节起点属于后一个 measure/system/page。完整 score 终点归最后页；域外 tick query 返回 nil，不用无声 clamp 掩盖无效 session。
 - 小节末的 ending stop/backward repeat/final barline 属于前小节右边缘，不能按 onset 规则被后一个 system 吞掉；起始 repeat 属于后小节左边缘。两侧普通边线可为版式重述，源结构事实不重复。
 - 每个 measure occurrence 恰好属于一个 system/page；别用 printed number token 作为唯一 ID。sourceMeasureID 只用于历史来源关联。
@@ -125,7 +125,7 @@ T3 必须等待本实验成立；本 task 没有永久代码，因此无强制 G
 - 使用正式 preparation `.practice` 与 T1 renderer：四首 bundled（Bohemian Rhapsody、Despacito、Awesome、Under Pressure）与七个 fixture，共十一谱。实验源码留在本目录 `geometry-experiment.swift`，已从测试 target 删除。
 - 冻结 canonical 参数：page 52×73.5 staff-spaces，margin 3，system 可用宽 46/高 61.5，system gap 3，spread gutter 2。系统数按完整墨迹贪心装箱，不固定三行；source beam 连通组不切开，超宽/超高 system 二维 fit 并独占页。
 - 四首真实谱为 45/30/9/34 页，首页各三系统；fixture 含纯休止、双 part、7 升/降、极端音高、跨小节显式 beam、40 层 nested tuplets。1180px 双页最小 staff spacing 为 5.87px（40 音 beam）；放大同一页到 1180px 后 11.96px，实际 PNG 音头/beam 完整、未裁剪。40 层高系统二维 fit 后 9.54px/放大 19.44px。不存在任意大输入的有限像素可读性保证，放大阅读保留完整系统并可调整宿主尺寸。
-- 普通 spread 等比缩放，accessibility Dynamic Type 或显式放大把同一 spread 的两页纵向排列并纵向阅读；不是重新分页/单页产品模式。控制文字随 Dynamic Type，谱字没有旧 8…22 clamp。
+- 普通 spread 等比缩放，显式放大把同一 spread 的两页纵向排列并纵向阅读；不是重新分页/单页产品模式。控制文字用系统语义字体，谱字没有旧 8…22 clamp。
 - 实际 AVP 现有设备窗口 `1240×1160`（已读取 native bounds），1180px 谱面与原 88 键同时可见。Practice min 1240×1160；Library preview min 1240×1000（无需键盘）。截图 `/tmp/happy-p2-t2-native-normal-captured.png`、`/tmp/happy-p2-t2-native-enlarged-captured.png` 已查看；放大截图保留键盘，谱面纵向阅读。
 - 实际测试：首轮 1/1 passed `.build/TestResults/ScoreGeometry-P2-T2-1790785854.xcresult`；native geometry 1/1 passed `.build/TestResults/ScoreGeometry-P2-T2-native-1790787027.xcresult`。补采截图轮 `.build/TestResults/ScoreGeometry-P2-T2-capture-1790787169.xcresult` 在截图导出后进程 signal kill，不能称该轮通过；前两轮与实际尺寸/两模式截图构成几何证据。临时 UIKit root/size 操作只用于实验，不进入生产。
 
@@ -141,7 +141,7 @@ Notation：
 - Add: `GrandStaffNotationPaginationService.swift`、`GrandStaffNotationPagePlan.swift`、必要的小型 `GrandStaffNotationContextResolver.swift`。
 - Add: `GrandStaffNotationSystemView.swift`、`GrandStaffNotationPageView.swift`、`GrandStaffNotationSpreadView.swift`。
 - Rename/refactor: `GrandStaffNotationViewportLayoutService.swift` → `GrandStaffNotationSystemCanvasLayoutService.swift`，同步 tests/callers，不留 alias。
-- Update: score/presentation owner、`GrandStaffNotationModels.swift`、`GrandStaffNotationRenderer.swift`，迁移现有 accessibility descriptor。
+- Update: score/presentation owner、`GrandStaffNotationModels.swift`、`GrandStaffNotationRenderer.swift`。
 - Delete: `GrandStaffNotationView.swift`（含旧居中/滚动 scaffolding），所有 package/AVP caller/tests 迁移。
 
 Host：
@@ -163,12 +163,11 @@ Host：
 6. Tie/slur/nested tuplets/ending 按 slice 增加 local continuation，开始/结束/边界标记遵守 T2 归属；explicit beams 不拆来源组，fallback beam 仍按 meter、rest 和 measure 分组。未支持记谱依旧明确 placeholder，不默默丢弃。
 7. Query 按 tick / occurrence 查询 system/page/spread，history sourceMeasure 查询通过 measureSpans；完成态终点和空页按 T2 固定规则处理。
 
-### B. 动态 renderer / 纸面 / 无障碍
+### B. 动态 renderer / 纸面 / 放大阅读
 
 - SystemView 只 slice 已有 score layout、应用瞬态 overlay、调用现有 renderer；PageView 垂直排真实 systems；SpreadView 同时显示两页和窄 gutter。不复制旧 viewport两份，不嵌套水平 ScrollView。
-- Host 只按可用空间等比缩放 canonical pages；Dynamic Type 放大阅读按 T2 同一 plan 实现。
+- Host 只按可用空间等比缩放 canonical pages；显式放大阅读按 T2 同一 plan 实现。
 - 纸面使用低干扰浅象牙色与固定可读深墨色，不能让深色环境下 `.primary` 变白而消失；增加对比度/无色辨别仍有明确轮廓/标签。
-- Descriptor 迁移为共享 system/page 描述，VoiceOver 顺序为 page→system→按 tick/稳定 source order 合并的 notes/rests，而非所有 notes 后所有 rests。同 tick跨 staff 保持明确顺序。
 - 页码/总页数、休止、unsupported、高亮/范围可读；annotations 与翻页 control 不仅靠色彩。
 
 ### C. Practice：传全谱与正式 source facts
@@ -202,7 +201,7 @@ Host：
 - 单/双 part + staff-scoped clef/key/meter；tick==system start 只重述一次；ending/repeat 右边缘不丢/重复。
 - Cross-system tie/slur/nested tuplets、跨 staff/source beam、unsupported、完整 ink bounds。
 - Library-sized/Practice-sized display 保持页界、overlay/range 不重建，唯一 score/page build 次数回归。
-- AVP ImageRenderer：多系统页/双页、light/dark/increased contrast、accessible Dynamic Type/Differentiate Without Color、header/continuation。
+- AVP ImageRenderer：多系统页/双页、light/dark、header/continuation。
 - 实际 Practice consumer 的完整 measureSpans 测试，而不仅测 paginator synthetic 输入。
 - Autoplay long rest/tie、same-tick step/guide、pause/seek/error/end，证明正确 tick→实际目标 spread，不只检查事件 emit。
 - `make build:simulator` 与 Simulator 当前 highlight/manual/autoplay/resume；a11y/可读性未执行不得报通过。
@@ -217,9 +216,9 @@ Host：
 - 完整 preparation→install→PagePlan 的 128 小节实测：手动跨 spread/末步完成、休止期间 guide 停留而 navigation 前进、pause/resume/stop、同一 input 只构建一次。额外复现并修复：暂停后迟到的 transport sample 不能推进页码；取消代的构建失败不能停掉新代。分别有可控 in-flight clock 和 late failure 回归。
 - transport position 沿既有 schedule 发布，不加 clock；native MIDI 使用 MusicTrack 的正式 track-length 属性保留静音尾段，AVAudioSequencer.load 后验证真实 track length，不插入 dummy 音符。
 - package 全量 252/252（6 targets：96/65/10/17/43/21），`/tmp/happy-t3-full-package-commit.log`。AVP 最终定向 71/71、0 skipped，`.build/TestResults/BookPagination-T3-pause-gate-1790798465.xcresult`，`/tmp/happy-t3-pause-gate.log`；仍明确排除 T1 已复现的先存示范手失败，未修 rig/clip。build passed `/tmp/happy-t3-build-commit.log`。
-- Native 高对比度/深色/accessible scrolling 1/1 passed，`.build/TestResults/BookPagination-T3-native-final-1790797879.xcresult`。共享 Spread 的 ImageRenderer 证明 normal light/dark 页内像素一致；放大 ScrollView 不以 ImageRenderer 黑色结果声称通过，改在既有窗口实测。
+- 清理前 Native 显示测试 1/1 passed，`.build/TestResults/BookPagination-T3-native-final-1790797879.xcresult`。共享 Spread 的 ImageRenderer 证明 normal light/dark 页内像素一致；放大 ScrollView 不以 ImageRenderer 黑色结果声称通过，改在既有窗口实测。
 - 真实设备截图 `/tmp/happy-t3-real-0.png`、`/tmp/happy-t3-real-1.png` 已查看：双页完整、放大纵向阅读完整。UIGraphics.drawHierarchy 单独出现的黑矩形未在实际 simctl 截图出现，属于 capture 边界，没有为它修改生产 renderer。补采轮 `.build/TestResults/BookPagination-T3-real-capture-1790797285.xcresult` 1/1 passed；导出/等待截图临时代码已删除。
-- 正式 App 现有 debug route 打开 bundled Awesome 谱，截图 `/tmp/happy-t3-production-practice-ready.png` 已查看：23 页、右页多 system，当前高亮、键盘与底部控制保留；T2 实验页数不是 T3 实际 header/fit 下的页数。没有冒称自动 GUI 点击或人工 VoiceOver 验收；Practice 深入生命周期与可见导航回归归 T5。
+- 正式 App 现有 debug route 打开 bundled Awesome 谱，截图 `/tmp/happy-t3-production-practice-ready.png` 已查看：23 页、右页多 system，当前高亮、键盘与底部控制保留；T2 实验页数不是 T3 实际 header/fit 下的页数。没有冒称自动 GUI 点击；Practice 深入生命周期与可见导航回归归 T5。
 - 原有 source/glyph/layout golden 不变；geometry 仅更新共享 native signature extent 带来的 x-spacing，visual golden 改为完整 canonical system 尺寸（旧 800×320 会截放大系统），导出图片检查后更新；临时导出代码删除。`git diff --check` 和旧生产符号 scan 为零。
 
 ---
@@ -268,7 +267,7 @@ Host：
 
 - 非选中 folio confirm = select；已选中央 confirm = open score，不再 toggle audition。
 - `LibraryNowPlayingBar` 继续独立播放/暂停/seek；翻页/打开关闭 detail 不改变音频业务状态。Library 真正 disappear 的原 stop policy不变。
-- 迁移 loading、invitation、overview、temporarilyUnavailable retry、corrupted retry+**明确 backup-and-reset confirmation** 到 detail。摘要 duration/session/streak不升级成新 dashboard；现有有用信息可为紧凑 accessible 文本，谱面为主体。
+- 迁移 loading、invitation、overview、temporarilyUnavailable retry、corrupted retry+**明确 backup-and-reset confirmation** 到 detail。摘要 duration/session/streak不升级成新 dashboard；现有有用信息为紧凑文本，谱面为主体。
 - reset 仍调用既有 `recoverSelectedPracticeSnapshot` 路径，经确认→backup/reset→reload；不能把新 UI Button 当作已备份的证明。
 - 删除旧 selected-confirm playback action/enum/tests、trailing Ornament 挂载、两个旧 View、`libraryViewHeight`/仅其使用的 onGeometryChange、旧 reset-dialog 的重复 owner；无新旧 feature flag。
 
@@ -293,7 +292,7 @@ Host：
 - 真正 native Root 的 scene inactive→close、active 不自动重开、显式 reopen→同一完整 PagePlan 已覆盖。新 native 测试起初暴露浮点边界差异：相同 input/projection/absolute score，system ink height 因 Dictionary 顺序的多次 CGRect.union 出现 `17.66` vs `17.659999999999997`。在唯一 InkBoundsService 直接聚合 min/max 边界再构造 CGRect，消除遍历顺序依赖；不加 epsilon、舍入或缓存补丁。保留 native 完整计划相等回归与 dense ledger 重建检查。
 - 初始两次 Xcode selection 缺完整函数 ID，实际 0 tests，明确不作为通过证据；修正为枚举中的完整 `function()`/`function(argument:)` 后 Gate 42/42，最终扩大到 50/50（0 failed/skip）。证据：`.build/TestResults/LibraryPreview-T4-final-1790801386.xcresult`、`/tmp/happy-t4-final.log`；discovery `/tmp/happy-t4-enum.txt`、选择 `/tmp/happy-t4-final-ids.txt`。
 - native 初次 0/1 失败是上述真实边界差异；诊断轮打印完整对象过大导致测试收尾停滞，仅终止本任务的 xcodebuild PID，未重启/删除模拟器。修复后 native 1/1：`.build/TestResults/LibraryPreview-T4-native-fixed-1790801255.xcresult`；移除临时 capture cue/等待后的最终 1/1：`.build/TestResults/LibraryPreview-T4-native-final-1790801473.xcresult`、`/tmp/happy-t4-native-final.log`。
-- 唯一现有 AVP 的实际 simctl 截图 `/tmp/happy-t4-production-preview-fixed.png` 已逐页目视检查：23 页真实谱、完整双页、详情返回、历史邀请及外层试听条均正常。Native 测试恢复原 root/窗口尺寸，不新建设备或窗口；不将此证据冒称人工 VoiceOver 操作通过。
+- 唯一现有 AVP 的实际 simctl 截图 `/tmp/happy-t4-production-preview-fixed.png` 已逐页目视检查：23 页真实谱、完整双页、详情返回、历史邀请及外层试听条均正常。Native 测试恢复原 root/窗口尺寸，不新建设备或窗口；不将此证据冒称人工点击通过。
 - package 253/253，6 targets（96/66/10/17/43/21），`/tmp/happy-t4-package-fixed.log`；最终 build 结果记在 `/tmp/happy-t4-build-final.log`。旧符号 scan 与 `git diff --check` 为零。长期文档同步 `docs/data-flow.md`。
 
 ---

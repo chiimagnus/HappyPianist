@@ -1,5 +1,5 @@
 version = 1
-current_task_id = ""
+current_task_id = "P3-T4"
 
 [[tasks]]
 id = "P1-T1"
@@ -84,11 +84,11 @@ note = "126/126 AVP、native 在定向3/3、build；共享消费无需重复业�
 
 [[tasks]]
 id = "P3-T4"
-title = "收口 Reduce Motion VoiceOver 与真实验收"
-status = "blocked"
+title = "收口翻页真实验收并删除取消的专项功能"
+status = "in_progress"
 plan = "plan-p3.md#p3-t4"
 commit = ""
-note = "代码提交 703663cdfb23731124edad2f3988730c88c5e4fc；174/174 AVP、256/256 package/build；等待真实页缘/Reduce Motion/VoiceOver确认。全量1050/1062，11先存+1未改Recorder调度敏感失败，见 plan-p3/audit-p3。"
+note = "用户追加全项目专项适配清理及系统语义字体统一；原翻页验收中真实页缘点击仍未确认。"
 
 [[tasks]]
 id = "P4-T1"

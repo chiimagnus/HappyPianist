@@ -402,13 +402,6 @@ Do not suppress:
 - rejected/unrendered Companion motion；
 - user's own target guide just because AI audio exists。
 
-### Reduce Motion
-
-Reduce Motion:
-- no animated approach/withdraw transition；
-- direct rest/play/hidden pose transition；
-- core key-to-finger playback remains because it is instructional/musical content; disable decorative approach/withdraw/flying transitions and other nonessential motion.
-
 ### Delete Neon user-hand rendering
 
 Current NeonHand exists only for visualizing tracked user hands.
@@ -458,7 +451,6 @@ Delete the old persistent “演示手” setting label/key in **T3**, together 
 - rejected motion does not suppress Guide；
 - keyboard frame update；
 - reset/suspend cancels load and prevents late reattach；
-- Reduce Motion；
 - no Neon/VirtualPerformer/Xiaocheng production refs；
 - no old `PianoDemonstrationHand*` rig/asset/generator/entity/diagnostic identity and no `PianoDemonstrationHandsSettings` / old AppStorage key remain after migration。
 
@@ -650,7 +642,7 @@ Spatial controls call existing `ARGuideViewModel/PracticeSessionViewModel` actio
 - Window no longer renders duplicate keyboard/score/core toolbar；
 - advanced settings still reachable；
 - backend/debug status not exposed in spatial UI；
-- accessibility labels for all icon controls。
+- product-facing text for all icon controls。
 
 ### Gate
 
@@ -715,24 +707,18 @@ By the end:
 
 ### Return animation
 
-If Reduce Motion is off and P4's Spatial Library placement still belongs to the current `worldTrackingGeneration`:
+If P4's Spatial Library placement still belongs to the current `worldTrackingGeneration`:
 - score may transition from keyboard placement back to library placement before closing to folio。
 
 If that generation changed after AR runtime suspend/restart, wait for P4 to establish a fresh Library placement and do not animate through stale world coordinates。
 
-If Reduce Motion is on:
-- direct state transition。
-
 Animation never gates progress save/return correctness.
 
-### Accessibility
+### Control readability
 
 Validate:
-- VoiceOver can reach spatial score controls；
-- page navigation remains accessible；
-- Companion semantic control is labeled, but internal action names are not announced as model jargon；
-- Differentiate Without Color applies to Guide/feedback；
-- Reduce Motion path avoids flying score/page/hand approach animations。
+- page navigation controls remain readable and operable；
+- Companion control uses product-facing labels rather than internal model jargon；
 
 ### Real-device acceptance
 

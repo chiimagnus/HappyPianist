@@ -81,7 +81,6 @@ Spatial Book Spread
 - Practice 中支持随演奏进度自动翻页。
 - 自动翻页由真实练习 / playback 位置驱动，不能新增独立的猜测时钟。
 - 快速跳转时应收敛到最终目标页，不能积压一串过时翻页动画。
-- Reduce Motion 开启时仍然能正确换页，只取消不必要的动态效果。
 
 ### 4. Spatial Library
 
@@ -154,7 +153,6 @@ Spatial Book Spread
 - 麦克风、Bluetooth MIDI、虚拟钢琴现有输入能力；
 - A0 / C8 现实钢琴校准流程；
 - source/performed identity 和 score revision 语义；
-- VoiceOver、Differentiate Without Color、Dynamic Type、Reduce Motion；
 - 任务取消、generation 隔离、后台 / scene teardown 后拒绝过时结果；
 - 已有 Piano Guide 的职责与真实性。
 
@@ -219,7 +217,7 @@ Spatial Book Spread
 - 核心练习操作、反馈与 round result 可以在空间中完成。
 - 保存失败不会错误返回 Library；保存 / discard 成功后能在同一空间体验中回到原曲目的 Spatial Library。
 
-### Accessibility / Evidence
+### Evidence
 
-- Reduce Motion、VoiceOver、Differentiate Without Color 在新的 Book / Spatial 路径中可用。
+- 产品决定（2026-10-01）：全项目删除系统辅助模式专用代码、描述器、测试及要求；界面改用系统语义字体，保留普通按钮文本、显式放大阅读与正式记谱几何。
 - Simulator / build 只证明软件路径；world stability、现实琴键对齐、阅读舒适度和 Companion finger alignment 必须由 physical Apple Vision Pro 证据支持。

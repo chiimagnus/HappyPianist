@@ -426,7 +426,7 @@ then:
 3. bind the same logical Spatial Score attachment to Practice's P3 page plan/navigation facts and let Practice become the sole authoritative spread owner；
 4. compute current world transform of score；
 5. compute target world transform from KeyboardScoreRoot + local placement；
-6. animate one controlled transition if Reduce Motion is off；
+6. animate one controlled transition；
 7. reparent/settle under KeyboardScoreRoot without visual jump；
 8. hide Spatial Book Flow folios for Practice。
 
@@ -437,10 +437,6 @@ If the user chooses the existing Return action, the Practice Window is dismissed
 After matching `.ready` + keyboard geometry completes the handoff, the Spatial Score's own presentation mode becomes the durable fact that it is keyboard-owned for this Practice session. Do not retain a forever-lived “pending spatial launch” flag；the existing Practice launch identity may keep only the metadata it already needs for retry/return consistency.
 
 Exact RealityKit move/reparent API must be verified against the installed visionOS 27.0 SDK / current Apple docs before implementation.
-
-Reduce Motion:
-- no flying animation；
-- score directly appears at target placement。
 
 ### Setup / preparation invariant
 
@@ -454,7 +450,7 @@ Do not create a parallel “score-only calibration”.
 ### Return to library
 
 When leaving Practice back to Library after save/finalization succeeds:
-- if P4's stored `worldTrackingGeneration` still matches, move the Practice-owned Spatial Book Spread back toward that preserved `worldFromSpatialLibrary` placement (directly if Reduce Motion is on)；
+- if P4's stored `worldTrackingGeneration` still matches, move the Practice-owned Spatial Book Spread back toward that preserved `worldFromSpatialLibrary` placement；
 - if the world generation changed during suspend/restart, **do not animate toward the stale transform**；first let P4 resolve a fresh Spatial Library placement from the current world provider/device pose, then settle/close the score at the newly selected folio；
 - close it into the still-selected folio and return to Book Flow；
 - keep `SongLibraryViewModel.selectedEntryID` unchanged；
@@ -483,7 +479,6 @@ When leaving Practice back to Library after save/finalization succeeds:
 - bluetoothMIDI geometry -> same target pipeline；
 - missing geometry -> no guessed target；
 - keyboard frame update moves root but preserves local offset；
-- Reduce Motion skips flight；
 - successful save/discard return switches `.practice -> .library` without dismissing the shared ImmersiveSpace, tears down keyboard root, then dismisses Practice Window；
 - save/finalization failure stays in Practice and does not change spatial mode；
 - Practice Window `onDisappear` after successful/in-flight authorized return does not trigger a second immersive close, while true system close still does；
