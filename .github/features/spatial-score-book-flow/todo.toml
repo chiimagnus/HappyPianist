@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P1-T5"
+current_task_id = "P1-T9"
 
 [[tasks]]
 id = "P1-T1"
@@ -137,7 +137,7 @@ status = "completed"
 plan = "plan-p1.md#p1-t4"
 commit = ""
 no_commit_reason = "feature 设计原型按项目规则仅本地保留"
-note = "15 个 Node 回归通过；Helium 实际 canvas 命中并走通完整主流程、同书 UUID、暂停及两段保存返回；Three.js 固定 0.180.0 本地依赖"
+note = "16 个 Node 回归通过；Helium 实际 canvas 命中并走通完整主流程、同书 UUID、暂停及两段保存返回；Three.js 固定 0.180.0 本地依赖"
 
 [[tasks]]
 id = "P1-T5"
@@ -154,3 +154,27 @@ status = "completed"
 plan = "plan-p1.md#p1-t6"
 commit = "08278893"
 note = "仓库两个规范文件与 feature 全部 Markdown/TOML 指定条款全文扫描无残留；AGENTS 原子提交，feature 文件仅本地保留"
+
+[[tasks]]
+id = "P1-T7"
+title = "移除空间信息卡并修正控件对象归属"
+status = "in_progress"
+plan = "plan-p1.md#p1-t7"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T8"
+title = "将详情操作融入书页，取消悬浮按钮面板"
+status = "in_progress"
+plan = "plan-p1.md#p1-t8"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T9"
+title = "补充明确命名与局部 Tooltip"
+status = "in_progress"
+plan = "plan-p1.md#p1-t9"
+commit = ""
+note = ""

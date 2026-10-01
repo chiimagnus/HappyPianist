@@ -58,7 +58,7 @@
 3. SpatialScoreBookViewModel 只持当前 prepared read-only 内容/plan/navigation，异步解析/构建不在主 Actor；load/cancel/publish 均检 selected entry/file revision 与当前请求。新曲/关闭/suspend 清旧状态，迟到失败不盖新曲。
 4. 原选中 folio 打开同一 OpenBookRoot；轻书脊与独立左右页 entity，用局部动态 page attachments 绘制真实 systems、overlay/历史/当前小节。不是把完整 GrandStaffNotationView 挂一次或把 MusicXML 转全谱图。
 5. resume/focus 使用 matching identity/revision 与真实 measure occurrence；无匹配从首 spread 开始。late history 可以更新标记，不能抢用户已手动浏览的页。历史不可用提供现有恢复语义，不把 unknown 画 learning/error。
-6. Detail 手动下一/上一页、合法 resume/focus 定位、关闭回原 folio；此 task 先直接切页功能完整，T3 仅加空间 sheet 动作。试听独立且换页不影响音频。
+6. Detail 页角手动下一/上一页、合法 resume/focus 定位、书脊合拢回原 folio；此 task 先直接切页功能完整，T3 仅加空间 sheet 动作。主练习入口、历史继续与范围操作融入谱页，不排悬浮按钮面板。试听独立且换页不影响音频。局部 Button 明确命名并配置系统 `.help`，原生验收注视停留/离开与页界文案，不读取眼动坐标，不以悬停启动业务。
 7. 原 2D consumer 不改为 PageView；唯一共享的是事实/engraving，不强迫旧滚谱同页码。跨模块所需 PagePlan/page renderer 使用明确的 public 边界；Notation/Core 不引用 App/RealityKit 或空间 entity。新文件全部在 LiveAppGraph、SpatialExperienceView、flow consumer 当场接入。
 8. Library/Practice 后续共用此 book owner，不另外新建 LibraryPagePlan/PracticePagePlan。PracticeLaunch 仍是正式音乐 launch，详情 read-only prepared 不能绕过后续进度/身份验证。
 
