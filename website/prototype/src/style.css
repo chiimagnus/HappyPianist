@@ -59,3 +59,32 @@ button[data-help]:focus-visible::after { opacity: 1; visibility: visible; }
   .product-panel h1 { font-size: 19px; }
   .prototype-footer { left: 16px; bottom: 12px; max-width: calc(100vw - 32px); }
 }
+
+.spatial-product-html { pointer-events: none; }
+.spatial-product-panel {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  width: 360px;
+  max-height: none;
+  overflow: visible;
+  padding: 14px 16px;
+  color: #343b3c;
+  border-color: #c9cabb;
+  background: #faf9f2ed;
+  box-shadow: 0 10px 28px #565e4920;
+  backdrop-filter: none;
+  pointer-events: auto;
+}
+.spatial-product-panel .stage-label,
+.spatial-product-panel .product-copy { color: #667369; }
+.spatial-product-panel button { color: #343b3c; border-color: #c5c9c5; background: #faf9f3e8; }
+.spatial-product-panel button:hover:not(:disabled) { background: #e4ebe5; }
+.spatial-product-panel button.primary { color: #fff; border-color: #445c52; background: #445c52; }
+.spatial-product-panel button.danger { color: #874939; border-color: #bb8978; }
+.spatial-product-panel input[type='search'] { color: #343b3c; border-color: #c6cdc3; background: #fffef8; }
+.spatial-product-panel .action-row,
+.spatial-product-panel .product-actions,
+.spatial-product-panel .search-results { justify-content: center; }
+.spatial-product-panel[data-stage='detail'] .detail-actions { min-height: 92px; }

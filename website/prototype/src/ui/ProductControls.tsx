@@ -6,6 +6,7 @@ import { lastMeasure, productCopy } from './productCopy.ts';
 interface ProductControlsProps {
   state: PrototypeState;
   dispatch: (event: PrototypeEvent) => void;
+  spatial?: boolean;
 }
 
 interface ActionButtonProps {
@@ -201,7 +202,7 @@ function StageActions({ state, dispatch }: ProductControlsProps) {
   }
 }
 
-export function ProductControls({ state, dispatch }: ProductControlsProps) {
+export function ProductControls({ state, dispatch, spatial = false }: ProductControlsProps) {
   const copy = productCopy(state);
 
   const query = state.search.trim().toLocaleLowerCase();
@@ -210,7 +211,7 @@ export function ProductControls({ state, dispatch }: ProductControlsProps) {
     : [];
 
   return (
-    <section className="product-panel" data-stage={state.stage} aria-labelledby="product-title">
+    <section className={`product-panel${spatial ? ' spatial-product-panel' : ''}`} data-stage={state.stage} aria-labelledby="product-title">
       <div className="stage-label">{copy.label}</div>
       <h1 id="product-title">{copy.title}</h1>
       <p className="product-copy">{copy.description}</p>

@@ -5,6 +5,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { PrototypeEvent, PrototypeState } from '../model/state.ts';
 import { BookFlow } from './BookFlow.tsx';
 import { PianoScene } from './PianoScene.tsx';
+import { SpatialProductControls } from './SpatialProductControls.tsx';
+import type { ProductPlacement } from './productPlacement.ts';
 import {
   CAMERA_TARGET,
   CAMERA_VIEWS,
@@ -16,6 +18,7 @@ interface SpatialSceneProps {
   state: PrototypeState;
   dispatch: (event: PrototypeEvent) => void;
   reducedMotion: boolean;
+  productPlacement: ProductPlacement;
 }
 
 function CameraRig({ view }: { view: CameraView }) {
@@ -102,13 +105,16 @@ function Environment() {
   );
 }
 
-export function SpatialScene({ view, state, dispatch, reducedMotion }: SpatialSceneProps) {
+export function SpatialScene({ view, state, dispatch, reducedMotion, productPlacement }: SpatialSceneProps) {
   return (
     <>
       <CameraRig view={view} />
       <Environment />
       <BookFlow state={state} dispatch={dispatch} reducedMotion={reducedMotion} />
       <PianoScene state={state} reducedMotion={reducedMotion} />
+      {productPlacement !== 'screen' && (
+        <SpatialProductControls owner={productPlacement} state={state} dispatch={dispatch} />
+      )}
     </>
   );
 }

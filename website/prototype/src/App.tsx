@@ -3,9 +3,11 @@ import { usePrototypeRuntime } from './runtime/usePrototypeRuntime.ts';
 import { ProductControls } from './ui/ProductControls.tsx';
 import { createRenderer } from './scene/createRenderer.ts';
 import { SpatialScene } from './scene/SpatialScene.tsx';
+import { productPlacement } from './scene/productPlacement.ts';
 
 export function App() {
   const runtime = usePrototypeRuntime();
+  const placement = productPlacement(runtime.state);
 
   return (
     <main className="app-shell" data-stage={runtime.state.stage} data-reduced-motion={runtime.reducedMotion || undefined}>
@@ -13,7 +15,7 @@ export function App() {
         <strong>HappyPianist</strong>
         <span>Spatial Prototype</span>
       </header>
-      <ProductControls state={runtime.state} dispatch={runtime.dispatch} />
+      {placement === 'screen' && <ProductControls state={runtime.state} dispatch={runtime.dispatch} />}
       <Canvas
         className="scene-canvas"
         camera={{ position: [0, 1.46, 1.75], fov: 43, near: 0.02, far: 12 }}
@@ -21,7 +23,7 @@ export function App() {
         shadows
         gl={createRenderer}
       >
-        <SpatialScene view="front" state={runtime.state} dispatch={runtime.dispatch} reducedMotion={runtime.reducedMotion} />
+        <SpatialScene view="front" state={runtime.state} dispatch={runtime.dispatch} reducedMotion={runtime.reducedMotion} productPlacement={placement} />
       </Canvas>
       <footer className="prototype-footer">曲谱、设备、演奏、手部、保存均为模拟 · 不读写 App 数据</footer>
     </main>
