@@ -81,9 +81,9 @@ Host 同任务接入正式映射：`HappyPianistAVP/ViewModels/ARGuideViewModel.
 - AVP 初轮 23 项真实测试：22 passed，只有 standard visual hash 不同（`.build/TestResults/ScoreLayout-P2-T1-1790782500.xcresult`）。失败后的诊断收集另超时 600s，不等于测试未运行。
 - 临时 parity 实验只在测试中移除新增加的首小节边线；标准图逐像素 hash 恢复为原 `026e009a…`。含首边线的 hash 为 `1e5476dd…`，可访问图仍是 `708c390b…`。实际检查导出 PNG；未盲刷 golden。实验 6/6（`.build/TestResults/ScoreLayout-P2-T1-parity-1790784122.xcresult`）；实验代码已当场删除。
 - 完整墨迹包含 notes/rest/dots/accidentals、ledger、stem/flag/beam、曲线/嵌套 tuplets、marks/inline attributes。beam 的 canonical bounds 与 renderer 复用同一 geometry；glyph metrics 由仓库 Bravura.otf 的 CoreText bbox 实测补齐。曲线采用包含控制点的保守包围盒，文字使用 CoreText shaping；不是固定 8-beam padding。
-- 正式 Gate 仍待删除实验后的实际测试与最终 build，以上记录不代替任务 completed。
+- 后续正式 Gate 与提交已完成，以下记录是实际完成证据；临时 parity 实验已删除。
 - 最新 package 全量 245/245（`/tmp/happy-p2-t1-full-package.log`）；正式 AVP 扩大集 72 项已运行，71 passed / 1 failed（`.build/TestResults/ScoreLayout-P2-T1-final-1790784471.xcresult`），失败为 `pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart()` 的 `rejectedOccurrenceIDs.isEmpty`。历史 `.build/TestResults/HappyPianistAVP-Simulator.xcresult`（1022 passed / 11 failed）含同 ID/同断言失败；本任务没有改 clip builder/rig/contact pipeline。保留已知失败，不把扩大集冒称全绿。
-- Gate：增加 synthetic source/structural part 一致性回归后，72/72 定向 AVP tests passed / 0 skipped（`.build/TestResults/ScoreLayout-P2-T1-gate-1790784934.xcresult`，`/tmp/happy-p2-t1-gate-test.log`）。此集不含刚刚实际复现的先存示范手失败。`make build:simulator SIMULATOR_ID=28DABA38-C30B-44B1-9C2B-65D50F7FCC55` passed（`/tmp/happy-p2-t1-final-build.log`）。旧 service / alias scan 为零；source facts 不再折叠非法第三 staff。T1 可进入提交。
+- Gate：增加 synthetic source/structural part 一致性回归后，72/72 定向 AVP tests passed / 0 skipped（`.build/TestResults/ScoreLayout-P2-T1-gate-1790784934.xcresult`，`/tmp/happy-p2-t1-gate-test.log`）。此集不含刚刚实际复现的先存示范手失败。`make build:simulator SIMULATOR_ID=28DABA38-C30B-44B1-9C2B-65D50F7FCC55` passed（`/tmp/happy-p2-t1-final-build.log`）。旧 service / alias scan 为零；source facts 不再折叠非法第三 staff。提交 `fad08f07804767374717425061053626b1f021d6`。
 
 ---
 
@@ -210,6 +210,18 @@ Host：
 
 **原子提交:** `feat: P2-T3 - 接入动态双页谱并删除旧滚谱路径`
 
+### T3 本轮取证
+
+- 唯一 PagePlan/异步 owner 已接入 PracticeStepView；整谱覆盖、逐 staff header、inline signature 真实墨迹、source beam 不切、曲线原音高 anchors、nested tuplets/ending continuation、空休止 rect 与 tick/occurrence location 查询形成同一管线。动态范围、hand、宿主尺寸不改页界；二维缩放系统独占页（含前页已有普通系统的边界回归）。
+- 删除旧 View、viewport service/owner、当前上下文 helper、连续 guide-scroll 字段/函数/导航入口和 overscan；测试只保留显式 system slice，不保留旧 scroll/viewport 参数或别名。
+- 完整 preparation→install→PagePlan 的 128 小节实测：手动跨 spread/末步完成、休止期间 guide 停留而 navigation 前进、pause/resume/stop、同一 input 只构建一次。额外复现并修复：暂停后迟到的 transport sample 不能推进页码；取消代的构建失败不能停掉新代。分别有可控 in-flight clock 和 late failure 回归。
+- transport position 沿既有 schedule 发布，不加 clock；native MIDI 使用 MusicTrack 的正式 track-length 属性保留静音尾段，AVAudioSequencer.load 后验证真实 track length，不插入 dummy 音符。
+- package 全量 252/252（6 targets：96/65/10/17/43/21），`/tmp/happy-t3-full-package-commit.log`。AVP 最终定向 71/71、0 skipped，`.build/TestResults/BookPagination-T3-pause-gate-1790798465.xcresult`，`/tmp/happy-t3-pause-gate.log`；仍明确排除 T1 已复现的先存示范手失败，未修 rig/clip。build passed `/tmp/happy-t3-build-commit.log`。
+- Native 高对比度/深色/accessible scrolling 1/1 passed，`.build/TestResults/BookPagination-T3-native-final-1790797879.xcresult`。共享 Spread 的 ImageRenderer 证明 normal light/dark 页内像素一致；放大 ScrollView 不以 ImageRenderer 黑色结果声称通过，改在既有窗口实测。
+- 真实设备截图 `/tmp/happy-t3-real-0.png`、`/tmp/happy-t3-real-1.png` 已查看：双页完整、放大纵向阅读完整。UIGraphics.drawHierarchy 单独出现的黑矩形未在实际 simctl 截图出现，属于 capture 边界，没有为它修改生产 renderer。补采轮 `.build/TestResults/BookPagination-T3-real-capture-1790797285.xcresult` 1/1 passed；导出/等待截图临时代码已删除。
+- 正式 App 现有 debug route 打开 bundled Awesome 谱，截图 `/tmp/happy-t3-production-practice-ready.png` 已查看：23 页、右页多 system，当前高亮、键盘与底部控制保留；T2 实验页数不是 T3 实际 header/fit 下的页数。没有冒称自动 GUI 点击或人工 VoiceOver 验收；Practice 深入生命周期与可见导航回归归 T5。
+- 原有 source/glyph/layout golden 不变；geometry 仅更新共享 native signature extent 带来的 x-spacing，visual golden 改为完整 canonical system 尺寸（旧 800×320 会截放大系统），导出图片检查后更新；临时导出代码删除。`git diff --check` 和旧生产符号 scan 为零。
+
 ---
 
 ## P2-T4 Library 打开动态预览并替换旧历史 UI
@@ -272,6 +284,18 @@ Host：
 
 **原子提交:** `feat: P2-T4 - 接入曲库双页预览并移除旧历史面板`
 
+### P2-T4 实施与验证证据（2026-10-01）
+
+- `LiveAppGraph` 注入独立 preview owner 到唯一 `SongLibraryViewModel`，Graph/Root/Content/debug/previews 继续复用原入口，不增加窗口或 launch 副作用。中央确认由 Library owner 决策；外层试听条和 importer 不卸载，detail 只替换 Book Flow 内容。
+- 预览以 `.practice` written order 通过正式 resolver/preparation 与共享 PagePlan；resolve 后、prepare 后、pagination 后核对 identity/generation。selection/index/bundled-entry 的事实变更在同一失效方法收敛，已完成预览也会因版本变化立即清除；曲谱导入前、删除前、close/disappear/non-active scene 同步取消。无永久缓存、recorder、applicator 或第二次 history read。
+- snapshot 同一真实 fact 分类派生 source states 与汇总，保留 score revision；host VM 执行 revision/selection 校核，再映射中性 occurrence annotations。学习状态、继续/重点图标共存，rest rect 也可标注，无色可辨且不改变布局；缺 metadata 或 revision 不匹配不假称未练习。
+- 旧 playback-confirm action/enum/test、历史 trailing ornament、height 测量、两份旧历史 View 与其私有 helpers 全部删除；历史紧凑迁移至 detail。备份确认绑定原 identity，实际调用 File repository 验证备份原字节与新空 history；未确认/过期确认不写，备份替换失败保留损坏原文件。预览错误日志只写 safe error summary，不导出原 XML/路径。
+- 真正 native Root 的 scene inactive→close、active 不自动重开、显式 reopen→同一完整 PagePlan 已覆盖。新 native 测试起初暴露浮点边界差异：相同 input/projection/absolute score，system ink height 因 Dictionary 顺序的多次 CGRect.union 出现 `17.66` vs `17.659999999999997`。在唯一 InkBoundsService 直接聚合 min/max 边界再构造 CGRect，消除遍历顺序依赖；不加 epsilon、舍入或缓存补丁。保留 native 完整计划相等回归与 dense ledger 重建检查。
+- 初始两次 Xcode selection 缺完整函数 ID，实际 0 tests，明确不作为通过证据；修正为枚举中的完整 `function()`/`function(argument:)` 后 Gate 42/42，最终扩大到 50/50（0 failed/skip）。证据：`.build/TestResults/LibraryPreview-T4-final-1790801386.xcresult`、`/tmp/happy-t4-final.log`；discovery `/tmp/happy-t4-enum.txt`、选择 `/tmp/happy-t4-final-ids.txt`。
+- native 初次 0/1 失败是上述真实边界差异；诊断轮打印完整对象过大导致测试收尾停滞，仅终止本任务的 xcodebuild PID，未重启/删除模拟器。修复后 native 1/1：`.build/TestResults/LibraryPreview-T4-native-fixed-1790801255.xcresult`；移除临时 capture cue/等待后的最终 1/1：`.build/TestResults/LibraryPreview-T4-native-final-1790801473.xcresult`、`/tmp/happy-t4-native-final.log`。
+- 唯一现有 AVP 的实际 simctl 截图 `/tmp/happy-t4-production-preview-fixed.png` 已逐页目视检查：23 页真实谱、完整双页、详情返回、历史邀请及外层试听条均正常。Native 测试恢复原 root/窗口尺寸，不新建设备或窗口；不将此证据冒称人工 VoiceOver 操作通过。
+- package 253/253，6 targets（96/66/10/17/43/21），`/tmp/happy-t4-package-fixed.log`；最终 build 结果记在 `/tmp/happy-t4-build-final.log`。旧符号 scan 与 `git diff --check` 为零。长期文档同步 `docs/data-flow.md`。
+
 ---
 
 ## P2-T5 验证 Practice 分页导航和生命周期边界
@@ -301,6 +325,14 @@ Host：
 ---
 
 ## P2 Phase completion checklist
+
+### P2-T5 实施与验证证据（2026-10-01）
+
+- PreparedBookPaginationTests 新增 step/measure 参数覆盖全曲→两段 passage→全曲、末步 completed、向后重练、非法范围、reset/换谱；真实 File repository 覆盖 saved/failed/cancelled 返回与末步恢复，检查最终持久化 resume 与保存失败不覆盖旧文件。保持唯一 PagePlan/buildCount，不搭第二导航路径。
+- 定向 6/6：`.build/TestResults/BookLifecycle-T5-specific-1790802036.xcresult`；扩大集 125/125：`.build/TestResults/BookLifecycle-T5-wide-1790802363.xcresult`。参数子项均从 xcresult 确认通过。已知先存示范手 timing 失败不计入 Gate，保留 baseline 失败证据，不修无关 rig。
+- 现有唯一 AVP 实际 native production Book View：手动从 1/2 到 3/4、恢复停留 3/4、autoplay 跨至无 guide 的休止页、pause 保持、clear 移除旧谱；截图 `/tmp/happy-t5-start-START.png`、`/tmp/happy-t5-start-REST.png`、`/tmp/happy-t5-MANUAL.png`、`/tmp/happy-t5-RESUME.png`、`/tmp/happy-t5-CLEAR.png` 已目视检查。capture 两轮各 1/1，临时 capture wait/打印已删除；最终 native 1/1 结果路径见 `/tmp/happy-t5-native-final-path.txt`，日志 `/tmp/happy-t5-native-final.log`。
+- Native 测试挂载共享生产 GrandStaffNotationBookView 而非重建 renderer；不启动 isolated PracticeStepView 的 Immersive 副作用。完整 Practice 宿主/键盘证据复用本阶段实际应用截图，不能将 isolated native 测试称为 Immersive 端到端。
+- package 253/253：`/tmp/happy-p2-final-package.log`；最终 build 通过：`/tmp/happy-p2-final-build.log`。旧符号 scan 与 diff check 零；长期验证边界同步 docs/testing.md。
 
 独立核对：唯一 engraving/page owner；完整 score 输入；逐 staff/context；边界/continuation；同一 canonical geometry；Library/Practice 共用动态 Spread；无练习预览副作用/第二 history 路径；无旧 tap/Ornament/View/context/scroll runtime；不丢音乐事实或可访问性；文档与真实调用一致。
 这不是最后清理机会，任何旧路径应已在所属替换 task 消失。

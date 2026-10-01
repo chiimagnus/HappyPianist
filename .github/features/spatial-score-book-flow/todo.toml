@@ -1,5 +1,5 @@
 version = 1
-current_task_id = "P2-T3"
+current_task_id = ""
 
 [[tasks]]
 id = "P1-T1"
@@ -37,58 +37,58 @@ note = "十一谱、1240×1160 native geometry、双页/放大截图；两轮各
 [[tasks]]
 id = "P2-T3"
 title = "交付分页双页谱并接入 Practice、同步删除旧路径"
-status = "in_progress"
+status = "completed"
 plan = "plan-p2.md#p2-t3"
-commit = ""
-note = ""
+commit = "ec37fd501c3350dd264822ac34642da71dd913ec"
+note = "71/71 AVP、252/252 package、native 1/1 与 build；完整实际 Practice 截图、暂停迟到 sample/取消代失败、旧路径删除见 plan-p2。"
 
 [[tasks]]
 id = "P2-T4"
 title = "Library 接入真实动态 Book Spread 预览"
-status = "pending"
+status = "completed"
 plan = "plan-p2.md#p2-t4"
-commit = ""
-note = ""
+commit = "b21afb1f0804f53f4e3c489423ed9a1a1787e794"
+note = "50/50 AVP、native 1/1、253/253 package 与 build；真实 Root scene/reopen、备份原字节、分页确定性根因修复及旧侧栏删除见 plan-p2。"
 
 [[tasks]]
 id = "P2-T5"
 title = "验证 Practice 分页导航与生命周期边界"
-status = "pending"
+status = "completed"
 plan = "plan-p2.md#p2-t5"
-commit = ""
-note = ""
+commit = "6eef5386"
+note = "125/125 AVP、native 1/1、253/253 package、build 通过；真实窗口与文件保存边界见 plan-p2"
 
 [[tasks]]
 id = "P3-T1"
 title = "建立通用单页翻动 presentation"
-status = "pending"
+status = "completed"
 plan = "plan-p3.md#p3-t1"
-commit = ""
-note = ""
+commit = "d6bbd2e471f9b1b69156c4fd8033bab718f99ac5"
+note = "255/255 package、native 2/2、visual 4/4、build；共享 consumer 与 a11y 同 task"
 
 [[tasks]]
 id = "P3-T2"
 title = "Library preview 接入手动翻页"
-status = "pending"
+status = "completed"
 plan = "plan-p3.md#p3-t2"
-commit = ""
-note = ""
+commit = "49eec85d5200e9740e4b51ab53e001abb0a6efdc"
+note = "52/52 AVP（含 native）、7 policy cases、build；精确 resume 与旧 source-only API 删除"
 
 [[tasks]]
 id = "P3-T3"
 title = "Practice navigation tick 驱动自动翻页"
-status = "pending"
+status = "completed"
 plan = "plan-p3.md#p3-t3"
-commit = ""
-note = ""
+commit = "e16d3fe191b265fbf91c229bc09c09864c1bac98"
+note = "126/126 AVP、native 在定向3/3、build；共享消费无需重复业务实现"
 
 [[tasks]]
 id = "P3-T4"
 title = "收口 Reduce Motion VoiceOver 与真实验收"
-status = "pending"
+status = "blocked"
 plan = "plan-p3.md#p3-t4"
 commit = ""
-note = ""
+note = "代码提交 703663cdfb23731124edad2f3988730c88c5e4fc；174/174 AVP、256/256 package/build；等待真实页缘/Reduce Motion/VoiceOver确认。全量1050/1062，11先存+1未改Recorder调度敏感失败，见 plan-p3/audit-p3。"
 
 [[tasks]]
 id = "P4-T1"

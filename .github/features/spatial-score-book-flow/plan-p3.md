@@ -136,6 +136,14 @@ No old code should need compatibility cleanup here. If a temporary transition wr
 
 ## P3-T2 Library preview 接入手动翻页
 
+### P3-T1 实施与验证（2026-10-01）
+
+- 共享生产 Spread 当场接入 pure turn state 与 live sheet view；身份为正式 song/revision + 当前 page IDs，generation 仅用于过渡。相邻一次翻动、跳页或翻动中 retarget 直接收敛；same target 保持，reset/非法目标/Reduce Motion 清 transition。SwiftUI 原生 `.removed` completion 核对完整 transition，不引入任务计时器或快照缓存。
+- 原生 gutter hinge 使用半 gutter 的有限纸容器，避免旋转后偏移整条 gutter；back 面绕 Y 反转后随纸旋转，文字不镜像。视觉面子项隐藏，representation 仅为 target pair；正常/放大/Reduce Motion 共用 PagePlan，不强行移焦。
+- 已核对 SDK visionOS perspectiveRotationEffect 与官方 withAnimation completion 契约；前者不可用于 macOS，Core 的 macOS 验证只用对应平台原生 rotation3DEffect。visionOS 27 accessibilityReduceMotion 为只读 environment，测试未用私有 `_accessibilityReduceMotion` 伪造系统设置；native 直接换页覆盖 accessibility text，Reduce Motion state 用纯值测试，实际系统设置操作留 T4。
+- package 255/255（新增 2 个有限状态测试）；native 2/2：`.build/TestResults/PageTurn-T1-1790803699.xcresult`，动态采样 early/middle/end 确认真实动画而非瞬移，rapid retarget 与放大直接收敛。Visual 4/4：结果路径 `/tmp/happy-p3-t1-visual-path.txt`，原两项 goldens 不变。ImageRenderer forward/back 0.25/0.75/end 已目视检查；end 与 upright target 像素相同，临时导出已删除。
+- `make build:simulator` PASS：`/tmp/happy-p3-t1-build.log`；docs/data-flow 已同步。Frame progress 必须为 nonisolated 纯 Double 以满足 Swift 6 Animatable 契约；未使用 unsafe 隔离。
+
 **Goal:** Book Flow 打开的动态 Book Spread 可以自然浏览整首谱。
 
 ### Files
@@ -216,6 +224,15 @@ Page navigation does not affect preview playback state.
 
 ## P3-T3 Practice navigation tick 驱动自动翻页
 
+### P3-T2 实施与验证（2026-10-01）
+
+- Preview owner 仅增加 targetSpreadIndex，ready 一次性从现有 snapshot closure 读取精确 resume occurrence；核对 selection song/fileVersion、prepared revision、正式 occurrence/page query。前后边界 clamp，close 清零，显式 reopen 重新准备；晚到 overview 不再请求导航，focus 永不自动跳。
+- snapshot 原丢失 occurrenceIndex 的 resumeSourceMeasureID API 与所有 consumer/test 全部删除，改为完整 resumeOccurrenceID；resume annotation 也只标精确 occurrence，不能错误标同 source 的其他 repeat。
+- 外页缘 native labelled Buttons + adjustable action，共用 VM turn；正常页缘预留平台 padding，不遮挡墨迹，不增加 toolbar/横向滚动，也不重建 audition。
+- 7 参数 initial-policy 实际全部通过：匹配/缺历史/错 revision/错 fileVersion/错 song/同 source 外来 occurrence/focus-only；覆盖边界、close/reopen、late snapshot 不夺页、试听持续。Snapshot 测试保留 occurrenceIndex=2 的完整值，验证不再丢失编号；原 cancellation/rapid/version/error/history/reset 边界复跑。
+- 初始定向选择中旧 annotation 名称未命中，实际 1 个参数化测试（7 cases），不冒称 2 个。枚举后扩大 51/51；最终含 native Root 52/52：路径 `/tmp/happy-p3-t2-final-path.txt`，日志 `/tmp/happy-p3-t2-final.log`。capture native 1/1，真实 simctl `/tmp/happy-p3-library-page-edges.png` 已目视确认 3/4、外缘控件与试听条；移除 capture cue/wait 后重跑最终集。
+- build 日志 `/tmp/happy-p3-t2-build.log`；docs/data-flow 同步。真实页缘点击和系统 VoiceOver 手动操作在 P3-T4 汇总，不把 VM turn 当 UI 点击证据。
+
 **Goal:** 加固 P2-T3 已接通、P2-T5 已验证的 discrete `notationNavigationTick` 到共用动画层的行为，不另建 navigation owner。P3-T1 已挂载过渡，此任务负责实际 transport/快速导航边界，而不是第一次让组件进入生产。
 
 ### Files
@@ -286,6 +303,14 @@ The existing Practice session remains sole time owner.
 ---
 
 ## P3-T4 Reduce Motion / VoiceOver / final real validation
+
+### P3-T3 实施与验证（2026-10-01）
+
+- T1 共享 Spread 已在真实 PracticeStepView 的 full input→PagePlan→discrete tick consumer 中生效。本任务不改同一已正确 consumer，也不新增 host/clock，仅增加已接入链路的回归。
+- dense 512 steps 正式 PreparedPractice 测试贯穿安装→manual skip 同页→真实 moveToStep 跨页→retryMeasure 向后→重新应用 full passage→大跳→快速替换→reset/new song。完整 PagePlan/buildCount 在导航/range 下不变；换谱 page IDs 相同也由正式 song identity 拒绝旧 completion。
+- 既有 controlled sequencer rest-boundary 测试继续走真实 transport/poll service，并接入同一 turn state，确认无 guide 时向前翻页，暂停迟到 sample 不换目标；真实 progress 恢复的 3 参数场景首次目标直接显示末双页。
+- 初始新测试编译暴露嵌套 #require 的 Swift macro 限制与 reset API 名称错误，仅修正测试表达及使用实际 resetSession；未新增业务 workaround。
+- 定向 3/3（包括真实 native shared Book）：路径 `/tmp/happy-p3-t3-specific-path.txt`，`/tmp/happy-p3-t3-specific.log`；扩大 Gate 与 build 的最终日志 `/tmp/happy-p3-t3-wide.log`、`/tmp/happy-p3-t3-build.log`。先存示范手失败仍单独隔离，不混入通过数字。
 
 **Goal:** 完成翻页体验的可访问性和真实验收，不承担 P1/P2 遗留清理。
 
@@ -359,6 +384,17 @@ Those must already have been deleted in P1/P2.
 Update `docs/testing.md` only with actual evidence from this execution.
 
 ### Phase completion checklist
+
+### P3-T4 已验证部分与剩余验收（2026-10-01）
+
+- 将全部 4 个会替换同一 key window 的原生测试归入 `NativeBookWindowTests @Suite(.serialized)`，不将普通业务测试串行化。真实日志证明 Swift Testing 顶层任务仍可能重叠，即使 Xcode 单 destination / parallel-testing NO；无保护地交叉替换和 defer restore 同一 window 会破坏验收对象。由共享资源拥有者收敛，不新建窗口/设备，也不加测试延迟绕过竞争。
+- 新增 same score 的 page IDs 改变、空 plan、奇数末页 blank-underlay 检查；原 live 正反面、目标语义 representation、动态图像变化、rapid retarget、accessible reading 直接替换继续成立。临时输出/capture waits 均已删，纸面实现只有排版事实与有限 presentation，无 timer/bitmap/debug 分支。
+- 最终 Gate **174/174（1 serialized suite），0 failed/skip**：`.build/TestResults/BookFlow-P3-final-gate-1790804759.xcresult`，`/tmp/happy-p3-final-gate.log`；逐 discovered IDs `/tmp/happy-p3-final-enum.txt`、`/tmp/happy-p3-final-ids.txt`。最终 package **256/256**，96/69/10/17/43/21：`/tmp/happy-p3-final-package.log`；最终 build PASS：`/tmp/happy-p3-final-build.log`。
+- 真实完整 target **1050 passed / 12 failed / 0 skipped（1062 total）**：`.build/TestResults/BookFlow-P3-full-1790804842.xcresult`，`/tmp/happy-p3-full.log`。失败中 11 个 test ID 与 `3ba1f4e` baseline 完全一致：bothPackagedHandRigsMatchTheAuthoredSkeletonContract、builderAddsAValidatedPreparationFrameBeforeTheFirstOnset、builderCreatesOneDeterministicClipPerPlannedHandOffMain、builderKeepsHeldFingertipsOnTheirKeysDuringTheNextAttack、builderLiftsThePalmByOnlyTheRequiredKeyboardClearance、builderValidatesThePublishedSkeletonAtTheContactPoint、handMotionCorpusMeetsCoverageTimingAndContactGates、handRigLoadsPackaged21JointAssetAndAppliesClipFrame、hidingTeacherHandsImmediatelyRestoresKeyboardHighlights、localSamplerPauseResumeAndPlaybackRateUseTheSameSequencer、pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart。不能声称完整 target 通过。
+- 新首次观察的 recorderSemanticEventsReturnBeforeSlowPersistenceCompletes 用 20 次 yield 而非完成信号采样 Task；test 与 PracticeSessionRecorder 实现相对 baseline diff 零。追踪 setGuiding/setSettingsPresented→startPendingRecordPersistence：semantic 方法返回不等待 gated IO；定向 1/1 通过：`.build/TestResults/Recorder-Observed-Failure-Probe-1790805009.xcresult`，`/tmp/happy-p3-recorder-probe.log`。证据支持调度敏感的既有测试，不将“复跑成功”当修复，也不改无关 recorder/rig 或扩大授权范围。
+- UI capture 已查看 P1 Flow、T2 实际 Library 第 3/4 页外缘控件、T5 实际 Practice 手动/恢复/休止跨页；用户已确认 P1 人工滚动。最终现有 AVP 已安装最新 App 并启动正常 Library，`/tmp/happy-p3-final-user-library.png` 已检查，没有新设备/关闭服务/删除数据。
+- **仍缺真实页缘点击、系统 Reduce Motion 与 VoiceOver adjustable 人工确认**；只读 environment 未用私有 SPI 伪造。Peekaboo 本地/精确 PID/刷新均无法识别 Device Hub 的稳定窗口代；已通过官方实际 DeviceHub.app 后台打开既有界面，booted device 仍只有指定 AVP，但工具仍报 SNAPSHOT_STALE/WINDOW_NOT_FOUND。已向用户提交一次合并确认问题，等待结果；不宣称该人工验收或 P3 Gate 已完成。
+- docs/testing 与 docs/data-flow 均同步真实验证边界；旧符号 scan/diff check 零（macOS 原生旋转适配并非 visionOS deprecated 路径）。计划文件保留本地，不加入代码提交。
 
 Verify:
 
