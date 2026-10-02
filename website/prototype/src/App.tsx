@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FaultCase, PrototypeState } from './model.ts';
 import {
   boardForFault,
@@ -46,11 +46,7 @@ function PrototypeRuntime({
   });
   const [reviewElement, setReviewElement] = useState<HTMLDivElement | null>(null);
   const sceneRef = useRef<SpatialSceneHandle>(null);
-  const reviewSnapshot = useCallback(
-    () => sceneRef.current?.snapshot() ?? {},
-    [],
-  );
-  const { state, dispatch } = usePrototypeController(seed, { reviewSnapshot });
+  const { state, dispatch } = usePrototypeController(seed);
   const auxiliary = state.stage === 'entry'
     || state.stage === 'entry-error'
     || state.stage === 'opening'

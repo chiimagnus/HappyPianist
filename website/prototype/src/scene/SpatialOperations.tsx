@@ -23,7 +23,6 @@ export function SpatialOperations({ state, element, books }: SpatialOperationsPr
     renderer.domElement.id = 'css-scene';
     document.querySelector('#viewport')?.append(renderer.domElement);
     const object = new CSS3DObject(element);
-    object.userData.operations = true;
     object.scale.setScalar(0.00125);
     rendererRef.current = renderer;
     objectRef.current = object;

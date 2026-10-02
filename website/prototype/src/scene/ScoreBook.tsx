@@ -3,15 +3,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Group, type Object3D } from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
 import { songs, type PrototypeEvent, type PrototypeState } from '../model.ts';
-import { coverTexture, height, pageSurface, width, type PageSurface } from './bookTextures.ts';
+import { coverTexture, height, pageSurface, width } from './bookTextures.ts';
 import { PageTurn } from './PageTurn.tsx';
 
 export interface BookHandle {
   root: Group;
   hinge: Group;
   open: number;
-  left: PageSurface;
-  right: PageSurface;
 }
 
 interface ScoreBookProps {
@@ -40,8 +38,6 @@ export function ScoreBook({ index, state, dispatch, books }: ScoreBookProps) {
       root: rootRef.current,
       hinge: hingeRef.current,
       open: 0,
-      left: textures.left,
-      right: textures.right,
     });
     rootRef.current.position.set((index - 2) * 0.35 - width / 2, 1.45, -Math.abs(index - 2) * 0.18);
     return () => { books.delete(index); };
@@ -70,7 +66,7 @@ export function ScoreBook({ index, state, dispatch, books }: ScoreBookProps) {
   };
 
   return (
-    <group ref={rootRef} onClick={clickBook} userData={{ song: index }}>
+    <group ref={rootRef} onClick={clickBook}>
       <mesh position={[width / 2, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[width, height, 0.01]} />
         <meshStandardMaterial color="#e1dac8" roughness={1} />

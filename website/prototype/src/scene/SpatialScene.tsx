@@ -9,10 +9,8 @@ import {
 import {
   ACESFilmicToneMapping,
   PCFShadowMap,
-  REVISION,
   SRGBColorSpace,
   type Camera,
-  Vector3,
 } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { output, rangeFogFactor, vec4 } from 'three/tsl';
@@ -22,8 +20,7 @@ import type { PrototypeEvent, PrototypeState } from '../model.ts';
 import { BookFlow } from './BookFlow.tsx';
 import { SpatialOperations } from './SpatialOperations.tsx';
 import type { BookHandle } from './ScoreBook.tsx';
-import { width } from './bookTextures.ts';
-import { PianoScene, type PianoSceneHandle } from './PianoScene.tsx';
+import { PianoScene } from './PianoScene.tsx';
 
 const viewPositions: Readonly<Record<ReviewView, readonly [number, number, number]>> = {
   front: [0, 1.46, 1.75],
@@ -33,7 +30,6 @@ const viewPositions: Readonly<Record<ReviewView, readonly [number, number, numbe
 };
 
 export interface SpatialSceneHandle {
-  snapshot: () => Record<string, unknown>;
   setView: (view: ReviewView) => void;
 }
 
@@ -91,45 +87,14 @@ function OrbitRig({ view, controlsRef }: Pick<SpatialSceneProps, 'view'> & {
 export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
   function SpatialScene({ view, state, dispatch, operationsElement }, ref) {
     const cameraRef = useRef<Camera | null>(null);
-    const rendererRef = useRef<WebGPURenderer | null>(null);
     const booksRef = useRef(new Map<number, BookHandle>());
-    const pianoRef = useRef<PianoSceneHandle>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
 
     useImperativeHandle(ref, () => ({
       setView: (requestedView) => {
         if (cameraRef.current) applyView(cameraRef.current, controlsRef.current, requestedView);
       },
-      snapshot: () => {
-        const camera = cameraRef.current;
-        const renderer = rendererRef.current;
-        const book = booksRef.current.get(state.selected);
-        const center = book && camera
-          ? book.root.localToWorld(new Vector3(width / 2, 0, 0.02)).project(camera) : null;
-        const operations = book?.root.children.find((child) => child.userData.operations);
-        return {
-          ...pianoRef.current?.snapshot(),
-          threeRevision: REVISION,
-          cameraPosition: camera?.position.toArray() ?? [],
-          rendererCalls: renderer?.info.render.calls ?? 0,
-          rendererPixelRatio: renderer?.getPixelRatio() ?? 0,
-          rendererShadowType: renderer?.shadowMap.type ?? null,
-          rendererOutputColorSpace: renderer?.outputColorSpace ?? '',
-          rendererToneMapping: renderer?.toneMapping ?? null,
-          rendererToneMappingExposure: renderer?.toneMappingExposure ?? 0,
-          rendererBackend: renderer?.backend.constructor.name,
-          reviewView: view,
-          visibleBooks: [...booksRef.current.values()].filter((item) => item.root.visible).length,
-          selectedBookUUID: book?.root.uuid,
-          bookPosition: book?.root.position.toArray(),
-          openAngle: book?.hinge.rotation.y,
-          flipping: book?.root.getObjectByName('page-turn')?.visible ?? false,
-          selectedBookScreen: center ? [(center.x + 1) * innerWidth / 2, (1 - center.y) * innerHeight / 2] : [],
-          controlsWorldMatrix: operations?.matrixWorld.toArray(),
-          controlsCSSTransform: operationsElement.style.transform,
-        };
-      },
-    }), [view, state.selected, operationsElement]);
+    }), []);
 
     return (
       <Canvas
@@ -153,7 +118,6 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
         }}
         onCreated={({ camera, gl, scene }) => {
           cameraRef.current = camera;
-          rendererRef.current = gl as unknown as WebGPURenderer;
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = PCFShadowMap;
           gl.outputColorSpace = SRGBColorSpace;
@@ -188,7 +152,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
         />
         <OrbitRig view={view} controlsRef={controlsRef} />
         <BookFlow state={state} dispatch={dispatch} books={booksRef.current} />
-        <PianoScene ref={pianoRef} state={state} />
+        <PianoScene state={state} />
         <SpatialOperations state={state} element={operationsElement} books={booksRef.current} />
       </Canvas>
     );

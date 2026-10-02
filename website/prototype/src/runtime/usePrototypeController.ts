@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 import {
-  initialState as makeInitialState,
   transition,
   type PrototypeEvent,
   type PrototypeState,
@@ -19,25 +18,8 @@ const cancelableKeyboardStages: readonly Stage[] = [
   'discard-confirm',
 ];
 
-interface PrototypeReviewBridge {
-  snapshot: () => PrototypeState & Record<string, unknown>;
-}
-
-interface PrototypeControllerOptions {
-  reviewSnapshot?: () => Record<string, unknown>;
-}
-
-declare global {
-  interface Window {
-    prototypeReview?: PrototypeReviewBridge;
-  }
-}
-
-export function usePrototypeController(
-  seed?: PrototypeState,
-  options: PrototypeControllerOptions = {},
-) {
-  const [state, reduceEvent] = useReducer(transition, seed ?? makeInitialState());
+export function usePrototypeController(seed: PrototypeState) {
+  const [state, reduceEvent] = useReducer(transition, seed);
   const focusWasInProduct = useRef(false);
   const dispatch = useCallback((event: PrototypeEvent) => {
     focusWasInProduct.current = Boolean(document.activeElement?.closest('#actions, #product'));
@@ -162,19 +144,6 @@ export function usePrototypeController(
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [clearDelayed, clearTicker, schedule, dispatch]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    window.prototypeReview = {
-      snapshot: () => ({
-        ...structuredClone(stateRef.current),
-        ...(options.reviewSnapshot?.() ?? {}),
-      }),
-    };
-    return () => {
-      delete window.prototypeReview;
-    };
-  }, [options.reviewSnapshot]);
 
   useEffect(() => () => {
     clearDelayed();

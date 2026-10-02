@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import type { Ref } from 'react';
 import type { FaultCase, PrototypeState } from '../model.ts';
 import { boards, faultCases, type BoardID } from '../reviewFixtures.ts';
 
@@ -8,7 +8,6 @@ interface ReviewPanelProps {
   onLoadBoard: (board: BoardID) => void;
   onInjectFault: (fault: FaultCase) => void;
   onReset: () => void;
-  children?: ReactNode;
   explanationRef?: Ref<HTMLDivElement>;
 }
 
@@ -18,7 +17,6 @@ export function ReviewPanel({
   onLoadBoard,
   onInjectFault,
   onReset,
-  children,
   explanationRef,
 }: ReviewPanelProps) {
   return (
@@ -27,7 +25,6 @@ export function ReviewPanel({
       <div className="review-body">
         <div id="review-explanation" ref={explanationRef}>
           <strong>当前流程说明 · 评审专用</strong>
-          {children}
         </div>
         <div className="review-heading">
           <strong>十组设计板</strong>

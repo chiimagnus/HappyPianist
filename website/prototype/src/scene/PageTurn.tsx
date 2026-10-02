@@ -84,7 +84,7 @@ export function PageTurn({ state, index, left, right }: PageTurnProps) {
   }, [surfaces]);
 
   return (
-    <group name="page-turn" ref={leafRef} position={[0, 0, 0.023]}>
+    <group ref={leafRef} position={[0, 0, 0.023]}>
       <mesh ref={frontRef} position={[width / 2, 0, 0.0005]} receiveShadow>
         <planeGeometry args={[width, height, 24, 1]} />
         <meshStandardMaterial map={surfaces.front.texture} roughness={1} />
