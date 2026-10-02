@@ -19,6 +19,7 @@ export const boards = [
 ] as const;
 
 export type BoardID = (typeof boards)[number][0];
+export type ReviewView = 'front' | 'oblique' | 'side' | 'top';
 
 export const faultCases = [
   { value: 'entry', label: '进入失败', board: 'D01' },

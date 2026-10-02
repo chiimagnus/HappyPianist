@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
 import type { PrototypeState } from '../model.ts';
+import type { ReviewView } from '../reviewFixtures.ts';
 
 interface AppShellProps {
   state: PrototypeState;
   viewport: ReactNode;
   product: ReactNode;
   review: ReactNode;
+  view: ReviewView;
+  onViewChange: (view: ReviewView) => void;
 }
 
 function sceneCaption(state: PrototypeState): string {
@@ -23,7 +26,14 @@ function sceneCaption(state: PrototypeState): string {
   return '';
 }
 
-export function AppShell({ state, viewport, product, review }: AppShellProps) {
+export function AppShell({
+  state,
+  viewport,
+  product,
+  review,
+  view,
+  onViewChange,
+}: AppShellProps) {
   return (
     <>
       <div id="viewport">{viewport}</div>
@@ -35,10 +45,10 @@ export function AppShell({ state, viewport, product, review }: AppShellProps) {
         <span className="badge">交互设计原型 · 非正式 App</span>
       </header>
       <nav id="views">
-        <button type="button" data-view="front" className="selected">正视</button>
-        <button type="button" data-view="oblique">斜视</button>
-        <button type="button" data-view="side">侧视</button>
-        <button type="button" data-view="top">俯视</button>
+        <button type="button" data-view="front" className={view === 'front' ? 'selected' : undefined} onClick={() => onViewChange('front')}>正视</button>
+        <button type="button" data-view="oblique" className={view === 'oblique' ? 'selected' : undefined} onClick={() => onViewChange('oblique')}>斜视</button>
+        <button type="button" data-view="side" className={view === 'side' ? 'selected' : undefined} onClick={() => onViewChange('side')}>侧视</button>
+        <button type="button" data-view="top" className={view === 'top' ? 'selected' : undefined} onClick={() => onViewChange('top')}>俯视</button>
       </nav>
       <div id="scene-caption">{sceneCaption(state)}</div>
       {product}

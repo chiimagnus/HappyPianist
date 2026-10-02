@@ -20,8 +20,12 @@ const cancelableKeyboardStages: readonly Stage[] = [
 ];
 
 interface PrototypeReviewBridge {
-  snapshot: () => PrototypeState;
+  snapshot: () => PrototypeState & Record<string, unknown>;
   dispatch: (event: PrototypeEvent) => void;
+}
+
+interface PrototypeControllerOptions {
+  reviewSnapshot?: () => Record<string, unknown>;
 }
 
 declare global {
@@ -30,12 +34,16 @@ declare global {
   }
 }
 
-export function usePrototypeController(seed?: PrototypeState) {
+export function usePrototypeController(
+  seed?: PrototypeState,
+  options: PrototypeControllerOptions = {},
+) {
   const [state, dispatch] = useReducer(transition, seed ?? makeInitialState());
   const stateRef = useRef(state);
   const delayedRef = useRef<number | undefined>(undefined);
   const tickerRef = useRef<number | undefined>(undefined);
   stateRef.current = state;
+
 
   const clearDelayed = useCallback(() => {
     if (delayedRef.current === undefined) return;
@@ -146,14 +154,18 @@ export function usePrototypeController(seed?: PrototypeState) {
   }, [clearDelayed, clearTicker, schedule]);
 
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     window.prototypeReview = {
-      snapshot: () => structuredClone(stateRef.current),
+      snapshot: () => ({
+        ...structuredClone(stateRef.current),
+        ...(options.reviewSnapshot?.() ?? {}),
+      }),
       dispatch,
     };
     return () => {
       delete window.prototypeReview;
     };
-  }, []);
+  }, [options.reviewSnapshot]);
 
   useEffect(() => () => {
     clearDelayed();

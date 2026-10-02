@@ -1,13 +1,14 @@
-import { Canvas } from '@react-three/fiber';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { FaultCase, PrototypeState } from './model.ts';
 import {
   boardForFault,
-  boards,
   boardState,
+  boards,
   faultState,
   type BoardID,
+  type ReviewView,
 } from './reviewFixtures.ts';
+import { SpatialScene, type SpatialSceneHandle } from './scene/SpatialScene.tsx';
 import { usePrototypeController } from './runtime/usePrototypeController.ts';
 import { AppShell } from './ui/AppShell.tsx';
 import { ProductUI } from './ui/ProductUI.tsx';
@@ -25,6 +26,8 @@ interface PrototypeRuntimeProps {
   onLoadBoard: (board: BoardID) => void;
   onInjectFault: (fault: FaultCase) => void;
   onReset: () => void;
+  view: ReviewView;
+  onViewChange: (view: ReviewView) => void;
 }
 
 function PrototypeRuntime({
@@ -33,8 +36,15 @@ function PrototypeRuntime({
   onLoadBoard,
   onInjectFault,
   onReset,
+  view,
+  onViewChange,
 }: PrototypeRuntimeProps) {
-  const { state, dispatch } = usePrototypeController(seed);
+  const sceneRef = useRef<SpatialSceneHandle>(null);
+  const reviewSnapshot = useCallback(
+    () => sceneRef.current?.snapshot() ?? {},
+    [],
+  );
+  const { state, dispatch } = usePrototypeController(seed, { reviewSnapshot });
   const auxiliary = state.stage === 'entry'
     || state.stage === 'entry-error'
     || state.stage === 'opening'
@@ -50,18 +60,10 @@ function PrototypeRuntime({
   return (
     <AppShell
       state={state}
-      viewport={(
-        <Canvas camera={{ position: [0, 0.4, 2.4], fov: 45 }}>
-          <color attach="background" args={['#e9e5df']} />
-          <ambientLight intensity={1.2} />
-          <directionalLight position={[2, 3, 2]} intensity={2} />
-          <mesh rotation={[0.2, 0.35, 0]}>
-            <boxGeometry args={[0.7, 0.9, 0.08]} />
-            <meshStandardMaterial color="#d7cfbc" roughness={0.85} />
-          </mesh>
-        </Canvas>
-      )}
+      viewport={<SpatialScene ref={sceneRef} view={view} />}
       product={auxiliary ? product : null}
+      view={view}
+      onViewChange={onViewChange}
       review={(
         <ReviewPanel
           state={state}
@@ -78,6 +80,7 @@ function PrototypeRuntime({
 }
 
 export function App() {
+  const [view, setView] = useState<ReviewView>('front');
   const [route, setRoute] = useState<ReviewRoute>({
     board: boards.find(([id]) => id === new URLSearchParams(location.search).get('board'))?.[0] ?? 'D01',
     revision: 0,
@@ -102,6 +105,7 @@ export function App() {
   };
 
   const reset = () => {
+    setView('front');
     setRoute((current) => ({
       board: 'D01',
       revision: current.revision + 1,
@@ -116,6 +120,8 @@ export function App() {
       onLoadBoard={loadBoard}
       onInjectFault={injectFault}
       onReset={reset}
+      view={view}
+      onViewChange={setView}
     />
   );
 }
