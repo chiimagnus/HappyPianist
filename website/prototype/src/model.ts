@@ -441,8 +441,9 @@ export function transition(previous: PrototypeState, event: PrototypeEvent): Pro
       else { state.stage = state.resumeStage; state.ready = true; state.paused = true; state.message = ''; }
       break;
     case 'suspend':
-      if (!state.session || !oneOf(stage, ['practice', 'result', 'settings', 'relocalize'])) break;
-      if (stage === 'practice' || stage === 'result') state.resumeStage = stage;
+      if (!state.session || !oneOf(stage, ['handoff', 'practice', 'result', 'settings', 'relocalize'])) break;
+      if (stage === 'handoff') state.resumeStage = 'practice';
+      else if (stage === 'practice' || stage === 'result') state.resumeStage = stage;
       state.stage = 'suspended';
       state.ready = false;
       stop();

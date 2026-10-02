@@ -115,6 +115,24 @@ test('谱位偏移有界且取消恢复；范围循环与 seek 同步页码', ()
   assert.deepEqual(state.range, [9, 16]);
 });
 
+test('移琴中断保留同一会话，迟到 arrived 无效且恢复必须重新定位', () => {
+  const handoff = run(boardState('D05'),
+    { type: 'input', value: 'audio' }, { type: 'connect' },
+    { type: 'calibrate' }, { type: 'calibrate' }, { type: 'confirm' });
+  const suspended = run(handoff, { type: 'suspend' }, { type: 'arrived' });
+  assert.equal(suspended.stage, 'suspended');
+  assert.equal(suspended.session, true);
+  assert.equal(suspended.ready, false);
+  const resumed = transition(suspended, { type: 'resume' });
+  assert.equal(resumed.stage, 'relocalize');
+  assert.equal(resumed.ready, false);
+  const located = transition(resumed, { type: 'relocalized' });
+  assert.equal(located.stage, 'practice');
+  assert.equal(located.paused, true);
+  assert.equal(located.selected, handoff.selected);
+  assert.equal(located.measure, handoff.measure);
+});
+
 test('一次示范自动结束；示范和陪弹只有一个模式，失败保留 Guide', () => {
   let state = run(boardState('D08'), { type: 'companion', value: 'teaching' });
   for (let beat = 0; beat < 4; beat += 1) state = transition(state, { type: 'tick' });

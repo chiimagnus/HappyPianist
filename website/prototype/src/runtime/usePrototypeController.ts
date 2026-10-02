@@ -51,6 +51,10 @@ export function usePrototypeController(seed?: PrototypeState) {
 
   const schedule = useCallback((nextState: PrototypeState) => {
     clearDelayed();
+    if (document.hidden) {
+      clearTicker();
+      return;
+    }
 
     let completionEvent: PrototypeEvent | undefined;
     let completionDelay = 750;
