@@ -103,6 +103,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           selectedBookUUID: book?.root.uuid,
           bookPosition: book?.root.position.toArray(),
           openAngle: book?.hinge.rotation.y,
+          flipping: book?.root.getObjectByName('page-turn')?.visible ?? false,
           selectedBookScreen: center ? [(center.x + 1) * innerWidth / 2, (1 - center.y) * innerHeight / 2] : [],
           controlsWorldMatrix: operations?.matrixWorld.toArray(),
           controlsCSSTransform: operationsElement.style.transform,

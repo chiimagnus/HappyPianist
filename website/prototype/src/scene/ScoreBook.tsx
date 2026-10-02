@@ -1,8 +1,9 @@
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Group } from 'three';
+import { Group, type Object3D } from 'three';
 import { songs, type PrototypeEvent, type PrototypeState } from '../model.ts';
-import { coverTexture, height, pageSurface, paintPage, width, type PageSurface } from './bookTextures.ts';
+import { coverTexture, height, pageSurface, width, type PageSurface } from './bookTextures.ts';
+import { PageTurn } from './PageTurn.tsx';
 
 export interface BookHandle {
   root: Group;
@@ -45,12 +46,6 @@ export function ScoreBook({ index, state, dispatch, books }: ScoreBookProps) {
     return () => { books.delete(index); };
   }, [books, index, textures]);
 
-  useLayoutEffect(() => {
-    if (state.selected !== index) return;
-    paintPage(textures.left, state.spread * 2 + 1, state);
-    paintPage(textures.right, state.spread * 2 + 2, state);
-  }, [index, state, textures]);
-
   useEffect(() => () => {
     textures.cover.dispose();
     textures.left.texture.dispose();
@@ -59,9 +54,17 @@ export function ScoreBook({ index, state, dispatch, books }: ScoreBookProps) {
 
   const clickBook = (event: ThreeEvent<MouseEvent>) => {
     if (event.delta > 6 || !rootRef.current?.visible) return;
+    let hit: Object3D | null = event.object;
+    while (hit !== null) {
+      if (!hit.visible) return;
+      hit = hit.parent;
+    }
     event.stopPropagation();
     if (state.stage === 'library') {
       dispatch(state.selected === index ? { type: 'open' } : { type: 'select', value: index });
+    } else if (state.stage === 'detail' && state.selected === index) {
+      const local = rootRef.current.worldToLocal(event.point.clone());
+      if (Math.abs(local.x) > width * 0.72) dispatch({ type: 'page', value: local.x > 0 ? 1 : -1 });
     }
   };
 
@@ -93,6 +96,7 @@ export function ScoreBook({ index, state, dispatch, books }: ScoreBookProps) {
         <cylinderGeometry args={[0.003, 0.003, height, 8]} />
         <meshStandardMaterial color="#c8bea6" roughness={1} />
       </mesh>
+      <PageTurn state={state} index={index} left={textures.left} right={textures.right} />
     </group>
   );
 }
