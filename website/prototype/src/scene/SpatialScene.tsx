@@ -21,6 +21,7 @@ import { BookFlow } from './BookFlow.tsx';
 import { SpatialOperations } from './SpatialOperations.tsx';
 import type { BookHandle } from './ScoreBook.tsx';
 import { width } from './bookTextures.ts';
+import { PianoScene, type PianoSceneHandle } from './PianoScene.tsx';
 
 const viewPositions: Readonly<Record<ReviewView, readonly [number, number, number]>> = {
   front: [0, 1.46, 1.75],
@@ -80,6 +81,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
     const cameraRef = useRef<Camera | null>(null);
     const rendererRef = useRef<WebGLRenderer | null>(null);
     const booksRef = useRef(new Map<number, BookHandle>());
+    const pianoRef = useRef<PianoSceneHandle>(null);
 
     useImperativeHandle(ref, () => ({
       snapshot: () => {
@@ -90,6 +92,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           ? book.root.localToWorld(new Vector3(width / 2, 0, 0.02)).project(camera) : null;
         const operations = book?.root.children.find((child) => child.userData.operations);
         return {
+          ...pianoRef.current?.snapshot(),
           threeRevision: REVISION,
           cameraPosition: camera?.position.toArray() ?? [],
           rendererCalls: renderer?.info.render.calls ?? 0,
@@ -160,6 +163,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
         />
         <OrbitRig view={view} />
         <BookFlow state={state} dispatch={dispatch} books={booksRef.current} />
+        <PianoScene ref={pianoRef} state={state} />
         <SpatialOperations state={state} element={operationsElement} books={booksRef.current} />
       </Canvas>
     );
