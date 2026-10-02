@@ -156,7 +156,6 @@ struct PracticeSettingsView: View {
                     .disabled(isAIPerformanceActive)
 
                     Toggle("演示手替代引导键高亮", isOn: $pianoDemonstrationHandsEnabled)
-                        .accessibilityHint("只在沉浸空间显示左右演示手；二维键盘高亮保持不变。")
                     Text("只替换沉浸空间的键面引导；窗口中的琴键高亮保持不变。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)

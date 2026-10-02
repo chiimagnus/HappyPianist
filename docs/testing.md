@@ -46,7 +46,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 ## 手工与真机记录
 
-日常 smoke 至少检查：导入/恢复和冲突、单一练习入口、range/tempo/loop、正确/错误/未知分流、切换或断开输入输出、stop/seek/后台/窗口关闭后的无残留发声、progress 脱敏、VoiceOver/Dynamic Type/Reduce Motion。
+日常 smoke 至少检查：导入/恢复和冲突、单一练习入口、range/tempo/loop、正确/错误/未知分流、切换或断开输入输出、stop/seek/后台/窗口关闭后的无残留发声、progress 脱敏。
 
 真机按独立设备、OS、route、score revision 与 calibration 记录 p50/p95/p99 latency/jitter、miss/false-positive/stuck-note、断连/中断/route change 恢复。无可靠同步、tracking 或 onset 的样本标 `insufficient`，不计为 miss；仅保存聚合桶与样本数，不保存原始 MIDI、音频、手部帧、序列号或绝对路径。
 

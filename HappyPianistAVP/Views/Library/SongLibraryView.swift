@@ -11,7 +11,6 @@ struct SongLibraryView: View {
     let onChoosePiano: @MainActor () -> Void
     let onStartPractice: @MainActor (UUID) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAudioImporterPresented = false
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingImportConfirmationID: UUID?
@@ -64,7 +63,6 @@ struct SongLibraryView: View {
                     selectedEntryID: viewModel.selectedEntryID,
                     playingEntryID: viewModel.currentListeningEntryID,
                     isPlaying: selectedIsPlaying,
-                    reduceMotion: reduceMotion,
                     allowsDestructiveActions: viewModel.importState.isActive == false,
                     onSelectEntry: viewModel.selectEntry,
                     onTogglePlayback: togglePlayback,
@@ -112,7 +110,6 @@ struct SongLibraryView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(viewModel.importState.isActive || !isPracticeSetupReady)
-                    .accessibilityHint(startPracticeAccessibilityHint)
                 }
             }
         }
@@ -239,16 +236,6 @@ struct SongLibraryView: View {
         } message: {
             Text(importConflictPresentation?.message ?? "曲谱冲突状态已变化。")
         }
-    }
-
-    private var startPracticeAccessibilityHint: String {
-        if viewModel.importState.isActive {
-            return "曲谱导入完成或取消后才能开始练习"
-        }
-        if isPracticeSetupReady == false {
-            return "请先使用左上角的选择钢琴按钮完成设置"
-        }
-        return "在练习窗口中准备并打开当前曲目"
     }
 
     private func resolvedDuration(
@@ -397,7 +384,6 @@ private struct LibraryImportStatusView: View {
         }
         .padding(12)
         .background(.regularMaterial, in: .rect(cornerRadius: 14))
-        .accessibilityElement(children: .contain)
     }
 
     private var showsProgress: Bool {

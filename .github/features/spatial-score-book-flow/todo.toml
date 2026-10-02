@@ -1,0 +1,184 @@
+version = 1
+current_task_id = ""
+
+[[tasks]]
+id = "P1-T1"
+title = "补完整流程板并验证 RealityView 空间原型"
+status = "pending"
+plan = "plan-p1.md#p1-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T2"
+title = "增加最小 2D 入口与单一空间所有权"
+status = "pending"
+plan = "plan-p1.md#p1-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P2-T1"
+title = "接入真实 folio、空间选择与有界大库浏览"
+status = "pending"
+plan = "plan-p2.md#p2-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P2-T2"
+title = "接通空间曲库与原管理窗口的明确往返"
+status = "pending"
+plan = "plan-p2.md#p2-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T1"
+title = "抽取共享记谱内核并保持原滚谱行为"
+status = "pending"
+plan = "plan-p3.md#p3-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T2"
+title = "在空间书册接入真分页、详情与历史"
+status = "pending"
+plan = "plan-p3.md#p3-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P3-T3"
+title = "实现空间 sheet 翻页与最新目标收敛"
+status = "pending"
+plan = "plan-p3.md#p3-t3"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P4-T1"
+title = "在空间详情接通准备与校准并验证琴坐标"
+status = "pending"
+plan = "plan-p4.md#p4-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P4-T2"
+title = "直接启动空间练习并闭合导航与安全退出"
+status = "pending"
+plan = "plan-p4.md#p4-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P4-T3"
+title = "增加有限谱位编辑、重置与局部偏好"
+status = "pending"
+plan = "plan-p4.md#p4-t3"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P5-T1"
+title = "在同一空间手 renderer 接入一次性真实教学"
+status = "pending"
+plan = "plan-p5.md#p5-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P5-T2"
+title = "用实际 AI 播放窗口驱动同一双 Companion Hands"
+status = "pending"
+plan = "plan-p5.md#p5-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P5-T3"
+title = "补全空间控制、谱上反馈与结果复测"
+status = "pending"
+plan = "plan-p5.md#p5-t3"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P6-T1"
+title = "验证两种产品共存与真实副作用边界"
+status = "pending"
+plan = "plan-p6.md#p6-t1"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P6-T2"
+title = "完成 physical AVP 设计走查与长期文档收口"
+status = "pending"
+plan = "plan-p6.md#p6-t2"
+commit = ""
+note = ""
+
+[[tasks]]
+id = "P1-T3"
+title = "补齐完整产品流程与异常设计"
+status = "completed"
+plan = "plan-p1.md#p1-t3"
+commit = ""
+no_commit_reason = "feature 设计按项目规则仅本地保留"
+note = "D01–D10 全流程、对象归属、异常与取消完整；核对现有 finishReturn/discard 副作用边界；diff check 通过"
+
+[[tasks]]
+id = "P1-T4"
+title = "制作可操作的浏览器三维原型"
+status = "completed"
+plan = "plan-p1.md#p1-t4"
+commit = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "16 个 Node 回归通过；Helium 实际 canvas 命中并走通完整主流程、同书 UUID、暂停及两段保存返回；Three.js 固定 0.180.0 本地依赖"
+
+[[tasks]]
+id = "P1-T5"
+title = "验证原型并交付多视角设计板"
+status = "completed"
+plan = "plan-p1.md#p1-t5"
+commit = ""
+no_commit_reason = "feature 设计原型与证据按项目规则仅本地保留"
+note = "2026-10-01T15:29:04.272Z 完整29项Helium浏览器检查通过、异常为空；16项Node回归通过；45张真实运行截图已刷新；设计入口/流程/报告/设计板本地链接有效，窄屏设计板与回原型链接通过；仅原型范围，不放行原生任务"
+
+[[tasks]]
+id = "P1-T6"
+title = "清理计划与仓库规范的指定条款"
+status = "completed"
+plan = "plan-p1.md#p1-t6"
+commit = "08278893"
+note = "仓库两个规范文件与 feature 全部 Markdown/TOML 指定条款全文扫描无残留；AGENTS 原子提交，feature 文件仅本地保留"
+
+[[tasks]]
+id = "P1-T7"
+title = "移除空间信息卡并修正控件对象归属"
+status = "completed"
+plan = "plan-p1.md#p1-t7"
+commit = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "最新整套 29 项浏览器检查通过：曲名只在书上，无重复信息卡；斜侧俯视世界矩阵固定且控件投影随视角变窄；主流程实际鼠标命中及安全返回通过"
+
+[[tasks]]
+id = "P1-T8"
+title = "将详情操作融入书页，取消悬浮按钮面板"
+status = "completed"
+plan = "plan-p1.md#p1-t8"
+commit = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "详情无底部面板；书签开始、页内继续9/范围9–12、标题试听和书脊合拢真实点击通过；首末页禁用与范围标记归属通过；多视角设计板已刷新"
+
+[[tasks]]
+id = "P1-T9"
+title = "补充明确命名与局部 Tooltip"
+status = "completed"
+plan = "plan-p1.md#p1-t9"
+commit = ""
+no_commit_reason = "feature 设计原型按项目规则仅本地保留"
+note = "真实短时悬停不显示、停留显示、移开消失且业务不变；试听/页界说明更新正确；修复书签悬停浅底白字并检查计算样式；最新29项浏览器检查通过"

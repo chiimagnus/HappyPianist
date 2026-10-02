@@ -13,7 +13,7 @@ func restorationRendererResetRemovesEffect() {
         kind: .measurePitchStepsStable
     )
     let parent = Entity()
-    renderer.update(event: event, parent: parent, reduceMotion: true)
+    renderer.update(event: event, parent: parent)
     #expect(parent.children.count == 1)
     renderer.reset()
     #expect(parent.children.isEmpty)

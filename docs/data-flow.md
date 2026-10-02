@@ -12,7 +12,7 @@ MusicXML / MXL → Library 导入事务 → Practice preparation
 - 仅接受 `.musicxml`、`.xml`、`.mxl`。导入在 security scope 内完成安全校验、同卷暂存、校验与 index 提交；失败不留下部分曲谱，恢复不能把损坏的非空 index 当作空库覆盖。
 - MusicXML/MXL 在解析或解包前验证普通文件、archive 路径、条目数、大小和压缩比。每个普通 note/rest 必须有标准 `MusicXMLNoteType`；非 grace note 必须有显式 duration；整小节 rest 的例外由语义字段决定。
 - `PracticePreparationService` 先生成唯一的 `ScorePerformancePlan`，再单向投影 steps、琴键引导、notation、时间线和 sequence。没有 steps 或 measure spans 的结果是 typed failure，不存在 legacy/fallback 练习模式。
-- Notation 只接收 projection、overlay、measure spans 与 context；高亮、VoiceOver 和辅助显示是派生表现，不写入 progress。
+- Notation 只接收 projection、overlay、measure spans 与 context；高亮等派生表现不写入 progress。
 
 ## 会话与输入
 

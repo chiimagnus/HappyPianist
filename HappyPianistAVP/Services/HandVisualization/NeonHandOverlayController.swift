@@ -41,7 +41,6 @@ final class NeonHandOverlayController {
     private var rightHand: HandRuntime?
     private var updateTask: Task<Void, Never>?
     private var hasAttachedRoot = false
-    private var reduceMotionEnabled = false
 
     init(rootEntity: Entity = Entity()) {
         self.rootEntity = rootEntity
@@ -50,15 +49,8 @@ final class NeonHandOverlayController {
     func update(
         isEnabled: Bool,
         trackingService: any ARTrackingServiceProtocol,
-        reduceMotion: Bool,
         content: RealityViewContent
     ) {
-        #if targetEnvironment(simulator)
-            if reduceMotionEnabled != reduceMotion {
-                stopUpdates()
-            }
-        #endif
-        reduceMotionEnabled = reduceMotion
         guard isEnabled else {
             stopUpdates()
             setHandsHidden()
@@ -89,10 +81,6 @@ final class NeonHandOverlayController {
         guard updateTask == nil else { return }
 
         #if targetEnvironment(simulator)
-            guard reduceMotionEnabled == false else {
-                apply(snapshot: NeonHandSimulatorPose.snapshot(phase: 0))
-                return
-            }
             updateTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 while Task.isCancelled == false {

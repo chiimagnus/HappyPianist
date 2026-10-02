@@ -27,17 +27,15 @@ func hidingTeacherHandsImmediatelyRestoresKeyboardHighlights() async throws {
         motionClipSet: clipSet,
         timing: .transport(timing),
         keyboardGeometry: geometry,
-        reduceMotion: false,
         content: nil
     ) == [60])
     #expect(rig.rootEntity.isEnabled)
 
     #expect(controller.update(
-        isEnabled: true,
+        isEnabled: false,
         motionClipSet: clipSet,
         timing: .transport(timing),
         keyboardGeometry: geometry,
-        reduceMotion: true,
         content: nil
     ).isEmpty)
     #expect(rig.rootEntity.isEnabled == false)

@@ -19,8 +19,6 @@ struct LibraryPracticeProgressOrnamentView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .scrollIndicators(.hidden)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前曲目练习概览")
         .frame(
             minWidth: LibraryPracticeOrnamentLayout.minimumWidth,
             idealWidth: LibraryPracticeOrnamentLayout.idealWidth,
@@ -78,7 +76,6 @@ private struct LibraryPracticeLoadingView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .accessibilityElement(children: .combine)
 
             ForEach(0 ..< 3, id: \.self) { _ in
                 LibraryPracticeLoadingPlaceholderView()
@@ -104,7 +101,6 @@ private struct LibraryPracticeLoadingPlaceholderView: View {
         .libraryPracticeCardSurface(
             cornerRadius: LibraryPracticeOrnamentLayout.cardCornerRadius
         )
-        .accessibilityHidden(true)
     }
 }
 
@@ -204,15 +200,12 @@ private struct LibraryPracticeInvitationView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 330)
             }
-            .accessibilityElement(children: .combine)
 
             VStack(spacing: 9) {
                 ForEach(Self.benefits) { benefit in
                     LibraryPracticeBenefitRow(benefit: benefit)
                 }
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("练习后可查看的信息")
 
             Label(
                 "准备好后，从主窗口右下角开始练习",
@@ -229,7 +222,6 @@ private struct LibraryPracticeInvitationView: View {
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
             }
-            .accessibilityElement(children: .combine)
 
             Spacer(minLength: 8)
         }
@@ -257,7 +249,6 @@ private struct LibraryPracticeBenefitRow: View {
                 .foregroundStyle(.tint)
                 .frame(width: 32, height: 32)
                 .background(.thinMaterial, in: .rect(cornerRadius: 10))
-                .accessibilityHidden(true)
 
             Text(benefit.title)
                 .font(.subheadline)
@@ -267,7 +258,6 @@ private struct LibraryPracticeBenefitRow: View {
         .padding(.horizontal, 13)
         .padding(.vertical, 12)
         .libraryPracticeCardSurface(cornerRadius: 15)
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -310,9 +300,6 @@ private struct LibraryPracticeOverviewView: View {
 private struct LibraryPracticeOverviewHeader: View {
     let status: SongPracticeLibraryOverviewStatus
 
-    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 5) {
@@ -332,7 +319,6 @@ private struct LibraryPracticeOverviewHeader: View {
 
             HStack(spacing: 7) {
                 Image(systemName: status.systemImage)
-                    .accessibilityHidden(true)
 
                 Text(status.title)
                     .font(.caption)
@@ -342,15 +328,6 @@ private struct LibraryPracticeOverviewHeader: View {
             .padding(.horizontal, 11)
             .padding(.vertical, 8)
             .background(.thinMaterial, in: .capsule)
-            .overlay {
-                if differentiateWithoutColor || colorSchemeContrast == .increased {
-                    Capsule()
-                        .strokeBorder(Color.primary.opacity(0.32), lineWidth: 1)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("练习状态")
-            .accessibilityValue(status.title)
         }
     }
 }
@@ -417,7 +394,6 @@ private struct LibraryPracticeMetricCard: View {
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
         .libraryPracticeCardSurface(cornerRadius: 16)
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -441,9 +417,6 @@ private struct LibraryPracticeProgressSection: View {
                 }
 
                 LibraryPracticeSegmentedProgressBar(progress: progress)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("全曲进度")
-                    .accessibilityValue(progress.accessibilityValue)
 
                 LibraryPracticeProgressLegend(progress: progress)
             }
@@ -573,9 +546,6 @@ private struct LibraryPracticeLegendItem: View {
                 .foregroundStyle(tint)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue("\(count.formatted()) 个小节")
     }
 }
 
@@ -597,7 +567,6 @@ private struct LibraryPracticeProgressMessageSection: View {
                 Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
                     .foregroundStyle(.secondary)
             }
-            .accessibilityElement(children: .combine)
         }
     }
 }
@@ -627,9 +596,7 @@ private struct LibraryPracticeResumeSection: View {
                     .foregroundStyle(.primary)
                     .frame(width: 46, height: 46)
                     .background(.thinMaterial, in: .rect(cornerRadius: 15))
-                    .accessibilityHidden(true)
             }
-            .accessibilityElement(children: .combine)
         }
     }
 }
@@ -672,7 +639,6 @@ private struct LibraryPracticeFocusRow: View {
                 .foregroundStyle(.primary)
                 .frame(width: 28, height: 28)
                 .background(.thinMaterial, in: .rect(cornerRadius: 9))
-                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("第 \(item.sourceMeasureID.libraryMeasureText) 小节")
@@ -687,7 +653,6 @@ private struct LibraryPracticeFocusRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 11)
         .libraryPracticeCardSurface(cornerRadius: 14)
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -701,7 +666,6 @@ private struct LibraryPracticeEncouragementSection: View {
                 Image(systemName: "sparkles")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(
@@ -723,7 +687,6 @@ private struct LibraryPracticeEncouragementSection: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .accessibilityElement(children: .combine)
         }
     }
 }
@@ -751,18 +714,12 @@ private struct LibraryPracticeSectionCard<Content: View>: View {
 private struct LibraryPracticeCardSurfaceModifier: ViewModifier {
     let cornerRadius: CGFloat
 
-    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-
     func body(content: Content) -> some View {
         content
             .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: cornerRadius))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .strokeBorder(
-                        Color.primary.opacity(0.14),
-                        lineWidth: differentiateWithoutColor || colorSchemeContrast == .increased ? 1.5 : 1
-                    )
+                    .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
             }
     }
 }
@@ -815,12 +772,6 @@ private extension SongPracticeMeasureProgressState {
         case let .available(progress): progress.stableSourceMeasureCount
         case .metadataUnavailable: 0
         }
-    }
-}
-
-private extension SongPracticeMeasureProgress {
-    var accessibilityValue: String {
-        "稳定 \(stableSourceMeasureCount.formatted()) 个小节，学习中 \(learningSourceMeasureCount.formatted()) 个小节，未练习 \(unpracticedSourceMeasureCount.formatted()) 个小节，共 \(totalSourceMeasureCount.formatted()) 个小节"
     }
 }
 

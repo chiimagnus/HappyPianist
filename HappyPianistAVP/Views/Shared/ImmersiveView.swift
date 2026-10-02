@@ -15,8 +15,6 @@ struct ImmersiveView: View {
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage(PianoDemonstrationHandsSettings.userDefaultsKey)
     private var pianoDemonstrationHandsEnabled = PianoDemonstrationHandsSettings.defaultValue
-    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
     init(viewModel: ARGuideViewModel) {
@@ -102,7 +100,6 @@ struct ImmersiveView: View {
         neonHandOverlayController.update(
             isEnabled: viewModel.immersiveMode == .practice,
             trackingService: viewModel.appState.arTrackingService,
-            reduceMotion: reduceMotion,
             content: content
         )
         let pianoDemonstrationHandsTiming = session.pianoDemonstrationHandsTiming()
@@ -113,17 +110,15 @@ struct ImmersiveView: View {
             ),
             timing: pianoDemonstrationHandsTiming,
             keyboardGeometry: keyboardGeometry,
-            reduceMotion: reduceMotion,
             content: content
         ) ?? []
         overlayController.updateHighlights(
             suppressedMIDINotes: suppressedMIDINotes,
             highlightGuide: session.currentPianoHighlightGuide,
             keyboardGeometry: keyboardGeometry,
-            differentiateWithoutColor: differentiateWithoutColor,
             content: content
         )
-        overlayController.updateRestorationEffect(event: session.latestFeedbackEvent, reduceMotion: reduceMotion)
+        overlayController.updateRestorationEffect(event: session.latestFeedbackEvent)
         gazePlaneDiskOverlayController.update(
             isVisible: viewModel.isGazePlaneDiskVisible,
             diskWorldTransform: viewModel.gazePlaneDiskWorldTransform,
@@ -134,14 +129,12 @@ struct ImmersiveView: View {
         virtualPianoOverlayController.update(
             isEnabled: viewModel.shouldShowVirtualPiano,
             keyboardGeometry: keyboardGeometry,
-            reduceMotion: reduceMotion,
             content: content
         )
         virtualPerformerOverlayController.update(
             isEnabled: viewModel.isVirtualPerformerEnabled,
             isPerforming: viewModel.isAIPerformanceActive,
             keyboardGeometry: keyboardGeometry,
-            reduceMotion: reduceMotion,
             performanceSchedule: viewModel.latestAIPerformanceSchedule,
             content: content
         )

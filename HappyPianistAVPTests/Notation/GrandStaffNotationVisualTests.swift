@@ -13,43 +13,11 @@ import Testing
 @Test
 func grandStaffNotationStandardImageRendererMatchesVisualGolden() throws {
     let model = try visualNotationModel()
-    let standard = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .large,
-        differentiateWithoutColor: false
-    )
+    let standard = try visualSnapshot(model: model)
     let expected = try visualGoldenLines()[0]
 
     #expect(standard.description == expected)
     #expect(standard.sampledInkPixelCount > 100)
-}
-
-@MainActor
-@Test
-func grandStaffNotationAccessibleImageRendererMatchesVisualGolden() throws {
-    let model = try visualNotationModel()
-    let accessible = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .accessibility3,
-        differentiateWithoutColor: true
-    )
-    let goldenLines = try visualGoldenLines()
-    let expected = goldenLines[1]
-    let dynamicTypeOnly = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .accessibility3,
-        differentiateWithoutColor: false
-    )
-    let standard = try visualSnapshot(
-        model: model,
-        dynamicTypeSize: .large,
-        differentiateWithoutColor: false
-    )
-
-    #expect(accessible.description == expected)
-    #expect(accessible.sampledInkPixelCount > 100)
-    #expect(goldenLines[0].contains(accessible.hash) == false)
-    #expect(dynamicTypeOnly.hash != standard.hash)
 }
 
 private func visualGoldenLines() throws -> [String] {
@@ -59,33 +27,6 @@ private func visualGoldenLines() throws -> [String] {
     )
     .split(whereSeparator: \.isNewline)
     .map(String.init)
-}
-
-@Test
-func grandStaffNotationAccessibilityDescribesMeasureNotation() throws {
-    let model = try visualNotationModel()
-    let layout = GrandStaffNotationLayoutService().makeLayout(
-        projection: model.projection,
-        overlay: model.overlay,
-        measureSpans: model.score.measures,
-        context: model.context,
-        viewportWidthStaffSpaces: 52,
-        scrollTick: 960
-    )
-    let descriptor = GrandStaffNotationAccessibilityDescriptor.make(
-        projection: model.projection,
-        layout: layout,
-        measureSpans: model.score.measures,
-        currentTick: 960
-    )
-    let labels = descriptor.elements.map(\.label)
-
-    #expect(descriptor.containerValue.contains("第 1 小节"))
-    #expect(labels.contains { $0.contains("上谱表") && $0.contains("音符") && $0.contains("当前高亮") })
-    #expect(labels.contains { $0.contains("下谱表") && $0.contains("当前高亮") })
-    #expect(labels.contains { $0.contains("指法 1") })
-    #expect(labels.contains { $0.contains("休止符") })
-    #expect(labels.contains { $0.contains("不支持的记谱内容") } == false)
 }
 
 private struct VisualNotationModel {
@@ -108,16 +49,12 @@ private struct VisualSnapshot {
 }
 
 @MainActor
-private func visualSnapshot(
-    model: VisualNotationModel,
-    dynamicTypeSize: DynamicTypeSize,
-    differentiateWithoutColor: Bool
-) throws -> VisualSnapshot {
+private func visualSnapshot(model: VisualNotationModel) throws -> VisualSnapshot {
     try requireBundledBravura()
     let viewport = CGSize(width: 800, height: 320)
     let presentation = GrandStaffNotationPresentationViewModel().makePresentation(
         size: viewport,
-        lineSpacing: dynamicTypeSize.isAccessibilitySize ? 22 : 14,
+        lineSpacing: 14,
         projection: model.projection,
         overlay: model.overlay,
         measureSpans: model.score.measures,
@@ -129,8 +66,7 @@ private func visualSnapshot(
         GrandStaffNotationRenderer().draw(
             presentation: presentation,
             in: context,
-            displayScale: 2,
-            differentiateWithoutColor: differentiateWithoutColor
+            displayScale: 2
         )
     }
     .frame(width: viewport.width, height: viewport.height)
@@ -138,11 +74,10 @@ private func visualSnapshot(
     .foregroundStyle(.black)
     .environment(\.colorScheme, .light)
     .environment(\.displayScale, 2)
-    .environment(\.dynamicTypeSize, dynamicTypeSize)
 
     let renderer = ImageRenderer(content: content)
     renderer.proposedSize = ProposedViewSize(width: viewport.width, height: viewport.height)
-    let name = differentiateWithoutColor ? "accessibility3-differentiate" : "standard"
+    let name = "standard"
     var snapshot: VisualSnapshot?
     renderer.render(rasterizationScale: 1) { size, render in
         let width = Int(ceil(size.width))

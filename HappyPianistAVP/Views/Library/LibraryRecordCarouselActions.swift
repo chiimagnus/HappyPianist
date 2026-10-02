@@ -28,7 +28,6 @@ struct LibraryImportLiftView: View {
             .opacity(progress)
             .scaleEffect(0.92 + 0.08 * progress)
             .offset(y: 66 - 18 * progress)
-            .accessibilityHidden(true)
     }
 }
 
@@ -89,7 +88,6 @@ struct LibraryDeleteHoldView: View {
             .opacity(dragProgress)
             .scaleEffect(0.92 + 0.08 * dragProgress)
             .offset(y: -66 + 18 * dragProgress)
-            .accessibilityHidden(true)
         }
     }
 }

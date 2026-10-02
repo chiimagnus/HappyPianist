@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CalibrationStageCard: View {
-    @ScaledMetric private var statusIconSize: CGFloat = 72
+    private let statusIconSize: CGFloat = 72
 
     let stage: CalibrationCardStage
     let phase: ARGuideViewModel.CalibrationPhase

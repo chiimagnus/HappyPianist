@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>空间书册 · HappyPianist 设计原型</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="startup-error" class="load-error" role="alert" hidden></div>
+  <script type="module">
+    import('./src/main.tsx').catch(() => {
+      const error = document.querySelector('#startup-error');
+      error.hidden = false;
+      error.textContent = '原型未能启动。请通过设计说明中的本地 Vite 地址打开，不要直接双击 HTML。';
+    });
+  </script>
+</body>
+</html>

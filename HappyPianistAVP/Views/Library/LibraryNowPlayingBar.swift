@@ -49,7 +49,6 @@ struct LibraryNowPlayingBar: View {
             Image(systemName: isPlaying ? "record.circle.fill" : "record.circle")
                 .font(.title2)
                 .foregroundStyle(.tint)
-                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -72,8 +71,6 @@ struct LibraryNowPlayingBar: View {
                     in: 0 ... 1
                 )
                 .disabled(canSeek == false)
-                .accessibilityLabel("播放进度")
-                .accessibilityValue("\(Int(clampedProgress * 100))%")
 
                 HStack {
                     Text(formattedTime(currentTime))
@@ -94,8 +91,6 @@ struct LibraryNowPlayingBar: View {
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前播放")
     }
 
     private var clampedProgress: Double {
