@@ -42,6 +42,12 @@ export const faultCases = [
   board: BoardID;
 }[];
 
+export function boardForFault(value: FaultCase): BoardID {
+  const fixture = faultCases.find((candidate) => candidate.value === value);
+  if (fixture === undefined) throw new Error(`Unknown fault case: ${value}`);
+  return fixture.board;
+}
+
 export function boardState(id: BoardID): PrototypeState {
   let state = initialState();
   if (id === 'D01') return state;
@@ -75,4 +81,43 @@ export function boardState(id: BoardID): PrototypeState {
   state = transition(state, { type: 'return', value: 'library' });
   state = transition(state, { type: 'progress-saved' });
   return transition(state, { type: 'facts-saved' });
+}
+
+export function faultState(value: FaultCase): PrototypeState {
+  let state = boardState(boardForFault(value));
+  state = transition(state, { type: 'fault', value });
+
+  switch (value) {
+    case 'entry':
+    case 'busy':
+      return transition(state, { type: 'enter' });
+    case 'empty':
+    case 'library-error':
+      return transition(state, { type: 'library-case', value });
+    case 'score':
+      return transition(state, { type: 'open' });
+    case 'permission':
+    case 'midi':
+      state = transition(state, { type: 'input', value: value === 'permission' ? 'audio' : 'midi' });
+      return transition(state, { type: 'connect' });
+    case 'calibration':
+      state = transition(state, { type: 'input', value: 'audio' });
+      state = transition(state, { type: 'connect' });
+      state = transition(state, { type: 'calibrate' });
+      return transition(state, { type: 'calibrate' });
+    case 'tracking':
+      state = transition(state, { type: 'tracking-lost' });
+      return transition(state, { type: 'relocalized' });
+    case 'rig':
+      return transition(state, { type: 'companion', value: 'teaching' });
+    case 'ai':
+      return transition(state, { type: 'companion', value: 'duet' });
+    case 'unknown':
+      return transition(state, { type: 'feedback', value: 'unknown' });
+    case 'progress':
+    case 'facts':
+      return transition(state, { type: 'return', value: 'library' });
+    case 'suspend':
+      return transition(state, { type: 'suspend' });
+  }
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
-  initialState,
+  initialState as makeInitialState,
   transition,
   type PrototypeEvent,
   type PrototypeState,
@@ -30,8 +30,8 @@ declare global {
   }
 }
 
-export function usePrototypeController() {
-  const [state, dispatch] = useReducer(transition, initialState());
+export function usePrototypeController(seed?: PrototypeState) {
+  const [state, dispatch] = useReducer(transition, seed ?? makeInitialState());
   const stateRef = useRef(state);
   const delayedRef = useRef<number | undefined>(undefined);
   const tickerRef = useRef<number | undefined>(undefined);
