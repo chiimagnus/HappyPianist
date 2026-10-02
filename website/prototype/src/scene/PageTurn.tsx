@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { Group, Mesh, PlaneGeometry } from 'three';
+import type { WebGPURenderer } from 'three/webgpu';
 import type { PrototypeState } from '../model.ts';
 import { height, pageSurface, paintPage, width, type PageSurface } from './bookTextures.ts';
 
@@ -12,14 +13,14 @@ interface PageTurnProps {
 }
 
 export function PageTurn({ state, index, left, right }: PageTurnProps) {
-  const { gl } = useThree();
+  const gl = useThree((store) => store.gl as unknown as WebGPURenderer);
   const leafRef = useRef<Group>(null);
   const frontRef = useRef<Mesh<PlaneGeometry>>(null);
   const backRef = useRef<Mesh<PlaneGeometry>>(null);
   const flipRef = useRef<{ progress: number; forward: boolean } | null>(null);
   const previousRef = useRef({ stage: state.stage, spread: state.spread });
   const surfaces = useMemo(() => {
-    const anisotropy = gl.capabilities.getMaxAnisotropy();
+    const anisotropy = gl.getMaxAnisotropy();
     return { front: pageSurface(anisotropy), back: pageSurface(anisotropy) };
   }, [gl]);
 

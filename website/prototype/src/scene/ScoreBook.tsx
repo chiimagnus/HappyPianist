@@ -1,6 +1,7 @@
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Group, type Object3D } from 'three';
+import type { WebGPURenderer } from 'three/webgpu';
 import { songs, type PrototypeEvent, type PrototypeState } from '../model.ts';
 import { coverTexture, height, pageSurface, width, type PageSurface } from './bookTextures.ts';
 import { PageTurn } from './PageTurn.tsx';
@@ -21,11 +22,11 @@ interface ScoreBookProps {
 }
 
 export function ScoreBook({ index, state, dispatch, books }: ScoreBookProps) {
-  const { gl } = useThree();
+  const gl = useThree((store) => store.gl as unknown as WebGPURenderer);
   const rootRef = useRef<Group>(null);
   const hingeRef = useRef<Group>(null);
   const textures = useMemo(() => {
-    const anisotropy = gl.capabilities.getMaxAnisotropy();
+    const anisotropy = gl.getMaxAnisotropy();
     return {
       cover: coverTexture(songs[index], index, anisotropy),
       left: pageSurface(anisotropy),

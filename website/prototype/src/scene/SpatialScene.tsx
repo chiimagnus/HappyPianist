@@ -12,9 +12,9 @@ import {
   REVISION,
   SRGBColorSpace,
   type Camera,
-  type WebGLRenderer,
   Vector3,
 } from 'three';
+import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReviewView } from '../reviewFixtures.ts';
 import type { PrototypeEvent, PrototypeState } from '../model.ts';
@@ -90,7 +90,7 @@ function OrbitRig({ view, controlsRef }: Pick<SpatialSceneProps, 'view'> & {
 export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
   function SpatialScene({ view, state, dispatch, operationsElement }, ref) {
     const cameraRef = useRef<Camera | null>(null);
-    const rendererRef = useRef<WebGLRenderer | null>(null);
+    const rendererRef = useRef<WebGPURenderer | null>(null);
     const booksRef = useRef(new Map<number, BookHandle>());
     const pianoRef = useRef<PianoSceneHandle>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
@@ -116,6 +116,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           rendererOutputColorSpace: renderer?.outputColorSpace ?? '',
           rendererToneMapping: renderer?.toneMapping ?? null,
           rendererToneMappingExposure: renderer?.toneMappingExposure ?? 0,
+          rendererBackend: renderer?.backend.constructor.name,
           reviewView: view,
           visibleBooks: [...booksRef.current.values()].filter((item) => item.root.visible).length,
           selectedBookUUID: book?.root.uuid,
@@ -139,10 +140,18 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           far: 12,
           position: viewPositions.front,
         }}
-        gl={{ antialias: true }}
+        gl={async (defaults) => {
+          const renderer = new WebGPURenderer({
+            canvas: defaults.canvas as HTMLCanvasElement,
+            antialias: true,
+            powerPreference: 'high-performance',
+          });
+          await renderer.init();
+          return renderer;
+        }}
         onCreated={({ camera, gl }) => {
           cameraRef.current = camera;
-          rendererRef.current = gl;
+          rendererRef.current = gl as unknown as WebGPURenderer;
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = PCFShadowMap;
           gl.outputColorSpace = SRGBColorSpace;

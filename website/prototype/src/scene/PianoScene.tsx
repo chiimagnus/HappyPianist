@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { DoubleSide, MeshStandardMaterial, type Group } from 'three';
+import type { WebGPURenderer } from 'three/webgpu';
 import type { PrototypeState } from '../model.ts';
 import { canvasTexture } from './bookTextures.ts';
 
@@ -21,7 +22,7 @@ export interface PianoSceneHandle {
 
 export const PianoScene = forwardRef<PianoSceneHandle, { state: PrototypeState }>(
   function PianoScene({ state }, ref) {
-    const { gl } = useThree();
+    const gl = useThree((store) => store.gl as unknown as WebGPURenderer);
     const pianoRef = useRef<Group>(null);
     const companionRef = useRef<Group>(null);
     const guideRef = useRef<Group>(null);
@@ -41,7 +42,7 @@ export const PianoScene = forwardRef<PianoSceneHandle, { state: PrototypeState }
       context.fillStyle = '#466552';
       context.textAlign = 'center';
       context.fillText(side < 0 ? 'A0' : 'C8', 128, 67);
-      return canvasTexture(canvas, gl.capabilities.getMaxAnisotropy());
+      return canvasTexture(canvas, gl.getMaxAnisotropy());
     }), [gl]);
 
     useEffect(() => () => {
