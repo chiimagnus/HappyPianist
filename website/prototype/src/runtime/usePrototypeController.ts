@@ -21,7 +21,6 @@ const cancelableKeyboardStages: readonly Stage[] = [
 
 interface PrototypeReviewBridge {
   snapshot: () => PrototypeState & Record<string, unknown>;
-  dispatch: (event: PrototypeEvent) => void;
 }
 
 interface PrototypeControllerOptions {
@@ -171,7 +170,6 @@ export function usePrototypeController(
         ...structuredClone(stateRef.current),
         ...(options.reviewSnapshot?.() ?? {}),
       }),
-      dispatch,
     };
     return () => {
       delete window.prototypeReview;

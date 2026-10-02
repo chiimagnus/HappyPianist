@@ -42,17 +42,22 @@ export function SpatialOperations({ state, element, books }: SpatialOperationsPr
 
   useFrame(() => {
     const object = objectRef.current;
+    let focused: Element | null = null;
     if (object !== null) {
       const auxiliary = ['entry', 'entry-error', 'opening', 'manager'].includes(state.stage);
       object.visible = !auxiliary;
       const owner = ['empty', 'library-error'].includes(state.stage)
         ? emptyRef.current : books.get(state.selected)?.root;
-      if (owner && object.parent !== owner) owner.add(object);
+      if (owner && object.parent !== owner) {
+        focused = element.contains(document.activeElement) ? document.activeElement : null;
+        owner.add(object);
+      }
       object.position.set(state.session ? 0.60 : state.stage === 'library' ? width / 2 : 0,
         state.stage === 'detail' ? 0 : state.session ? -0.02 : -height / 2 - 0.17, 0.045);
     }
     gl.render(scene, camera);
     rendererRef.current?.render(scene, camera);
+    if (focused instanceof HTMLElement) focused.focus({ preventScroll: true });
   }, 1);
 
   return <group ref={emptyRef} position={[0, 1.45, 0]} />;
