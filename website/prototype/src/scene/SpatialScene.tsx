@@ -4,6 +4,7 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  type RefObject,
 } from 'react';
 import {
   ACESFilmicToneMapping,
@@ -32,6 +33,7 @@ const viewPositions: Readonly<Record<ReviewView, readonly [number, number, numbe
 
 export interface SpatialSceneHandle {
   snapshot: () => Record<string, unknown>;
+  setView: (view: ReviewView) => void;
 }
 
 interface SpatialSceneProps {
@@ -41,9 +43,21 @@ interface SpatialSceneProps {
   operationsElement: HTMLDivElement;
 }
 
-function OrbitRig({ view }: Pick<SpatialSceneProps, 'view'>) {
+function applyView(camera: Camera, controls: OrbitControls | null, view: ReviewView) {
+  if (controls) {
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
+  }
+  camera.position.set(...viewPositions[view]);
+  controls?.target.set(0, 1.25, 0);
+  controls?.update();
+}
+
+function OrbitRig({ view, controlsRef }: Pick<SpatialSceneProps, 'view'> & {
+  controlsRef: RefObject<OrbitControls | null>;
+}) {
   const { camera, gl } = useThree();
-  const controlsRef = useRef<OrbitControls | null>(null);
 
   useEffect(() => {
     const controls = new OrbitControls(camera, gl.domElement);
@@ -60,14 +74,11 @@ function OrbitRig({ view }: Pick<SpatialSceneProps, 'view'>) {
       controls.dispose();
       controlsRef.current = null;
     };
-  }, [camera, gl]);
+  }, [camera, gl, controlsRef]);
 
   useEffect(() => {
-    const position = viewPositions[view];
-    camera.position.set(...position);
-    controlsRef.current?.target.set(0, 1.25, 0);
-    controlsRef.current?.update();
-  }, [camera, view]);
+    applyView(camera, controlsRef.current, view);
+  }, [camera, view, controlsRef]);
 
   useFrame(() => {
     controlsRef.current?.update();
@@ -82,8 +93,12 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
     const rendererRef = useRef<WebGLRenderer | null>(null);
     const booksRef = useRef(new Map<number, BookHandle>());
     const pianoRef = useRef<PianoSceneHandle>(null);
+    const controlsRef = useRef<OrbitControls | null>(null);
 
     useImperativeHandle(ref, () => ({
+      setView: (requestedView) => {
+        if (cameraRef.current) applyView(cameraRef.current, controlsRef.current, requestedView);
+      },
       snapshot: () => {
         const camera = cameraRef.current;
         const renderer = rendererRef.current;
@@ -161,7 +176,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           material-transparent
           material-opacity={0.2}
         />
-        <OrbitRig view={view} />
+        <OrbitRig view={view} controlsRef={controlsRef} />
         <BookFlow state={state} dispatch={dispatch} books={booksRef.current} />
         <PianoScene ref={pianoRef} state={state} />
         <SpatialOperations state={state} element={operationsElement} books={booksRef.current} />

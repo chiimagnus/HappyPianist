@@ -71,7 +71,10 @@ function PrototypeRuntime({
       viewport={<SpatialScene ref={sceneRef} view={view} state={state} dispatch={dispatch} operationsElement={operationsElement} />}
       product={product}
       view={view}
-      onViewChange={onViewChange}
+      onViewChange={(requestedView) => {
+        onViewChange(requestedView);
+        sceneRef.current?.setView(requestedView);
+      }}
       review={(
         <ReviewPanel
           state={state}
