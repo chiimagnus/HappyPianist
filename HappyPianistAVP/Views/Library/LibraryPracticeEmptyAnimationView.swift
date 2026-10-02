@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct LibraryPracticeEmptyAnimationView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         ZStack {
             RadialGradient(
@@ -16,21 +14,21 @@ struct LibraryPracticeEmptyAnimationView: View {
                 endRadius: 138
             )
             .frame(width: 282, height: 228)
-            .phaseAnimator(reduceMotion ? [false] : [false, true]) { content, expanded in
+            .phaseAnimator([false, true]) { content, expanded in
                 content
                     .scaleEffect(expanded ? 1.04 : 0.96)
                     .opacity(expanded ? 1 : 0.72)
             } animation: { _ in
-                reduceMotion ? nil : .easeInOut(duration: 2.4)
+                .easeInOut(duration: 2.4)
             }
 
             LibraryPracticePianoKeyboardView()
                 .offset(y: 42)
-                .phaseAnimator(reduceMotion ? [false] : [false, true]) { content, raised in
+                .phaseAnimator([false, true]) { content, raised in
                     content
                         .offset(y: raised ? -3 : 2)
                 } animation: { _ in
-                    reduceMotion ? nil : .easeInOut(duration: 2.2)
+                    .easeInOut(duration: 2.2)
                 }
 
             LibraryPracticeFloatingNote(
@@ -58,7 +56,6 @@ struct LibraryPracticeEmptyAnimationView: View {
             )
         }
         .frame(height: 246)
-        .accessibilityHidden(true)
     }
 }
 
@@ -134,8 +131,6 @@ private struct LibraryPracticePianoKeyboardView: View {
 private struct LibraryPracticeWhiteKey: View {
     let index: Int
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         RoundedRectangle(cornerRadius: 6)
             .fill(
@@ -154,13 +149,12 @@ private struct LibraryPracticeWhiteKey: View {
                     .strokeBorder(.black.opacity(0.16), lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.08), radius: 2, y: 2)
-            .phaseAnimator(reduceMotion ? [false] : [false, true, false]) { content, pressed in
+            .phaseAnimator([false, true, false]) { content, pressed in
                 content
                     .offset(y: pressed ? 3 : 0)
                     .brightness(pressed ? -0.04 : 0)
             } animation: { phase in
-                guard reduceMotion == false else { return nil }
-                return .easeInOut(duration: phase ? 0.14 : 1.8).delay(Double(index) * 0.11)
+                .easeInOut(duration: phase ? 0.14 : 1.8).delay(Double(index) * 0.11)
             }
     }
 }
@@ -172,22 +166,20 @@ private struct LibraryPracticeFloatingNote: View {
     let lift: CGFloat
     let delay: TimeInterval
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         Image(systemName: systemImage)
             .font(.system(.title2, design: .rounded))
             .symbolRenderingMode(.hierarchical)
             .foregroundStyle(.tint)
             .offset(x: horizontalOffset, y: verticalOffset)
-            .phaseAnimator(reduceMotion ? [false] : [false, true]) { content, raised in
+            .phaseAnimator([false, true]) { content, raised in
                 content
                     .offset(y: raised ? -lift : lift / 3)
                     .rotationEffect(.degrees(raised ? 6 : -6))
                     .scaleEffect(raised ? 1.04 : 0.96)
                     .opacity(raised ? 1 : 0.72)
             } animation: { _ in
-                reduceMotion ? nil : .easeInOut(duration: 1.55).delay(delay)
+                .easeInOut(duration: 1.55).delay(delay)
             }
     }
 }

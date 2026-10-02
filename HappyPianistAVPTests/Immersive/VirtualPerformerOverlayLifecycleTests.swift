@@ -16,7 +16,6 @@ func virtualPerformerResetCancelsAndReleasesAllRuntimeResources() throws {
         isEnabled: true,
         isPerforming: false,
         keyboardGeometry: geometry,
-        reduceMotion: true,
         content: nil
     )
     #expect(controller.hasActiveRuntimeResources)

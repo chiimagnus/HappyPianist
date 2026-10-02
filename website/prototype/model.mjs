@@ -27,7 +27,7 @@ export function initialState() {
     range: [1, totalMeasures], teachingBeat: 0, feedback: 'observed',
     offset: [0, 0, 0], editing: false, editStart: [0, 0, 0],
     destination: 'library', resumeStage: 'practice', fault: '', message: '',
-    search: '', reduced: false, largeText: false,
+    search: '',
   };
 }
 
@@ -324,12 +324,6 @@ export function transition(previous, event) {
       break;
     case 'retry-library':
       if (['empty', 'library-error'].includes(stage)) state.stage = 'library';
-      break;
-    case 'reduced':
-      state.reduced = Boolean(event.value);
-      break;
-    case 'large-text':
-      state.largeText = Boolean(event.value);
       break;
   }
   return state;

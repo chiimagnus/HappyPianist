@@ -10,7 +10,6 @@ struct LibraryRecordCarousel: View {
     let selectedEntryID: UUID?
     let playingEntryID: UUID?
     let isPlaying: Bool
-    let reduceMotion: Bool
     let allowsDestructiveActions: Bool
     let onSelectEntry: (UUID) -> Void
     let onTogglePlayback: (UUID) -> Void
@@ -22,7 +21,6 @@ struct LibraryRecordCarousel: View {
         selectedEntryID: UUID?,
         playingEntryID: UUID?,
         isPlaying: Bool,
-        reduceMotion: Bool,
         allowsDestructiveActions: Bool,
         onSelectEntry: @escaping (UUID) -> Void,
         onTogglePlayback: @escaping (UUID) -> Void,
@@ -33,7 +31,6 @@ struct LibraryRecordCarousel: View {
         self.selectedEntryID = selectedEntryID
         self.playingEntryID = playingEntryID
         self.isPlaying = isPlaying
-        self.reduceMotion = reduceMotion
         self.allowsDestructiveActions = allowsDestructiveActions
         self.onSelectEntry = onSelectEntry
         self.onTogglePlayback = onTogglePlayback
@@ -84,7 +81,6 @@ struct LibraryRecordCarousel: View {
                             selectedEntryID: selectedEntryID,
                             playingEntryID: playingEntryID,
                             isPlaying: isPlaying,
-                            reduceMotion: reduceMotion,
                             verticalOffset: downwardDragOffset - liftOffset,
                             crateWidth: crateWidth,
                             onTap: handleRecordTap
@@ -103,7 +99,7 @@ struct LibraryRecordCarousel: View {
                 commitSettledScrollSelection()
             }
 
-            TurntableTonearmView(isPlaying: isPlaying, reduceMotion: reduceMotion)
+            TurntableTonearmView(isPlaying: isPlaying)
                 .zIndex(30)
 
             VStack {
@@ -114,7 +110,6 @@ struct LibraryRecordCarousel: View {
                     .padding(.bottom, 54)
             }
             .zIndex(35)
-            .accessibilityHidden(true)
         }
         .frame(
             maxWidth: .infinity,
@@ -164,27 +159,6 @@ struct LibraryRecordCarousel: View {
         .onAppear {
             synchronizeScrollTarget(with: selectedEntryID)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("唱片架，左右滚动选曲")
-        .accessibilityAction(named: "删除曲目") {
-            guard let selectedEntry,
-                  selectedEntry.isBundled != true,
-                  allowsDestructiveActions
-            else {
-                return
-            }
-            onImmediateDelete(selectedEntry.id)
-        }
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                select(index: selectedIndex + 1)
-            case .decrement:
-                select(index: selectedIndex - 1)
-            @unknown default:
-                break
-            }
-        }
         .clipped()
     }
 
@@ -216,7 +190,7 @@ struct LibraryRecordCarousel: View {
                     onImportMusicXML()
                 }
 
-                withAnimation(reduceMotion ? nil : Self.animation) {
+                withAnimation(Self.animation) {
                     liftOffset = 0
                     downwardDragOffset = 0
                 }
@@ -261,13 +235,8 @@ struct LibraryRecordCarousel: View {
         }
     }
 
-    private func select(index: Int) {
-        guard entries.indices.contains(index) else { return }
-        select(entryID: entries[index].id)
-    }
-
     private func select(entryID: UUID) {
-        withAnimation(reduceMotion ? nil : Self.animation) {
+        withAnimation(Self.animation) {
             scrollTargetID = entryID
         }
         onSelectEntry(entryID)
@@ -290,7 +259,7 @@ struct LibraryRecordCarousel: View {
             return
         }
         guard scrollTargetID != entryID else { return }
-        withAnimation(reduceMotion ? nil : Self.animation) {
+        withAnimation(Self.animation) {
             scrollTargetID = entryID
         }
     }
@@ -302,7 +271,6 @@ private struct LibraryRecordScrollItemView: View {
     let selectedEntryID: UUID?
     let playingEntryID: UUID?
     let isPlaying: Bool
-    let reduceMotion: Bool
     let verticalOffset: CGFloat
     let crateWidth: CGFloat
     let onTap: (UUID) -> Void
@@ -321,8 +289,7 @@ private struct LibraryRecordScrollItemView: View {
         } label: {
             VinylRecordView(
                 labelColor: trackPresentation.labelColor,
-                isPlaying: isSelected && playingEntryID == entry.id && isPlaying,
-                reduceMotion: reduceMotion
+                isPlaying: isSelected && playingEntryID == entry.id && isPlaying
             )
         }
         .buttonStyle(.plain)
@@ -344,9 +311,6 @@ private struct LibraryRecordScrollItemView: View {
         }
         .offset(y: isSelected ? verticalOffset : 0)
         .zIndex(isSelected ? 1 : 0)
-        .accessibilityLabel(trackPresentation.title)
-        .accessibilityHint(isSelected ? "播放或暂停当前曲目" : "选中这首曲目")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -391,7 +355,6 @@ enum LibraryRecordScrollSelectionDecision {
         selectedEntryID: LibraryCratePreviewFixture.entries[1].id,
         playingEntryID: LibraryCratePreviewFixture.entries[1].id,
         isPlaying: true,
-        reduceMotion: false,
         allowsDestructiveActions: true,
         onSelectEntry: { _ in },
         onTogglePlayback: { _ in },

@@ -49,10 +49,9 @@ final class PianoDemonstrationHandsOverlayController {
         motionClipSet: PianoDemonstrationMotionClipSet?,
         timing: PianoDemonstrationHandsTiming,
         keyboardGeometry: PianoKeyboardGeometry?,
-        reduceMotion: Bool,
         content: RealityViewContent?
     ) -> Set<Int> {
-        guard requiresReplacement == false, isEnabled, reduceMotion == false,
+        guard requiresReplacement == false, isEnabled,
               let keyboardGeometry,
               let motionClipSet
         else {

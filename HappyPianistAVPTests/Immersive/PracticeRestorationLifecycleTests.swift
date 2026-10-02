@@ -8,7 +8,7 @@ import Testing
 func restorationRendererIgnoresSummaryEvents() {
     let renderer = PracticeRestorationEffectRenderer()
     let parent = Entity()
-    renderer.update(event: nil, parent: parent, reduceMotion: false)
+    renderer.update(event: nil, parent: parent)
     #expect(parent.children.isEmpty)
 }
 
@@ -21,7 +21,7 @@ func restorationResetCannotBeRevivedByCancelledTask() async {
         sourceMeasureID: nil,
         kind: .measurePitchStepsStable
     )
-    renderer.update(event: event, parent: parent, reduceMotion: true)
+    renderer.update(event: event, parent: parent)
     renderer.reset()
     await Task.yield()
     #expect(parent.children.isEmpty)
@@ -36,8 +36,8 @@ func clearingFeedbackEventRemovesRestorationEffect() async {
         sourceMeasureID: nil,
         kind: .measurePitchStepsStable
     )
-    renderer.update(event: event, parent: parent, reduceMotion: false)
-    renderer.update(event: nil, parent: parent, reduceMotion: false)
+    renderer.update(event: event, parent: parent)
+    renderer.update(event: nil, parent: parent)
     await Task.yield()
     #expect(parent.children.isEmpty)
 }

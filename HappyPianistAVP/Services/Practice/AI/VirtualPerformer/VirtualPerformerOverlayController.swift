@@ -46,7 +46,6 @@ final class VirtualPerformerOverlayController {
 
     private let lateralMotionResolver: any VirtualPerformerLateralMotionResolving = DefaultVirtualPerformerLateralMotionResolver()
     private let gaitResolver: any VirtualPerformerGaitResolving = DefaultVirtualPerformerGaitResolver()
-    private var reduceMotionEnabled = false
 
     init(
         keyEntityFactory: PianoKeyEntityFactory = PianoKeyEntityFactory(),
@@ -178,12 +177,9 @@ final class VirtualPerformerOverlayController {
         isEnabled: Bool,
         isPerforming: Bool,
         keyboardGeometry: PianoKeyboardGeometry?,
-        reduceMotion: Bool,
         performanceSchedule: [PracticeSequencerMIDIEvent] = [],
         content: RealityViewContent?
     ) {
-        let didEnableReduceMotion = reduceMotion && reduceMotionEnabled == false
-        reduceMotionEnabled = reduceMotion
         if hasAttachedRoot == false, let content {
             content.add(rootEntity)
             hasAttachedRoot = true
@@ -196,35 +192,12 @@ final class VirtualPerformerOverlayController {
 
         showPerformer(geometry: keyboardGeometry)
 
-        if didEnableReduceMotion {
-            headNodTask?.cancel()
-            headNodTask = nil
-            xiaochengNodAngleRadians = 0
-            stopHandAnimation()
-            latestSchedule = []
-            resetArmsToRest(animated: false)
-        }
-
         if wasPerforming != isPerforming {
-            if reduceMotion {
-                headNodTask?.cancel()
-                headNodTask = nil
-                xiaochengNodAngleRadians = 0
-                resetArmsToRest(animated: false)
-            } else {
-                animateHead(isPerforming: isPerforming)
-            }
+            animateHead(isPerforming: isPerforming)
             wasPerforming = isPerforming
         }
 
-        // Drive hand/pose animation from the schedule itself, not from `isPerforming`.
-        // Reduce Motion keeps the performer static instead of merely shortening the animation.
-        if reduceMotion {
-            stopHandAnimation()
-            latestSchedule = []
-        } else {
-            updateHandAnimationIfNeeded(schedule: performanceSchedule)
-        }
+        updateHandAnimationIfNeeded(schedule: performanceSchedule)
     }
 
     private func showPerformer(geometry: PianoKeyboardGeometry) {
@@ -298,7 +271,7 @@ final class VirtualPerformerOverlayController {
             )
         }
 
-        if let xiaochengRig, reduceMotionEnabled == false, shouldAnimateGait() {
+        if let xiaochengRig, shouldAnimateGait() {
             startArmMixerIfNeeded(rig: xiaochengRig)
         }
 
@@ -377,9 +350,7 @@ final class VirtualPerformerOverlayController {
         let nowUptime = ProcessInfo.processInfo.systemUptime
         latestLateralTargetMIDINote = resolveLateralTargetMIDINote(nowUptimeSeconds: nowUptime)
 
-        let desired: Float = if reduceMotionEnabled {
-            0
-        } else if let keyboardLayout = keyboardLayout(for: keyboardGeometry) {
+        let desired: Float = if let keyboardLayout = keyboardLayout(for: keyboardGeometry) {
             lateralMotionResolver.desiredLateralOffsetMeters(
                 keyboardLayout: keyboardLayout,
                 activeMIDINote: latestLateralTargetMIDINote

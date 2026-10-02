@@ -12,28 +12,26 @@
   </script>
 </head>
 <body>
-  <a class="skip" href="#product">跳到当前操作</a>
-  <div id="viewport" role="img" aria-label="三维空间设计预览；等价操作见当前操作区"></div>
+  <div id="viewport"></div>
   <header>
     <div><span class="eyebrow">HAPPY PIANIST / SPATIAL STUDY</span><h1>空间里的同一本书</h1></div>
     <span class="badge">交互设计原型 · 非正式 App</span>
   </header>
-  <nav id="views" aria-label="评审镜头，非产品控件">
-    <button data-view="front" aria-pressed="true">正视</button>
-    <button data-view="oblique" aria-pressed="false">斜视</button>
-    <button data-view="side" aria-pressed="false">侧视</button>
-    <button data-view="top" aria-pressed="false">俯视</button>
+  <nav id="views">
+    <button data-view="front" class="selected">正视</button>
+    <button data-view="oblique">斜视</button>
+    <button data-view="side">侧视</button>
+    <button data-view="top">俯视</button>
   </nav>
-  <div id="scene-caption" aria-hidden="true"></div>
-  <section id="product" aria-label="当前产品操作" tabindex="-1">
+  <div id="scene-caption"></div>
+  <section id="product">
     <div class="kicker" id="stage-label"></div>
     <h2 id="product-title"></h2>
     <p id="product-copy"></p>
-    <p id="message" role="status"></p>
+    <p id="message"></p>
     <div id="actions"></div>
     <div id="search-results"></div>
   </section>
-  <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <footer>
     <span id="simulation">曲谱、设备、演奏、手部、保存均为模拟 · 不读写 App 数据</span>
     <span class="hint">拖动空白处观察空间 · 滚轮缩放</span>
@@ -58,15 +56,13 @@
             <option value="suspend">系统中断</option>
           </select>
         </label>
-        <label class="check"><input type="checkbox" id="reduced">减少动态效果</label>
-        <label class="check"><input type="checkbox" id="large-text">放大操作文字</label>
         <button id="reset-demo">重走完整流程</button>
       </div>
       <p id="review-state"></p>
       <a href="../boards/index.html">打开静态设计板与分镜</a>
     </div>
   </details>
-  <div id="load-error" role="alert" hidden></div>
+  <div id="load-error" hidden></div>
   <script type="module">
     import('./app.mjs').catch(() => {
       const error = document.querySelector('#load-error');

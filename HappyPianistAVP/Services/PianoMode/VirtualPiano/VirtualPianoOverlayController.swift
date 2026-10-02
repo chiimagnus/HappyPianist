@@ -16,7 +16,6 @@ final class VirtualPianoOverlayController {
     func update(
         isEnabled: Bool,
         keyboardGeometry: PianoKeyboardGeometry?,
-        reduceMotion: Bool,
         content: RealityViewContent?
     ) {
         if hasAttachedRoot == false, let content {
@@ -29,7 +28,7 @@ final class VirtualPianoOverlayController {
             return
         }
 
-        showKeyboard(geometry: keyboardGeometry, reduceMotion: reduceMotion)
+        showKeyboard(geometry: keyboardGeometry)
     }
 
     func reset() {
@@ -38,7 +37,7 @@ final class VirtualPianoOverlayController {
         hasAttachedRoot = false
     }
 
-    private func showKeyboard(geometry: PianoKeyboardGeometry, reduceMotion: Bool) {
+    private func showKeyboard(geometry: PianoKeyboardGeometry) {
         guard keyboardRootEntity == nil else { return }
 
         let totalLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters
@@ -90,7 +89,7 @@ final class VirtualPianoOverlayController {
         rootEntity.addChild(kbRoot)
         keyboardRootEntity = kbRoot
 
-        animateKeyboardIn(kbRoot, reduceMotion: reduceMotion)
+        animateKeyboardIn(kbRoot)
     }
 
     private func clearKeyboard() {
@@ -98,12 +97,7 @@ final class VirtualPianoOverlayController {
         keyboardRootEntity = nil
     }
 
-    private func animateKeyboardIn(_ keyboardRoot: Entity, reduceMotion: Bool) {
-        if reduceMotion {
-            keyboardRoot.transform.scale = .one
-            return
-        }
-
+    private func animateKeyboardIn(_ keyboardRoot: Entity) {
         #if targetEnvironment(simulator)
             // RealityKit's `move(to:)` animation does not reliably interpolate scale in the simulator.
             // If we keep a near-zero X scale here, all 88 keys collapse into a single white+black stack.

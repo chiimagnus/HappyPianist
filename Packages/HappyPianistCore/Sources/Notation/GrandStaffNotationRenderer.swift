@@ -4,26 +4,20 @@ import Practice
 
 struct GrandStaffNotationRenderer {
     private let displayScale: CGFloat
-    private let differentiateWithoutColor: Bool
     private let engravingMetrics = GrandStaffEngravingMetrics()
     private let chordLayoutService = GrandStaffChordLayoutService()
 
-    init(displayScale: CGFloat = 1, differentiateWithoutColor: Bool = false) {
+    init(displayScale: CGFloat = 1) {
         self.displayScale = displayScale
-        self.differentiateWithoutColor = differentiateWithoutColor
     }
 
     func draw(
         presentation: GrandStaffNotationPresentation,
         in context: GraphicsContext,
-        displayScale: CGFloat,
-        differentiateWithoutColor: Bool = false
+        displayScale: CGFloat
     ) {
-        let renderer = GrandStaffNotationRenderer(
-            displayScale: displayScale,
-            differentiateWithoutColor: differentiateWithoutColor
-        )
-        renderer.drawInternal(presentation, in: context)
+        GrandStaffNotationRenderer(displayScale: displayScale)
+            .drawInternal(presentation, in: context)
     }
 
     private func drawInternal(
@@ -844,16 +838,6 @@ struct GrandStaffNotationRenderer {
                     )
                 }
             }
-            if rest.isHighlighted, differentiateWithoutColor {
-                drawHighlightIndicator(
-                    at: CGPoint(
-                        x: layout.xPosition(rest.xPosition),
-                        y: layout.yPosition(staffStep: rest.staffStep, staffNumber: rest.staffNumber)
-                    ),
-                    in: context,
-                    layout: layout
-                )
-            }
         }
     }
 
@@ -1086,10 +1070,6 @@ struct GrandStaffNotationRenderer {
             in: context,
             layout: layout
         )
-        if item.isHighlighted, differentiateWithoutColor {
-            drawHighlightIndicator(at: CGPoint(x: x, y: y), in: context, layout: layout)
-        }
-
         if let accidentalToken = item.displayedAccidental?.glyphToken,
            let accidentalXOffset = item.accidentalXOffsetStaffSpaces
         {
@@ -1127,30 +1107,6 @@ struct GrandStaffNotationRenderer {
                 )
             }
         }
-    }
-
-    private func drawHighlightIndicator(
-        at center: CGPoint,
-        in context: GraphicsContext,
-        layout: GrandStaffNotationViewportLayoutService.Layout
-    ) {
-        // ponytail: one outline serves every glyph; add glyph-specific shapes only if VoiceOver testing finds ambiguity.
-        let radius = layout.lineSpacing * 0.72
-        var path = Path()
-        path.move(to: CGPoint(x: center.x, y: center.y - radius))
-        path.addLine(to: CGPoint(x: center.x + radius, y: center.y))
-        path.addLine(to: CGPoint(x: center.x, y: center.y + radius))
-        path.addLine(to: CGPoint(x: center.x - radius, y: center.y))
-        path.closeSubpath()
-        context.stroke(
-            path,
-            with: .color(.primary.opacity(0.82)),
-            style: .init(
-                lineWidth: strokeWidth(0.12, layout: layout),
-                lineCap: .round,
-                lineJoin: .round
-            )
-        )
     }
 
     private func drawGlyph(

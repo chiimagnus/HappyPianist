@@ -3,7 +3,6 @@ import SwiftUI
 struct VinylRecordView: View {
     let labelColor: Color
     let isPlaying: Bool
-    let reduceMotion: Bool
 
     @State private var accumulatedRotationTime: TimeInterval = 0
     @State private var rotationStartedAt: Date?
@@ -12,7 +11,7 @@ struct VinylRecordView: View {
         TimelineView(.animation(minimumInterval: 1 / 30, paused: rotationStartedAt == nil)) { context in
             let activeElapsed = rotationStartedAt.map { max(0, context.date.timeIntervalSince($0)) } ?? 0
             let elapsed = accumulatedRotationTime + activeElapsed
-            let angle = reduceMotion ? 0 : elapsed.truncatingRemainder(dividingBy: 14) / 14 * 360
+            let angle = elapsed.truncatingRemainder(dividingBy: 14) / 14 * 360
 
             ZStack {
                 Circle()
@@ -101,14 +100,10 @@ struct VinylRecordView: View {
         .onChange(of: isPlaying) {
             updateRotationState()
         }
-        .onChange(of: reduceMotion) {
-            updateRotationState()
-        }
-        .accessibilityHidden(true)
     }
 
     private func updateRotationState() {
-        if isPlaying, reduceMotion == false {
+        if isPlaying {
             if rotationStartedAt == nil {
                 rotationStartedAt = .now
             }
@@ -123,7 +118,7 @@ struct VinylRecordView: View {
 }
 
 #Preview("黑胶唱片") {
-    VinylRecordView(labelColor: .accentColor, isPlaying: false, reduceMotion: false)
+    VinylRecordView(labelColor: .accentColor, isPlaying: false)
 }
 
 enum LibraryRecordLayout {

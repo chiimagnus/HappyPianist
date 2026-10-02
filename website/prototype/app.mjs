@@ -64,7 +64,6 @@ scene.add(grid);
 const width = 0.32;
 const height = 0.43;
 let state = initialState();
-state.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let delayed;
 let ticker;
 let currentBoard = 'D01';
@@ -364,11 +363,11 @@ function setView(view) {
   camera.position.fromArray(positions[view] || positions.front);
   orbit.target.copy(target);
   orbit.update();
-  document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+  document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('selected', button.dataset.view === view));
 }
 setView('front');
 
-function button(label, type, value, style = '', disabled = false, extra = '') {
+function button(label, type, value, style = '', disabled = false) {
   const help = state.stage === 'detail' ? {
     'page:-1': disabled ? '已经是第一组书页' : '翻到上一组书页，不改变练习进度',
     'page:1': disabled ? '已经是最后一组书页' : '翻到下一组书页，不改变练习进度',
@@ -378,7 +377,7 @@ function button(label, type, value, style = '', disabled = false, extra = '') {
     'return:library': '合拢这本谱，返回空间曲库；不会退出 3D',
     'listen:undefined': state.audition ? '停止模拟试听状态；本原型没有真实音频' : '查看模拟试听状态；本原型没有真实音频',
   }[`${type}:${value}`] : undefined;
-  return `<button data-action="${type}"${value === undefined ? '' : ` data-value="${value}"`} class="${style}"${help ? ` data-help="${help}"` : ''}${disabled ? ' disabled' : ''}${extra}>${label}</button>`;
+  return `<button data-action="${type}"${value === undefined ? '' : ` data-value="${value}"`} class="${style}"${help ? ` data-help="${help}"` : ''}${disabled ? ' disabled' : ''}>${label}</button>`;
 }
 
 function row(content) { return `<div class="row">${content}</div>`; }
@@ -423,7 +422,6 @@ function updateUI() {
   document.querySelector('#product-copy').textContent = copy;
   document.querySelector('#message').textContent = state.message;
   product.dataset.stage = state.stage;
-  document.body.classList.toggle('large-text', state.largeText);
   let content = '';
   const back = button('合拢回曲库', 'return', 'library');
   const cancel = button('取消，保留原书', 'cancel');
@@ -442,7 +440,7 @@ function updateUI() {
     case 'loading': content = cancel; break;
     case 'detail-error': content = button('重试打开', 'open', undefined, 'primary') + button('合拢回曲库', 'cancel'); break;
     case 'detail':
-      content = button('↙', 'page', -1, 'page-corner previous', state.spread === 0, ' aria-label="上一组书页"') + button('↘', 'page', 1, 'page-corner next', state.spread === 2, ' aria-label="下一组书页"');
+      content = button('↙', 'page', -1, 'page-corner previous', state.spread === 0) + button('↘', 'page', 1, 'page-corner next', state.spread === 2);
       content += button('从头练习', 'start', 'begin', 'practice-bookmark');
       content += button('上次停在第 9 小节 · 模拟<br><span>继续上次进度 →</span>', 'start', 'resume', 'history-mark');
       if (state.spread === 0) content += button('练习<br>9–12<span>模拟</span>', 'start', 'focus', 'range-mark');
@@ -456,7 +454,7 @@ function updateUI() {
     case 'handoff': content = '<span class="kicker">同一书册连续移动中…</span>'; break;
     case 'practice':
       if (state.editing) {
-        content = row(button('←', 'move-x', -0.02, '', false, ' aria-label="谱向左移动"') + button('→', 'move-x', 0.02, '', false, ' aria-label="谱向右移动"') + button('↑', 'move-y', 0.02, '', false, ' aria-label="谱向上移动"') + button('↓', 'move-y', -0.02, '', false, ' aria-label="谱向下移动"') + button('近一点', 'move-z', 0.02) + button('远一点', 'move-z', -0.02));
+        content = row(button('←', 'move-x', -0.02) + button('→', 'move-x', 0.02) + button('↑', 'move-y', 0.02) + button('↓', 'move-y', -0.02) + button('近一点', 'move-z', 0.02) + button('远一点', 'move-z', -0.02));
         content += row(button('完成调整', 'edit-done', undefined, 'primary') + button('取消调整', 'edit-cancel') + button('重置谱位', 'reset-position'));
       } else {
         content = row(button(state.paused ? '继续练习' : '暂停', 'play', undefined, 'primary') + button(state.controls ? '收起控制' : '唤出控制', 'controls') + button('保存回库', 'return', 'library'));
@@ -464,7 +462,7 @@ function updateUI() {
           content += row(button(state.recording ? '停止录音（模拟）' : '录音（模拟）', 'record', undefined, '', state.companion !== 'off') + button(state.metronome ? '关闭节拍' : '节拍（模拟）', 'metronome') + button('调整谱位', 'edit'));
           content += row(button('示范一次', 'companion', 'teaching') + button(state.companion === 'duet' ? '停止陪弹' : '开启陪弹', 'companion', state.companion === 'duet' ? 'off' : 'duet') + button(state.loop ? '取消循环范围' : '循环第 9–16 小节', 'loop'));
           content += row(button('辅助设置', 'settings') + button('本轮完成（模拟）', 'finish') + button('保存退出 3D', 'return', '2d'));
-          content += `<div class="row"><label for="seek">明确跳练小节 · ${state.measure}</label><input id="seek" type="range" min="${state.range[0]}" max="${state.range[1]}" value="${state.measure}" aria-label="跳练小节"></div>`;
+          content += `<div class="row"><label for="seek">明确跳练小节 · ${state.measure}</label><input id="seek" type="range" min="${state.range[0]}" max="${state.range[1]}" value="${state.measure}"></div>`;
         }
         if (state.companion !== 'off') content += row(button('停止伙伴动作', 'companion', 'off') + (state.companion === 'duet' ? button(state.yielding ? '恢复陪弹参与（模拟）' : '陪弹退让（模拟）', 'yield') : ''));
       }
@@ -489,8 +487,6 @@ function updateUI() {
     if (!results.children.length) results.textContent = '没有匹配的演示曲目。';
   }
   document.querySelector('#review-state').textContent = `演练状态：${state.stage} / 小节 ${state.measure} / 未保存 ${state.dirty ? '是' : '否'} / 进度 ${state.progressSaved ? '成功' : '未完成'} / 会话 ${state.factsSaved ? '成功' : '未完成'}。仅内存账本。`;
-  document.querySelector('#reduced').checked = state.reduced;
-  document.querySelector('#large-text').checked = state.largeText;
   const caption = state.stage === 'library' ? '独立薄书册 · 真实深度 · 世界固定示意' : state.session ? '同一本谱 · 琴上阅读\n灰色琴为现实乐器占位；手部与反馈为模拟' : ['detail', 'input', 'ready', 'a0', 'c8'].includes(state.stage) ? '同一书册展开 · 双页与轻书脊' : '';
   document.querySelector('#scene-caption').textContent = caption;
   const auxiliary = ['entry', 'entry-error', 'opening', 'manager'].includes(state.stage);
@@ -535,7 +531,7 @@ function updatePages(previous) {
   const key = `${state.selected}:${state.spread}:${state.measure}:${state.stage}:${state.feedback}:${state.session}`;
   if (key === scoreKey) return;
   scoreKey = key;
-  if (folio.spread !== state.spread && previous.stage === state.stage && !state.reduced && Math.abs(folio.spread - state.spread) === 1 && !folio.flip) {
+  if (folio.spread !== state.spread && previous.stage === state.stage && Math.abs(folio.spread - state.spread) === 1 && !folio.flip) {
     const forward = state.spread > folio.spread;
     paintPage(folio.leafFront, (forward ? folio.spread : state.spread) * 2 + 2);
     paintPage(folio.leafBack, (forward ? state.spread : folio.spread) * 2 + 1);
@@ -576,9 +572,8 @@ function dispatch(event) {
   updatePages(previous);
   updateUI();
   schedule();
-  if (previous.stage !== state.stage) {
-    document.querySelector('#announcer').textContent = document.querySelector('#product-title').textContent;
-    if (focusWasInProduct && !product.contains(document.activeElement) && !actions.contains(document.activeElement)) actions.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+  if (previous.stage !== state.stage && focusWasInProduct && !product.contains(document.activeElement) && !actions.contains(document.activeElement)) {
+    actions.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
   }
 }
 
@@ -587,14 +582,14 @@ function loadBoard(id) {
   clearInterval(ticker);
   ticker = undefined;
   const previous = state;
-  state = { ...boardState(id), reduced: state.reduced, largeText: state.largeText };
+  state = boardState(id);
   currentBoard = id;
   scoreKey = '';
   folios.forEach(folio => { folio.flip = null; folio.leaf.visible = false; });
   updatePages(previous);
   updateUI();
   schedule();
-  document.querySelectorAll('[data-board]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.board === id)));
+  document.querySelectorAll('[data-board]').forEach(button => button.classList.toggle('selected', button.dataset.board === id));
 }
 
 function injectCase(value) {
@@ -635,11 +630,9 @@ actions.addEventListener('change', event => {
   if (event.target.id === 'seek') dispatch({ type: 'seek', value: Number(event.target.value) });
 });
 document.querySelector('#views').addEventListener('click', event => { if (event.target.dataset.view) setView(event.target.dataset.view); });
-document.querySelector('#board-buttons').innerHTML = boards.map(([id, label]) => `<button data-board="${id}" aria-pressed="${id === currentBoard}">${id}<br>${label}</button>`).join('');
+document.querySelector('#board-buttons').innerHTML = boards.map(([id, label]) => `<button data-board="${id}" class="${id === currentBoard ? 'selected' : ''}">${id}<br>${label}</button>`).join('');
 document.querySelector('#board-buttons').addEventListener('click', event => { if (event.target.closest('[data-board]')) loadBoard(event.target.closest('[data-board]').dataset.board); });
 document.querySelector('#fault-case').addEventListener('change', event => { if (event.target.value) injectCase(event.target.value); });
-document.querySelector('#reduced').addEventListener('change', event => dispatch({ type: 'reduced', value: event.target.checked }));
-document.querySelector('#large-text').addEventListener('change', event => dispatch({ type: 'large-text', value: event.target.checked }));
 document.querySelector('#reset-demo').addEventListener('click', () => { loadBoard('D01'); setView('front'); });
 document.addEventListener('keydown', event => {
   if (event.target.matches('input,select,textarea') || event.altKey || event.metaKey || event.ctrlKey) return;
@@ -681,7 +674,7 @@ renderer.domElement.addEventListener('pointerup', event => {
 function renderFrame(now) {
   const delta = Math.min((now - previousFrame) / 1000, 0.05);
   previousFrame = now;
-  const amount = state.reduced ? 1 : 1 - Math.exp(-delta * 9);
+  const amount = 1 - Math.exp(-delta * 9);
   const isLibrary = state.stage === 'library';
   const hidden = ['entry', 'entry-error', 'opening', 'empty', 'library-error', 'manager'].includes(state.stage);
   const unfolded = !['library', 'loading', 'detail-error'].includes(state.stage);
@@ -700,7 +693,6 @@ function renderFrame(now) {
     folio.root.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), amount);
     folio.root.rotation.y = THREE.MathUtils.lerp(folio.root.rotation.y, isLibrary ? -Math.sign(distance) * Math.min(Math.abs(distance) * 0.5, 0.85) : 0, amount);
     folio.root.rotation.x = THREE.MathUtils.lerp(folio.root.rotation.x, onPiano ? -0.13 : 0, amount);
-    if (folio.flip && state.reduced) { folio.flip = null; folio.leaf.visible = false; paintPage(folio.left, state.spread * 2 + 1); paintPage(folio.right, state.spread * 2 + 2); }
     if (folio.flip) {
       folio.flip.progress = Math.min(1, folio.flip.progress + delta / 0.8);
       const eased = folio.flip.progress * folio.flip.progress * (3 - 2 * folio.flip.progress);
@@ -728,12 +720,12 @@ function renderFrame(now) {
   endpoints.children[1].visible = ['c8', 'ready'].includes(state.stage);
   const visibleHands = state.stage === 'practice' && state.ready && !state.paused && !state.editing && state.companion !== 'off' && !state.yielding;
   companion.visible = visibleHands;
-  guides.visible = state.stage === 'practice' && state.ready && !state.editing && (!visibleHands || state.reduced);
+  guides.visible = state.stage === 'practice' && state.ready && !state.editing && !visibleHands;
   for (const [index, item] of hands.entries()) {
-    const motionTime = state.reduced ? 0 : now / 1000;
+    const motionTime = now / 1000;
     item.hand.position.x = item.side * 0.17 + Math.sin(motionTime * 0.9 + index) * 0.028;
     item.hand.position.y = 0.795 + Math.sin(motionTime * 2 + index) * 0.007;
-    for (const [finger, object] of item.fingers.entries()) object.rotation.x = state.reduced ? 0 : Math.sin(motionTime * 3 + finger * 1.5) * 0.12;
+    for (const [finger, object] of item.fingers.entries()) object.rotation.x = Math.sin(motionTime * 3 + finger * 1.5) * 0.12;
   }
   orbit.update();
   if (['entry', 'entry-error', 'opening', 'manager'].includes(state.stage)) {

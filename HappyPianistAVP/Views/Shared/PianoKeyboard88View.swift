@@ -96,7 +96,6 @@ struct PianoKeyboard88View: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .clipShape(.rect(cornerRadius: 12))
-        .accessibilityLabel("88 键钢琴")
     }
 
     private func whiteKeyFillColor(midiNote _: Int, highlight: PianoKeyboard88Highlight?) -> Color {

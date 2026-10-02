@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TurntableTonearmView: View {
     let isPlaying: Bool
-    let reduceMotion: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -95,7 +94,7 @@ struct TurntableTonearmView: View {
                 x: TonearmGeometry.pivotX - TonearmGeometry.length / 2,
                 y: TonearmGeometry.pivotY
             )
-            .animation(reduceMotion ? nil : TonearmGeometry.animation, value: isPlaying)
+            .animation(TonearmGeometry.animation, value: isPlaying)
         }
         .frame(
             width: LibraryRecordLayout.referenceDiameter,
@@ -109,7 +108,6 @@ struct TurntableTonearmView: View {
             alignment: .topLeading
         )
         .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 
@@ -123,5 +121,5 @@ private enum TonearmGeometry {
 }
 
 #Preview("播放中的唱臂") {
-    TurntableTonearmView(isPlaying: true, reduceMotion: false)
+    TurntableTonearmView(isPlaying: true)
 }

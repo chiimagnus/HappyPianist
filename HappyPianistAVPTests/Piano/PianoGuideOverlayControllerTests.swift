@@ -20,7 +20,6 @@ struct PianoGuideOverlayControllerTests {
             suppressedMIDINotes: [60],
             highlightGuide: nil,
             keyboardGeometry: PianoKeyboardGeometry(frame: frame, keys: []),
-            differentiateWithoutColor: false,
             content: nil
         )
 
@@ -58,7 +57,6 @@ struct PianoGuideOverlayControllerTests {
             suppressedMIDINotes: [60, 64],
             highlightGuide: guide,
             keyboardGeometry: geometry,
-            differentiateWithoutColor: false,
             content: nil
         )
         #expect(keyboardRoot.children.count == 1)
@@ -68,7 +66,6 @@ struct PianoGuideOverlayControllerTests {
             suppressedMIDINotes: [],
             highlightGuide: guide,
             keyboardGeometry: geometry,
-            differentiateWithoutColor: false,
             content: nil
         )
         #expect(keyboardRoot.children.count == 3)
