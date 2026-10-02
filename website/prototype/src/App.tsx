@@ -1,8 +1,11 @@
 import { Canvas } from '@react-three/fiber';
+import { usePrototypeController } from './runtime/usePrototypeController.ts';
 
 export function App() {
+  const { state } = usePrototypeController();
+
   return (
-    <main style={{ width: '100vw', height: '100vh' }}>
+    <main data-stage={state.stage} style={{ width: '100vw', height: '100vh' }}>
       <Canvas camera={{ position: [0, 0.4, 2.4], fov: 45 }}>
         <color attach="background" args={['#e9e5df']} />
         <ambientLight intensity={1.2} />
