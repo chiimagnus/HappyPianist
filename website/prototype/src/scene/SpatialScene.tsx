@@ -7,7 +7,7 @@ import {
 } from 'react';
 import {
   ACESFilmicToneMapping,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   REVISION,
   SRGBColorSpace,
   type Camera,
@@ -117,7 +117,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
     return (
       <Canvas
         dpr={[1, 2]}
-        shadows
+        shadows={{ type: PCFShadowMap }}
         camera={{
           fov: 43,
           near: 0.02,
@@ -129,7 +129,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           cameraRef.current = camera;
           rendererRef.current = gl;
           gl.shadowMap.enabled = true;
-          gl.shadowMap.type = PCFSoftShadowMap;
+          gl.shadowMap.type = PCFShadowMap;
           gl.outputColorSpace = SRGBColorSpace;
           gl.toneMapping = ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.12;

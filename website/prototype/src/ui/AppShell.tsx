@@ -57,7 +57,6 @@ export function AppShell({
         <span className="hint">拖动空白处观察空间 · 滚轮缩放</span>
       </footer>
       {review}
-      <div id="load-error" hidden />
     </>
   );
 }

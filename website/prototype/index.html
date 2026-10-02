@@ -6,68 +6,15 @@
   <meta name="color-scheme" content="light">
   <title>空间书册 · HappyPianist 设计原型</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css">
-  <script type="importmap">
-    {"imports":{"three":"./vendor/three.module.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","three/addons/renderers/CSS3DRenderer.js":"./vendor/CSS3DRenderer.js"}}
-  </script>
 </head>
 <body>
-  <div id="viewport"></div>
-  <header>
-    <div><span class="eyebrow">HAPPY PIANIST / SPATIAL STUDY</span><h1>空间里的同一本书</h1></div>
-    <span class="badge">交互设计原型 · 非正式 App</span>
-  </header>
-  <nav id="views">
-    <button data-view="front" class="selected">正视</button>
-    <button data-view="oblique">斜视</button>
-    <button data-view="side">侧视</button>
-    <button data-view="top">俯视</button>
-  </nav>
-  <div id="scene-caption"></div>
-  <section id="product">
-    <div class="kicker" id="stage-label"></div>
-    <h2 id="product-title"></h2>
-    <p id="product-copy"></p>
-    <p id="message"></p>
-    <div id="actions"></div>
-    <div id="search-results"></div>
-  </section>
-  <footer>
-    <span id="simulation">曲谱、设备、演奏、手部、保存均为模拟 · 不读写 App 数据</span>
-    <span class="hint">拖动空白处观察空间 · 滚轮缩放</span>
-  </footer>
-  <details id="review">
-    <summary>评审工具 · 全流程 / 异常 <span>非产品 UI</span></summary>
-    <div class="review-body">
-      <div id="review-explanation"><strong>当前流程说明 · 评审专用</strong></div>
-      <div class="review-heading"><strong>十组设计板</strong><small>跳转会重建演示状态；主流程请使用书旁按钮。</small></div>
-      <div id="board-buttons"></div>
-      <div class="review-options">
-        <label>故障演练
-          <select id="fault-case">
-            <option value="">选择一个可恢复的异常…</option>
-            <option value="entry">进入失败</option><option value="busy">原会话占用</option>
-            <option value="empty">曲库为空</option><option value="library-error">曲库加载失败</option>
-            <option value="score">曲谱加载失败</option><option value="permission">音频权限拒绝</option>
-            <option value="midi">MIDI 连接失败</option><option value="calibration">钢琴定位无效</option>
-            <option value="tracking">追踪丢失 / 重定位失败</option><option value="rig">伙伴手不可用</option>
-            <option value="ai">陪弹生成失败</option><option value="unknown">证据不足</option>
-            <option value="progress">进度保存失败</option><option value="facts">会话事实保存失败</option>
-            <option value="suspend">系统中断</option>
-          </select>
-        </label>
-        <button id="reset-demo">重走完整流程</button>
-      </div>
-      <p id="review-state"></p>
-      <a href="../boards/index.html">打开静态设计板与分镜</a>
-    </div>
-  </details>
-  <div id="load-error" hidden></div>
+  <div id="app"></div>
+  <div id="startup-error" class="load-error" role="alert" hidden></div>
   <script type="module">
-    import('./app.mjs').catch(() => {
-      const error = document.querySelector('#load-error');
+    import('./src/main.tsx').catch(() => {
+      const error = document.querySelector('#startup-error');
       error.hidden = false;
-      error.textContent = '原型未能启动。请通过说明中的本地 HTTP 地址打开，并确认浏览器支持 WebGL 2；不要直接双击 HTML。';
+      error.textContent = '原型未能启动。请通过设计说明中的本地 Vite 地址打开，不要直接双击 HTML。';
     });
   </script>
 </body>
