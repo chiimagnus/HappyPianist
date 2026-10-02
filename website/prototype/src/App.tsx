@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { FaultCase, PrototypeState } from './model.ts';
 import {
   boardForFault,
+  boards,
   boardState,
   faultState,
   type BoardID,
@@ -78,7 +79,7 @@ function PrototypeRuntime({
 
 export function App() {
   const [route, setRoute] = useState<ReviewRoute>({
-    board: 'D01',
+    board: boards.find(([id]) => id === new URLSearchParams(location.search).get('board'))?.[0] ?? 'D01',
     revision: 0,
   });
   const seed = route.fault === undefined

@@ -66,7 +66,7 @@ export function ReviewPanel({
         <p id="review-state">
           演练状态：{state.stage} / 小节 {state.measure} / 未保存 {state.dirty ? '是' : '否'} / 进度 {state.progressSaved ? '成功' : '未完成'} / 会话 {state.factsSaved ? '成功' : '未完成'}。仅内存账本。
         </p>
-        <a href="../boards/index.html">打开静态设计板与分镜</a>
+        <a href="http://127.0.0.1:8765/.github/features/spatial-score-book-flow/design/boards/">打开静态设计板与分镜</a>
       </div>
     </details>
   );
