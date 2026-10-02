@@ -39,6 +39,12 @@ function PrototypeRuntime({
   view,
   onViewChange,
 }: PrototypeRuntimeProps) {
+  const [operationsElement] = useState(() => {
+    const element = document.createElement('div');
+    element.id = 'spatial-operations';
+    return element;
+  });
+  const [reviewElement, setReviewElement] = useState<HTMLDivElement | null>(null);
   const sceneRef = useRef<SpatialSceneHandle>(null);
   const reviewSnapshot = useCallback(
     () => sceneRef.current?.snapshot() ?? {},
@@ -54,14 +60,16 @@ function PrototypeRuntime({
       state={state}
       dispatch={dispatch}
       reviewOnly={!auxiliary}
+      reviewElement={reviewElement}
+      operationsElement={operationsElement}
     />
   );
 
   return (
     <AppShell
       state={state}
-      viewport={<SpatialScene ref={sceneRef} view={view} />}
-      product={auxiliary ? product : null}
+      viewport={<SpatialScene ref={sceneRef} view={view} state={state} dispatch={dispatch} operationsElement={operationsElement} />}
+      product={product}
       view={view}
       onViewChange={onViewChange}
       review={(
@@ -71,9 +79,8 @@ function PrototypeRuntime({
           onLoadBoard={onLoadBoard}
           onInjectFault={onInjectFault}
           onReset={onReset}
-        >
-          {auxiliary ? null : product}
-        </ReviewPanel>
+          explanationRef={setReviewElement}
+        />
       )}
     />
   );

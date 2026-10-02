@@ -12,9 +12,15 @@ import {
   SRGBColorSpace,
   type Camera,
   type WebGLRenderer,
+  Vector3,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReviewView } from '../reviewFixtures.ts';
+import type { PrototypeEvent, PrototypeState } from '../model.ts';
+import { BookFlow } from './BookFlow.tsx';
+import { SpatialOperations } from './SpatialOperations.tsx';
+import type { BookHandle } from './ScoreBook.tsx';
+import { width } from './bookTextures.ts';
 
 const viewPositions: Readonly<Record<ReviewView, readonly [number, number, number]>> = {
   front: [0, 1.46, 1.75],
@@ -29,6 +35,9 @@ export interface SpatialSceneHandle {
 
 interface SpatialSceneProps {
   view: ReviewView;
+  state: PrototypeState;
+  dispatch: (event: PrototypeEvent) => void;
+  operationsElement: HTMLDivElement;
 }
 
 function OrbitRig({ view }: Pick<SpatialSceneProps, 'view'>) {
@@ -67,14 +76,19 @@ function OrbitRig({ view }: Pick<SpatialSceneProps, 'view'>) {
 }
 
 export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
-  function SpatialScene({ view }, ref) {
+  function SpatialScene({ view, state, dispatch, operationsElement }, ref) {
     const cameraRef = useRef<Camera | null>(null);
     const rendererRef = useRef<WebGLRenderer | null>(null);
+    const booksRef = useRef(new Map<number, BookHandle>());
 
     useImperativeHandle(ref, () => ({
       snapshot: () => {
         const camera = cameraRef.current;
         const renderer = rendererRef.current;
+        const book = booksRef.current.get(state.selected);
+        const center = book && camera
+          ? book.root.localToWorld(new Vector3(width / 2, 0, 0.02)).project(camera) : null;
+        const operations = book?.root.children.find((child) => child.userData.operations);
         return {
           threeRevision: REVISION,
           cameraPosition: camera?.position.toArray() ?? [],
@@ -85,9 +99,16 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           rendererToneMapping: renderer?.toneMapping ?? null,
           rendererToneMappingExposure: renderer?.toneMappingExposure ?? 0,
           reviewView: view,
+          visibleBooks: [...booksRef.current.values()].filter((item) => item.root.visible).length,
+          selectedBookUUID: book?.root.uuid,
+          bookPosition: book?.root.position.toArray(),
+          openAngle: book?.hinge.rotation.y,
+          selectedBookScreen: center ? [(center.x + 1) * innerWidth / 2, (1 - center.y) * innerHeight / 2] : [],
+          controlsWorldMatrix: operations?.matrixWorld.toArray(),
+          controlsCSSTransform: operationsElement.style.transform,
         };
       },
-    }), [view]);
+    }), [view, state.selected, operationsElement]);
 
     return (
       <Canvas
@@ -137,6 +158,8 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           material-opacity={0.2}
         />
         <OrbitRig view={view} />
+        <BookFlow state={state} dispatch={dispatch} books={booksRef.current} />
+        <SpatialOperations state={state} element={operationsElement} books={booksRef.current} />
       </Canvas>
     );
   },

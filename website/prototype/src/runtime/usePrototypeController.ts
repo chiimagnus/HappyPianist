@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 import {
   initialState as makeInitialState,
   transition,
@@ -38,12 +38,23 @@ export function usePrototypeController(
   seed?: PrototypeState,
   options: PrototypeControllerOptions = {},
 ) {
-  const [state, dispatch] = useReducer(transition, seed ?? makeInitialState());
+  const [state, reduceEvent] = useReducer(transition, seed ?? makeInitialState());
+  const focusWasInProduct = useRef(false);
+  const dispatch = useCallback((event: PrototypeEvent) => {
+    focusWasInProduct.current = Boolean(document.activeElement?.closest('#actions, #product'));
+    reduceEvent(event);
+  }, []);
   const stateRef = useRef(state);
   const delayedRef = useRef<number | undefined>(undefined);
   const tickerRef = useRef<number | undefined>(undefined);
   stateRef.current = state;
 
+  useLayoutEffect(() => {
+    if (focusWasInProduct.current && !document.activeElement?.closest('#actions, #product')) {
+      document.querySelector<HTMLButtonElement>('#actions button:not(:disabled)')?.focus({ preventScroll: true });
+    }
+    focusWasInProduct.current = false;
+  }, [state]);
 
   const clearDelayed = useCallback(() => {
     if (delayedRef.current === undefined) return;
@@ -95,7 +106,7 @@ export function usePrototypeController(
     } else if (!advancing) {
       clearTicker();
     }
-  }, [clearDelayed, clearTicker]);
+  }, [clearDelayed, clearTicker, dispatch]);
 
   useEffect(() => {
     schedule(state);
@@ -151,7 +162,7 @@ export function usePrototypeController(
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [clearDelayed, clearTicker, schedule]);
+  }, [clearDelayed, clearTicker, schedule, dispatch]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

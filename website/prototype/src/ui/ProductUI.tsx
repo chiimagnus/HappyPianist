@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   pageCount,
   songs,
@@ -11,6 +12,8 @@ interface ProductUIProps {
   state: PrototypeState;
   dispatch: (event: PrototypeEvent) => void;
   reviewOnly: boolean;
+  reviewElement: HTMLDivElement | null;
+  operationsElement: HTMLDivElement;
 }
 
 interface ActionButtonProps {
@@ -150,7 +153,7 @@ function stageText(state: PrototypeState): readonly [string, string, string] {
   }
 }
 
-function ProductActions({ state, dispatch }: Omit<ProductUIProps, 'reviewOnly'>) {
+function ProductActions({ state, dispatch }: Pick<ProductUIProps, 'state' | 'dispatch'>) {
   const button = (
     label: ReactNode,
     action: string,
@@ -404,8 +407,7 @@ function ProductActions({ state, dispatch }: Omit<ProductUIProps, 'reviewOnly'>)
   }
 }
 
-export function ProductUI({ state, dispatch, reviewOnly }: ProductUIProps) {
-  const [label, title, copy] = stageText(state);
+function Actions({ state, dispatch }: Pick<ProductUIProps, 'state' | 'dispatch'>) {
   const query = state.stage === 'library' ? state.search.trim().toLocaleLowerCase() : '';
   const matches = query
     ? songs.map((song, index) => ({ song, index })).filter(({ song }) => (
@@ -414,16 +416,7 @@ export function ProductUI({ state, dispatch, reviewOnly }: ProductUIProps) {
     : [];
 
   return (
-    <section
-      id="product"
-      className={reviewOnly ? 'review-only' : undefined}
-      data-stage={state.stage}
-      style={reviewOnly ? undefined : { left: '50%', top: 'max(150px, 34vh)' }}
-    >
-      <div className="kicker" id="stage-label">{label}</div>
-      <h2 id="product-title">{title}</h2>
-      <p id="product-copy">{copy}</p>
-      <p id="message">{state.message}</p>
+    <>
       <div id="actions"><ProductActions state={state} dispatch={dispatch} /></div>
       <div id="search-results">
         {query && matches.length === 0 ? '没有匹配的演示曲目。' : null}
@@ -439,6 +432,46 @@ export function ProductUI({ state, dispatch, reviewOnly }: ProductUIProps) {
           />
         ))}
       </div>
+    </>
+  );
+}
+
+function spatialStatus(state: PrototypeState): string {
+  const status: Partial<Record<PrototypeState['stage'], string>> = {
+    loading: '正在打开…', 'detail-error': '曲谱未能打开',
+    empty: '还没有曲谱', 'library-error': '曲库读取失败', input: '选择钢琴输入（模拟）',
+    permission: '允许钢琴音频（模拟）', midi: '连接 MIDI 钢琴（模拟）',
+    ready: '准备完成（模拟）', handoff: '同一本谱，移到琴上',
+    result: state.feedback === 'unknown' ? '证据不足，暂不评价' : '第 9–12 小节 · 放慢速度完成一次（模拟）',
+    saving: state.progressSaved ? '正在完成会话保存…' : '正在保存进度…',
+    'discard-confirm': '只放弃未保存部分；已保存内容保留',
+    relocalize: '先重新确认钢琴位置', suspended: '已暂停，恢复后先重新定位', settings: '辅助设置（模拟）',
+  };
+  return [status[state.stage], state.message].filter(Boolean).join('\n');
+}
+
+export function ProductUI({ state, dispatch, reviewOnly, reviewElement, operationsElement }: ProductUIProps) {
+  const [label, title, copy] = stageText(state);
+  useLayoutEffect(() => {
+    operationsElement.dataset.stage = state.stage;
+  }, [operationsElement, state.stage]);
+  const product = (
+    <section id="product" className={reviewOnly ? 'review-only' : undefined}
+      data-stage={state.stage} style={reviewOnly ? undefined : { left: '50%', top: 'max(150px, 34vh)' }}>
+      <div className="kicker" id="stage-label">{label}</div>
+      <h2 id="product-title">{title}</h2>
+      <p id="product-copy">{copy}</p>
+      <p id="message">{state.message}</p>
+      {reviewOnly ? null : <Actions state={state} dispatch={dispatch} />}
     </section>
+  );
+  return (
+    <>
+      {reviewOnly && reviewElement ? createPortal(product, reviewElement) : product}
+      {reviewOnly ? createPortal(
+        <><div id="spatial-status">{spatialStatus(state)}</div><Actions state={state} dispatch={dispatch} /></>,
+        operationsElement,
+      ) : null}
+    </>
   );
 }
