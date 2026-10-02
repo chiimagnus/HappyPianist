@@ -15,6 +15,7 @@ import {
   Vector3,
 } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
+import { output, rangeFogFactor, vec4 } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReviewView } from '../reviewFixtures.ts';
 import type { PrototypeEvent, PrototypeState } from '../model.ts';
@@ -144,12 +145,13 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           const renderer = new WebGPURenderer({
             canvas: defaults.canvas as HTMLCanvasElement,
             antialias: true,
+            alpha: true,
             powerPreference: 'high-performance',
           });
           await renderer.init();
           return renderer;
         }}
-        onCreated={({ camera, gl }) => {
+        onCreated={({ camera, gl, scene }) => {
           cameraRef.current = camera;
           rendererRef.current = gl as unknown as WebGPURenderer;
           gl.shadowMap.enabled = true;
@@ -157,10 +159,9 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
           gl.outputColorSpace = SRGBColorSpace;
           gl.toneMapping = ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.12;
+          scene.fogNode = vec4(output.rgb, output.a.mul(rangeFogFactor(4, 9).oneMinus()));
         }}
       >
-        <color attach="background" args={['#e9e5df']} />
-        <fog attach="fog" args={['#e9e5df', 4, 9]} />
         <hemisphereLight args={['#ffffff', '#ada994', 2.2]} />
         <directionalLight
           color="#fff5e2"
@@ -177,7 +178,7 @@ export const SpatialScene = forwardRef<SpatialSceneHandle, SpatialSceneProps>(
         />
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[20, 20]} />
-          <meshStandardMaterial color="#dedbd2" roughness={1} />
+          <meshStandardMaterial color="#dedbd2" roughness={1} transparent />
         </mesh>
         <gridHelper
           args={[8, 32, '#c4c8be', '#d2d5cb']}
