@@ -14,4 +14,4 @@ HappyPianist 由 visionOS host、共享 Swift 核心、RealityKit 资产和可�
 | 持久化与隐私边界 | [storage.md](storage.md) |
 | 自动化、真机与人工证据 | [testing.md](testing.md) |
 
-正式练习只从 MusicXML（`.musicxml`、`.xml`、`.mxl`）准备；输入可来自麦克风、蓝牙 MIDI 或空间虚拟钢琴。专业能力状态由[质量边界](piano-performance-quality.md)的证据门决定，不能从实现或 Simulator 自动化单独推导。
+正式练习只从 MusicXML（`.musicxml`、`.xml`、`.mxl`）准备；输入可来自麦克风、蓝牙 MIDI 或空间虚拟钢琴。虚拟钢琴既支持真实 fingertip contact，也支持 visionOS 系统空间点击（gaze + pinch）直接发声；空间点击不伪造手别、指法或接触证据。专业能力状态由[质量边界](piano-performance-quality.md)的证据门决定，不能从实现或 Simulator 自动化单独推导。
