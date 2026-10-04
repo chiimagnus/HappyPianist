@@ -49,6 +49,7 @@ private final class FakeKeyContactDetector: KeyContactDetectingProtocol {
 @MainActor
 private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var commands: [[PracticePlaybackCommand]] = []
+    private(set) var oneShots: [([PracticePlaybackCommand], TimeInterval)] = []
 
     func warmUp() throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
@@ -58,7 +59,9 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
         0
     }
 
-    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
+    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds: TimeInterval) throws {
+        oneShots.append((commands, durationSeconds))
+    }
     func execute(commands: [PracticePlaybackCommand]) throws {
         self.commands.append(commands)
     }
@@ -143,6 +146,60 @@ private func midiNote(in command: PracticePlaybackCommand) -> Int? {
 
 private func sourceEventPrefix(for hand: TrackedHandSide) -> String {
     "hand-\(hand.rawValue)-"
+}
+
+@Test
+@MainActor
+func virtualPianoGestureTapPlaysOneShotWithoutFabricatingContactEvidence() async throws {
+    let store = PracticeSessionHostState()
+    let sequencer = FakeSequencerPlaybackService()
+    let controller = VirtualPianoInputController(
+        detector: FakeKeyContactDetector(resultToReturn: []),
+        sequencerPlaybackService: sequencer,
+        stateStore: store,
+        handGateController: PracticeHandGateController(
+            activityGate: HandPianoActivityGate(),
+            chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+            stateStore: store,
+            effectHandler: CapturingEffectHandler()
+        )
+    )
+
+    controller.handleGestureTap(midiNote: 60)
+    await controller.waitForPendingPlayback()
+
+    let oneShot = try #require(sequencer.oneShots.first)
+    #expect(oneShot.1 == 0.35)
+    #expect(oneShot.0.count == 1)
+    #expect(oneShot.0[0].sourceEventID.hasPrefix("virtual-piano-gesture-60-"))
+    #expect(oneShot.0[0].kind == .noteOn(midi: 60, velocity: 90))
+    #expect(store.latestKeyContactObservations.isEmpty)
+    #expect(store.pressedNotes.isEmpty)
+    #expect(store.latestNoteOnMIDINotes.isEmpty)
+}
+
+@Test
+@MainActor
+func virtualPianoGestureTapIsSuppressedDuringAutoplay() async {
+    let store = PracticeSessionHostState()
+    store.autoplayState = .playing
+    let sequencer = FakeSequencerPlaybackService()
+    let controller = VirtualPianoInputController(
+        detector: FakeKeyContactDetector(resultToReturn: []),
+        sequencerPlaybackService: sequencer,
+        stateStore: store,
+        handGateController: PracticeHandGateController(
+            activityGate: HandPianoActivityGate(),
+            chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+            stateStore: store,
+            effectHandler: CapturingEffectHandler()
+        )
+    )
+
+    controller.handleGestureTap(midiNote: 60)
+    await controller.waitForPendingPlayback()
+
+    #expect(sequencer.oneShots.isEmpty)
 }
 
 @Test

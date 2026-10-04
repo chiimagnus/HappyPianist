@@ -17,12 +17,16 @@ extension RealPianoContactDetectionService: KeyContactDetectingProtocol {}
 
 @MainActor
 final class VirtualPianoInputController {
+    private static let gestureVelocity: UInt8 = 90
+    private static let gestureDurationSeconds: TimeInterval = 0.35
+
     private let detector: any KeyContactDetectingProtocol
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let stateStore: PracticeSessionHostState
     private let handGateController: PracticeHandGateController
     private var playbackTask: Task<Void, Never>?
     private var soundingContactByMIDINote: [Int: PianoKeyContactID] = [:]
+    private var gestureSequence: UInt64 = 0
     private var hasShutdown = false
 
     init(
@@ -99,6 +103,33 @@ final class VirtualPianoInputController {
         )
 
         return activeMIDINotes
+    }
+
+    func handleGestureTap(midiNote: Int) {
+        guard hasShutdown == false,
+              (0 ... 127).contains(midiNote),
+              stateStore.autoplayState == .off,
+              stateStore.isManualReplayPlaying == false
+        else { return }
+
+        gestureSequence &+= 1
+        let command = PracticePlaybackCommand(
+            sourceEventID: "virtual-piano-gesture-\(midiNote)-\(gestureSequence)",
+            kind: .noteOn(midi: midiNote, velocity: Self.gestureVelocity)
+        )
+        let previousPlaybackTask = playbackTask
+        let sequencerPlaybackService = sequencerPlaybackService
+        playbackTask = Task {
+            await previousPlaybackTask?.value
+            do {
+                try await sequencerPlaybackService.playOneShot(
+                    commands: [command],
+                    durationSeconds: Self.gestureDurationSeconds
+                )
+            } catch {
+                stateStore.recordPlaybackError(error)
+            }
+        }
     }
 
     func waitForPendingPlayback() async {

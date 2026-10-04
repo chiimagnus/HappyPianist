@@ -3,6 +3,10 @@ import simd
 import Practice
 
 extension PracticeSessionViewModel {
+    func handleVirtualPianoGestureTap(midiNote: Int) {
+        virtualPianoInputController?.handleGestureTap(midiNote: midiNote)
+    }
+
     func handleFingerTipPositions(
         _ fingerTips: FingerTipsSnapshot,
         isVirtualPiano: Bool = false,

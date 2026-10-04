@@ -52,6 +52,14 @@ struct ImmersiveView: View {
         } update: { content in
             updateOverlays(content: content)
         }
+        .gesture(
+            SpatialTapGesture()
+                .targetedToAnyEntity()
+                .onEnded { value in
+                    guard let midiNote = virtualPianoOverlayController.midiNote(for: value.entity) else { return }
+                    viewModel.practiceSessionViewModel.handleVirtualPianoGestureTap(midiNote: midiNote)
+                }
+        )
         .onAppear {
             updateDemonstrationHandsOverlayController()
             viewModel.onImmersiveAppear()

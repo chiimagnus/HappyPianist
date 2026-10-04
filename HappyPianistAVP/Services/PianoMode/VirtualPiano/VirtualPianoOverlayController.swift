@@ -8,6 +8,7 @@ final class VirtualPianoOverlayController {
     private var rootEntity = Entity()
     private var hasAttachedRoot = false
     private var keyboardRootEntity: Entity?
+    private var midiNoteByEntity: [ObjectIdentifier: Int] = [:]
 
     init(keyEntityFactory: PianoKeyEntityFactory = PianoKeyEntityFactory()) {
         self.keyEntityFactory = keyEntityFactory
@@ -35,6 +36,10 @@ final class VirtualPianoOverlayController {
         clearKeyboard()
         rootEntity.removeFromParent()
         hasAttachedRoot = false
+    }
+
+    func midiNote(for entity: Entity) -> Int? {
+        midiNoteByEntity[ObjectIdentifier(entity)]
     }
 
     private func showKeyboard(geometry: PianoKeyboardGeometry) {
@@ -81,6 +86,11 @@ final class VirtualPianoOverlayController {
 
         for key in geometry.keys {
             let keyEntity = keyEntityFactory.makeEntity(for: key)
+            keyEntity.components.set(CollisionComponent(shapes: [
+                .generateBox(size: key.localSize),
+            ]))
+            keyEntity.components.set(InputTargetComponent())
+            midiNoteByEntity[ObjectIdentifier(keyEntity)] = key.midiNote
             kbContent.addChild(keyEntity)
         }
 
@@ -95,6 +105,7 @@ final class VirtualPianoOverlayController {
     private func clearKeyboard() {
         keyboardRootEntity?.removeFromParent()
         keyboardRootEntity = nil
+        midiNoteByEntity.removeAll(keepingCapacity: true)
     }
 
     private func animateKeyboardIn(_ keyboardRoot: Entity) {
