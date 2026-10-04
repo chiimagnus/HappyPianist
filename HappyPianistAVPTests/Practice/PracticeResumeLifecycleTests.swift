@@ -600,7 +600,7 @@ private actor FailingRepairRepository: PracticeProgressRepositoryProtocol {
 }
 
 @MainActor
-private final class CapturingResumePlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class CapturingResumePlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var oneShotCount = 0
     private(set) var playCount = 0
     private let oneShotEvents: AsyncStream<Void>

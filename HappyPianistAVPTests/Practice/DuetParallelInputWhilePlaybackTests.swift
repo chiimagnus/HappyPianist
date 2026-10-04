@@ -175,7 +175,7 @@ private actor SuspendedQwenCompanionBackend: CompanionDecisionBackendProtocol {
 }
 
 @MainActor
-private final class HoldingTakeoverPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class HoldingTakeoverPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var warmUpCallCount = 0
     private(set) var loadCallCount = 0
     private(set) var playCallCount = 0
@@ -357,7 +357,7 @@ private actor TakeoverWarmUpGate {
 }
 
 @MainActor
-private final class PreparingTakeoverPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class PreparingTakeoverPlaybackService: TestPracticeSequencerPlaybackService {
     private let warmUpGate: TakeoverWarmUpGate
     private(set) var playCallCount = 0
 

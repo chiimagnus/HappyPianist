@@ -268,7 +268,7 @@ private final class HistoricalApplicationChordAccumulator: ChordAttemptAccumulat
     func reset() {}
 }
 
-private final class HistoricalApplicationPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class HistoricalApplicationPlaybackService: TestPracticeSequencerPlaybackService {
     func warmUp() throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
     func load(sequence _: PracticeSequencerSequence) throws {}

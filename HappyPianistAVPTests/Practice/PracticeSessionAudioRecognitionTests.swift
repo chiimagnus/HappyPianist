@@ -316,7 +316,7 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
 }
 
 @MainActor
-private final class CapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class CapturingSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var oneShots: [[Int]] = []
 
     func warmUp() async throws {}

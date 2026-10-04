@@ -463,7 +463,7 @@ private func makeTestKeyboardGeometry() -> PianoKeyboardGeometry {
 }
 
 @MainActor
-private final class LiveNoteCapturingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class LiveNoteCapturingPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var stopAllLiveNotesCount = 0
     private(set) var startedLiveNotes: Set<Int> = []
     private(set) var stoppedLiveNotes: Set<Int> = []

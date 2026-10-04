@@ -116,7 +116,7 @@ private struct EmptyPianoModeRegistry: PianoModeRegistryProtocol {
 }
 
 @MainActor
-private final class NoopSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class NoopSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     func warmUp() async throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) async {}
     func load(sequence _: PracticeSequencerSequence) async throws {}

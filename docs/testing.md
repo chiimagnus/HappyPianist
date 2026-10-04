@@ -40,7 +40,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 ### 示范手纯值 Gate
 
-`HandMotionCorpus/manifest.json` 覆盖音阶、琶音、密集和弦、重复音、大跳进、跨手和 pause/range 用例。`PianoHandMotionQualityTests` 对运行期同一纯值 clip builder 断言每个 fixture/occurrence 的 coverage、P95 接触残差不大于 5 mm、P95 时序误差不大于 50 ms、最大时序误差不大于 100 ms、单位四元数和无 collision 降级；builder 专属测试覆盖首击准备、held contact 与过渡约束。
+`HandMotionCorpus/manifest.json` 只描述音阶、琶音、密集和弦、重复音、大跳进、跨手和 pause/range 的音乐事件；空间位置与键面尺寸直接取生产 `VirtualPianoKeyGeometryService` 的完整 88 键几何，不维护第二套假键盘。`PianoHandMotionQualityTests` 对运行期同一纯值 clip builder 断言每个 fixture/occurrence 的 coverage、P95 接触残差不大于 5 mm、P95 时序误差不大于 50 ms、最大时序误差不大于 100 ms、单位四元数和无 collision 降级；builder 专属测试覆盖首击准备、held contact 与过渡约束。
 
 这只验证程序化 skeleton，不能证明 Blender 网格真机接触、遮挡、舒适度或音画同步；缺资产时回退键面贴片必须仍可见。
 
@@ -56,7 +56,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 | 证据 | 状态 | 不能替代 |
 | --- | --- | --- |
-| Simulator 自动化 suite | `failed`：2026-09-30，基于 `3ba1f4e`；visionOS 27.0 新建 Apple Vision Pro Simulator 上 1033 tests，1022 通过、11 失败、0 skipped。失败集中在 hand rig / hand motion / local sampler / demonstration hands；`make build:simulator` 通过 | 真机、听感、教师或教学证据 |
+| Simulator 自动化 suite | `passed`：2026-10-05；visionOS 27.0 Apple Vision Pro Simulator 上 1033/1033 tests 全部通过。教师手 builder 约束 Gate、HandMotion Corpus、transport restart 与虚拟钢琴手势路径均通过 | 真机、听感、教师或教学证据 |
 | Qwen / Companion 定向回归 | `passed`：2026-09-30；Qwen 已固定为本地 NF4 4-bit，Python Qwen/Stage A/service-E2E 定向回归 26/26；Stage A 固定 120 cases，延迟仅记录；服务级 E2E 固定 60 cases 双跑均为 0 action mismatch、11/11 Aria 生成成功、0 generation failure，生成 MIDI 均通过重解析与 note-on/off 配平；最新 visionOS Simulator 全量 suite 中 Qwen/Companion 相关测试无失败 | `settled_end` 语义质量缺口、Vision Pro 真实设备网络与产品 playback E2E |
 | Aria true-streaming P3 probe | `No-Go`：2026-09-30；P2 的 11 个 generating cases 上，oracle-compatible incremental decoder 与最终 `AbsTokenizer.detokenize()` 11/11 完全一致；first complete event median 75.9ms，但安全 `<T>` commit median 820.9ms，3/11 在 full completion 前没有安全 boundary；350ms 内安全 commit 仅 2/11，其中仅 1/11 含 note | 单个完整 token/event 不能替代安全 playable window；当前继续保留 HTTP full-response，不宣称产品实时 streaming |
 | 多 exporter 合法 fixture | `blocked evidence` | 内部 fixture、伪造 provenance、不明来源下载 |

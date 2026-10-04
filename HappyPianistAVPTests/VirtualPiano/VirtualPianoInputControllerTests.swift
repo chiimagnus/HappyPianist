@@ -47,7 +47,7 @@ private final class FakeKeyContactDetector: KeyContactDetectingProtocol {
 }
 
 @MainActor
-private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class FakeSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var commands: [[PracticePlaybackCommand]] = []
     private(set) var oneShots: [([PracticePlaybackCommand], TimeInterval)] = []
 

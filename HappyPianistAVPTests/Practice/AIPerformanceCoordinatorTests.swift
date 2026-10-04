@@ -225,7 +225,7 @@ private actor SequencedCandidateBackend: ImprovBackendProtocol {
 }
 
 @MainActor
-private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class FakeSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var warmUpCallCount = 0
     private(set) var stopCallCount = 0
     private(set) var loadCallCount = 0

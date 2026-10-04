@@ -67,7 +67,7 @@ func realScoreAutoplaySkipCancelsPendingEventsWithAllNotesOff() async throws {
 }
 
 @MainActor
-private final class RegressionCapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class RegressionCapturingSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var stopCount = 0
 
     func warmUp() async throws {}

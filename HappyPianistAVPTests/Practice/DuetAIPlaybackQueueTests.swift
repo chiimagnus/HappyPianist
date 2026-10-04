@@ -10,7 +10,7 @@ private enum DuetAIPlaybackQueueTestError: Error {
 }
 
 @MainActor
-private final class FakeImmediatePlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class FakeImmediatePlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var stopCallCount = 0
     private(set) var warmUpCallCount = 0
     private(set) var loadCallCount = 0
@@ -112,7 +112,7 @@ private actor PlaybackWarmUpGate {
     }
 }
 
-private actor GatedWarmUpPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private actor GatedWarmUpPlaybackService: TestPracticeSequencerPlaybackService {
     private let warmUpGate: PlaybackWarmUpGate
     private(set) var warmUpCallCount = 0
     private(set) var loadCallCount = 0
@@ -443,7 +443,7 @@ private final class PlaybackPhaseRecorder {
 }
 
 @MainActor
-private final class HoldingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class HoldingPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var stopCallCount = 0
     private(set) var playCallCount = 0
     private(set) var isPlaying = false
@@ -495,7 +495,7 @@ private actor PlaybackStartGate {
     }
 }
 
-private actor GatedPlayPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private actor GatedPlayPlaybackService: TestPracticeSequencerPlaybackService {
     private let gate: PlaybackStartGate
     private var stopCallCountValue = 0
     private var loadCallCountValue = 0

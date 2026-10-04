@@ -121,7 +121,7 @@ private final class ManualAdvanceNoopChordAttemptAccumulator: ChordAttemptAccumu
     func reset() {}
 }
 
-private final class ManualAdvanceNoopPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class ManualAdvanceNoopPlaybackService: TestPracticeSequencerPlaybackService {
     func warmUp() throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
     func load(sequence _: PracticeSequencerSequence) throws {}
