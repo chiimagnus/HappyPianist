@@ -1782,7 +1782,7 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
 }
 
 @MainActor
-private final class CapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class CapturingSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     struct OneShot: Equatable {
         let midiNotes: [Int]
         let velocities: [UInt8]
@@ -1832,7 +1832,7 @@ private final class CapturingSequencerPlaybackService: PracticeSequencerPlayback
     func stopAllLiveNotes() {}
 }
 
-private final class ThrowingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class ThrowingSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     func warmUp() throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
     func load(sequence _: PracticeSequencerSequence) throws {}

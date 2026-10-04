@@ -500,7 +500,7 @@ private actor LearningLoopRepository: PracticeProgressRepositoryProtocol {
 }
 
 @MainActor
-private final class LearningLoopPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class LearningLoopPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var oneShotCount = 0
     private(set) var playCount = 0
     func warmUp() throws {}

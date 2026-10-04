@@ -190,7 +190,7 @@ private struct PendingManualReplaySleeper: SleeperProtocol {
 }
 
 @MainActor
-private final class ManualReplaySequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class ManualReplaySequencerPlaybackService: TestPracticeSequencerPlaybackService {
     private let currentSecondsValue: TimeInterval
     private(set) var warmUpCount = 0
     private(set) var stopCount = 0

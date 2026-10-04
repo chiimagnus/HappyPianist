@@ -85,7 +85,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
 }
 
 @MainActor
-private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class NonAdvancingPlaybackService: TestPracticeSequencerPlaybackService {
     func warmUp() throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
     func load(sequence _: PracticeSequencerSequence) throws {}

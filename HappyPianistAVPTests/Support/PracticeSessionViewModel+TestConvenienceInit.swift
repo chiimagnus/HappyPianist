@@ -5,7 +5,9 @@ import MIDI
 import Practice
 @testable import HappyPianistAVP
 
-extension PracticeSequencerPlaybackServiceProtocol {
+protocol TestPracticeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {}
+
+extension TestPracticeSequencerPlaybackService {
     func pause() async {}
 
     func resume() async throws {}

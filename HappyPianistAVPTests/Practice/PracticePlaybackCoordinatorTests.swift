@@ -15,7 +15,7 @@ private final class CapturingPracticeSessionEffectHandler: PracticeSessionEffect
 }
 
 @MainActor
-private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+private final class FakeSequencerPlaybackService: TestPracticeSequencerPlaybackService {
     private(set) var warmUpCallCount = 0
     private(set) var stopCallCount = 0
     private(set) var resetCommandCalls: [[PerformanceTransportCommand]] = []

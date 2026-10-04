@@ -7,7 +7,7 @@ import Testing
 
 @Test
 func sequencerPlaybackServiceProtocolCarriesCanonicalCommandsAcrossActorBoundary() async throws {
-    actor FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    actor FakeSequencerPlaybackService: TestPracticeSequencerPlaybackService {
         private(set) var resetCommands: [PerformanceTransportCommand] = []
         private(set) var commands: [PracticePlaybackCommand] = []
 
