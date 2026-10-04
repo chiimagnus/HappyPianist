@@ -97,8 +97,8 @@ final class PianoDemonstrationHandRig {
 
         var transforms = restJointTransforms
         for index in transforms.indices {
-            transforms[index].rotation = simd_quatf(vector: frame.jointRotations[index])
-                * restJointTransforms[index].rotation
+            transforms[index].rotation = restJointTransforms[index].rotation
+                * simd_quatf(vector: frame.jointRotations[index])
         }
         modelEntity.jointTransforms = transforms
     }

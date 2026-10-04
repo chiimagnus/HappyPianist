@@ -280,20 +280,3 @@ private extension PianoFingeringKeyboardLayout {
         })
     }
 }
-
-private extension PianoHandMotionClipBuilder.KeyboardLayout {
-    init(keyboardGeometry: PianoKeyboardGeometry) {
-        self.init(keys: keyboardGeometry.keys.map {
-            .init(
-                midiNote: $0.midiNote,
-                contactPositionLocal: SIMD3<Float>(
-                    $0.localCenter.x,
-                    $0.surfaceLocalY,
-                    $0.localCenter.z
-                ),
-                surfaceLocalY: $0.surfaceLocalY,
-                topSurfaceSizeLocal: SIMD2($0.localSize.x, $0.localSize.z)
-            )
-        })
-    }
-}

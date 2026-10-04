@@ -13,7 +13,8 @@ func handMotionCorpusMeetsCoverageTimingAndContactGates() throws {
     var timingErrors: [TimeInterval] = []
 
     for fixture in corpus.cases {
-        let input = fixture.makeInput()
+        let preparedFixture = try fixture.makeInput()
+        let input = preparedFixture.input
         let result = try PianoHandMotionClipBuilder().build(input: input)
         let expectedOccurrenceIDs = Set(input.contacts.contacts.map(\.occurrenceID))
         let coverage = Set(result.clips.flatMap(\.coverage).map(\.occurrenceID))
@@ -36,7 +37,8 @@ func handMotionCorpusMeetsCoverageTimingAndContactGates() throws {
                 rootTransform: frame.rootTransform,
                 jointRotations: frame.jointRotations
             ), "fixture=\(fixture.id), occurrence=\(occurrenceID)")
-            contactErrors.append(simd_distance(try #require(joints.last), note.position))
+            let target = try #require(preparedFixture.contactPositionByMIDINote[note.midiNote])
+            contactErrors.append(simd_distance(try #require(joints.last), target))
             #expect(frame.jointRotations.allSatisfy {
                 abs(simd_length($0) - 1) < 0.000_1
             }, "fixture=\(fixture.id), occurrence=\(occurrenceID)")
@@ -56,7 +58,22 @@ private struct HandMotionCorpus: Decodable {
         let id: String
         let notes: [Note]
 
-        func makeInput() -> PianoHandMotionClipBuilder.Input {
+        struct PreparedFixture {
+            let input: PianoHandMotionClipBuilder.Input
+            let contactPositionByMIDINote: [Int: SIMD3<Float>]
+        }
+
+        func makeInput() throws -> PreparedFixture {
+            let frame = try #require(KeyboardFrame(
+                a0World: .zero,
+                c8World: [1, 0, 0],
+                planeHeight: 0
+            ))
+            let geometry = try #require(VirtualPianoKeyGeometryService().generateKeyboardGeometry(from: frame))
+            let keyboardLayout = PianoHandMotionClipBuilder.KeyboardLayout(keyboardGeometry: geometry)
+            let contactPositionByMIDINote = Dictionary(uniqueKeysWithValues: keyboardLayout.keys.map {
+                ($0.midiNote, $0.contactPositionLocal)
+            })
             let contacts = notes.enumerated().map { index, note in
                 PianoKeyContactTimeline.Contact(
                     occurrenceID: "\(id)-\(index)",
@@ -74,24 +91,19 @@ private struct HandMotionCorpus: Decodable {
                     )
                 )
             }
-            let uniqueKeys = Dictionary(grouping: notes, by: \.midiNote).values.compactMap { $0.first }
-            return .init(
-                contacts: .init(contacts: contacts),
-                fingeringPlan: .init(results: notes.enumerated().map { index, note in
-                    .init(
-                        occurrenceID: "\(id)-\(index)",
-                        resolution: .planned(hand: note.scoreHand, finger: note.finger, source: .planned)
-                    )
-                }),
-                keyboardLayout: .init(keys: uniqueKeys.map { note in
-                    .init(
-                        midiNote: note.midiNote,
-                        contactPositionLocal: note.position,
-                        surfaceLocalY: note.position.y,
-                        topSurfaceSizeLocal: [0.022, 0.160]
-                    )
-                }),
-                scoreRevision: "hand-motion-corpus-v1"
+            return PreparedFixture(
+                input: .init(
+                    contacts: .init(contacts: contacts),
+                    fingeringPlan: .init(results: notes.enumerated().map { index, note in
+                        .init(
+                            occurrenceID: "\(id)-\(index)",
+                            resolution: .planned(hand: note.scoreHand, finger: note.finger, source: .planned)
+                        )
+                    }),
+                    keyboardLayout: keyboardLayout,
+                    scoreRevision: "hand-motion-corpus-v2"
+                ),
+                contactPositionByMIDINote: contactPositionByMIDINote
             )
         }
     }
@@ -101,32 +113,6 @@ private struct HandMotionCorpus: Decodable {
         let hand: String
         let finger: Int
         let onsetSeconds: TimeInterval
-        let position: SIMD3<Float>
-
-        private enum CodingKeys: String, CodingKey {
-            case midiNote
-            case hand
-            case finger
-            case onsetSeconds
-            case position
-        }
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            midiNote = try container.decode(Int.self, forKey: .midiNote)
-            hand = try container.decode(String.self, forKey: .hand)
-            finger = try container.decode(Int.self, forKey: .finger)
-            onsetSeconds = try container.decode(TimeInterval.self, forKey: .onsetSeconds)
-            let coordinates = try container.decode([Float].self, forKey: .position)
-            guard coordinates.count == 3 else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .position,
-                    in: container,
-                    debugDescription: "A hand-motion position requires three coordinates."
-                )
-            }
-            position = SIMD3(coordinates[0], coordinates[1], coordinates[2])
-        }
 
         var scoreHand: ScoreHand {
             hand == "left" ? .left : .right
@@ -136,7 +122,7 @@ private struct HandMotionCorpus: Decodable {
     static func load() throws -> Self {
         let url = HappyPianistTestFixtures.url(named: "HandMotionCorpus/manifest.json")
         let corpus = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
-        guard corpus.schemaVersion == 1 else {
+        guard corpus.schemaVersion == 2 else {
             throw DecodingError.dataCorrupted(.init(
                 codingPath: [],
                 debugDescription: "Unsupported hand-motion corpus schema."

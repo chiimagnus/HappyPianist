@@ -7,11 +7,12 @@ import Testing
 
 @Test
 func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
+    let keyboardGeometry = try productionKeyboardGeometry()
     let input = PianoHandMotionClipBuilder.Input(
         contacts: PianoKeyContactTimeline(contacts: [
             contact(id: "left", midiNote: 48, onset: 0.1),
             contact(id: "right", midiNote: 60, onset: 0.2),
-            contact(id: "right-chord", midiNote: 61, onset: 0.2),
+            contact(id: "right-chord", midiNote: 64, onset: 0.2),
             contact(id: "right-next", midiNote: 62, onset: 0.4),
         ]),
         fingeringPlan: PianoFingeringPlanner.Plan(results: [
@@ -20,12 +21,7 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
             .init(occurrenceID: "right-chord", resolution: .planned(hand: .right, finger: 2, source: .planned)),
             .init(occurrenceID: "right-next", resolution: .planned(hand: .right, finger: 2, source: .planned)),
         ]),
-        keyboardLayout: .init(keys: [
-            key(midiNote: 48, position: [-0.10, 0, -0.07]),
-            key(midiNote: 60, position: [0.10, 0, -0.07]),
-            key(midiNote: 61, position: [0.11, 0, -0.07]),
-            key(midiNote: 62, position: [0.12, 0, -0.07]),
-        ]),
+        keyboardLayout: .init(keyboardGeometry: keyboardGeometry),
         scoreRevision: "test-score"
     )
 
@@ -53,8 +49,9 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
 
 @Test
 func builderKeepsHeldFingertipsOnTheirKeysDuringTheNextAttack() throws {
-    let heldKey = SIMD3<Float>(0.10, 0, -0.07)
-    let attackKey = SIMD3<Float>(0.12, 0, -0.07)
+    let keyboardGeometry = try productionKeyboardGeometry()
+    let heldKey = try contactPosition(midiNote: 60, in: keyboardGeometry)
+    let attackKey = try contactPosition(midiNote: 62, in: keyboardGeometry)
     let result = try PianoHandMotionClipBuilder().build(input: .init(
         contacts: .init(contacts: [
             contact(id: "held", midiNote: 60, onset: 0.2, release: 0.6),
@@ -64,10 +61,7 @@ func builderKeepsHeldFingertipsOnTheirKeysDuringTheNextAttack() throws {
             .init(occurrenceID: "held", resolution: .planned(hand: .right, finger: 2, source: .planned)),
             .init(occurrenceID: "attack", resolution: .planned(hand: .right, finger: 3, source: .planned)),
         ]),
-        keyboardLayout: .init(keys: [
-            key(midiNote: 60, position: heldKey),
-            key(midiNote: 62, position: attackKey),
-        ]),
+        keyboardLayout: .init(keyboardGeometry: keyboardGeometry),
         scoreRevision: "test-score"
     ))
 
@@ -85,12 +79,13 @@ func builderKeepsHeldFingertipsOnTheirKeysDuringTheNextAttack() throws {
 
 @Test
 func builderAddsAValidatedPreparationFrameBeforeTheFirstOnset() throws {
+    let keyboardGeometry = try productionKeyboardGeometry()
     let result = try PianoHandMotionClipBuilder().build(input: .init(
         contacts: .init(contacts: [contact(id: "first", midiNote: 60, onset: 0.4)]),
         fingeringPlan: .init(results: [
             .init(occurrenceID: "first", resolution: .planned(hand: .right, finger: 2, source: .planned)),
         ]),
-        keyboardLayout: .init(keys: [key(midiNote: 60, position: [0.10, 0, -0.07])]),
+        keyboardLayout: .init(keyboardGeometry: keyboardGeometry),
         scoreRevision: "test-score"
     ))
 
@@ -101,18 +96,19 @@ func builderAddsAValidatedPreparationFrameBeforeTheFirstOnset() throws {
 
 @Test
 func builderValidatesThePublishedSkeletonAtTheContactPoint() throws {
-    let target = SIMD3<Float>(0, 0, -0.07)
+    let keyboardGeometry = try productionKeyboardGeometry()
+    let target = try contactPosition(midiNote: 60, in: keyboardGeometry)
     let result = try PianoHandMotionClipBuilder().build(input: .init(
         contacts: .init(contacts: [contact(id: "contact", midiNote: 60, onset: 0)]),
         fingeringPlan: .init(results: [
             .init(occurrenceID: "contact", resolution: .planned(hand: .right, finger: 2, source: .planned)),
         ]),
-        keyboardLayout: .init(keys: [key(midiNote: 60, position: target)]),
+        keyboardLayout: .init(keyboardGeometry: keyboardGeometry),
         scoreRevision: "test-score"
     ))
 
     #expect(result.rejectedOccurrenceIDs.isEmpty)
-    let frame = try #require(result.clips.first?.frames.first)
+    let frame = try #require(result.clips.first?.frames.first { $0.timeSeconds == 0 })
     let joints = try #require(PianoDemonstrationHandSkeleton.fingerJointPositions(
         finger: 2,
         hand: .right,
@@ -279,6 +275,19 @@ func builderLiftsThePalmByOnlyTheRequiredKeyboardClearance() throws {
 
     #expect(result.rejectedOccurrenceIDs.isEmpty)
     #expect(result.clips[0].frames[0].rootTransform.translation.y > 0.045)
+}
+
+private func productionKeyboardGeometry() throws -> PianoKeyboardGeometry {
+    let frame = KeyboardFrame(worldFromKeyboard: matrix_identity_float4x4)
+    return try #require(VirtualPianoKeyGeometryService().generateKeyboardGeometry(from: frame))
+}
+
+private func contactPosition(
+    midiNote: Int,
+    in geometry: PianoKeyboardGeometry
+) throws -> SIMD3<Float> {
+    let layout = PianoHandMotionClipBuilder.KeyboardLayout(keyboardGeometry: geometry)
+    return try #require(layout.keys.first { $0.midiNote == midiNote }).contactPositionLocal
 }
 
 private func contact(
